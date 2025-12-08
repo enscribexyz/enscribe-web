@@ -71,6 +71,7 @@ export default function BatchNamingForm() {
   const [loading, setLoading] = useState(false)
   const [showL2Modal, setShowL2Modal] = useState(false)
   const [selectedL2ChainNames, setSelectedL2ChainNames] = useState<string[]>([])
+  const [skipL1Naming, setSkipL1Naming] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
   const [modalSteps, setModalSteps] = useState<Step[]>([])
   const [modalTitle, setModalTitle] = useState('')
@@ -278,6 +279,62 @@ export default function BatchNamingForm() {
     await publicClient.waitForTransactionReceipt({ hash: tx })
   }
 
+  // Process entries to add missing parent subdomains and sort
+  const processAndSortEntries = (entries: BatchEntry[], parent: string) => {
+    const processed: BatchEntry[] = []
+    const fullNames = new Set<string>()
+    
+    // Build full names for each entry
+    entries.forEach(entry => {
+      if (entry.address && entry.label) {
+        const fullName = `${entry.label}.${parent}`
+        fullNames.add(fullName)
+        processed.push({ ...entry, label: fullName })
+      }
+    })
+
+    // Find all required parent subdomains
+    const requiredParents = new Set<string>()
+    fullNames.forEach(name => {
+      const parts = name.split('.')
+      // For each subdomain, check if parent exists
+      for (let i = 1; i < parts.length - 1; i++) {
+        const parentSubdomain = parts.slice(i).join('.')
+        // Only add if it's not the base parent and doesn't already exist
+        if (parentSubdomain !== parent && !fullNames.has(parentSubdomain)) {
+          requiredParents.add(parentSubdomain)
+        }
+      }
+    })
+
+    // Add zero address entries for missing parents
+    requiredParents.forEach(parentSubdomain => {
+      // Extract just the label part (everything before the parent domain)
+      const label = parentSubdomain.replace(`.${parent}`, '')
+      processed.push({
+        id: `zero-${Date.now()}-${Math.random()}`,
+        address: '0x0000000000000000000000000000000000000000',
+        label: parentSubdomain
+      })
+    })
+
+    // Sort by nesting level and alphabetically
+    processed.sort((a, b) => {
+      const aLevel = a.label.split('.').length
+      const bLevel = b.label.split('.').length
+      
+      // First sort by nesting level (fewer dots = higher level = first)
+      if (aLevel !== bLevel) {
+        return aLevel - bLevel
+      }
+      
+      // If same level, sort alphabetically
+      return a.label.localeCompare(b.label)
+    })
+
+    return processed
+  }
+
   const handleBatchNaming = async () => {
     if (!isConnected) {
       toast({ title: 'Error', description: 'Please connect your wallet', variant: 'destructive' })
@@ -304,6 +361,9 @@ export default function BatchNamingForm() {
       const wagmiChain = CHAIN_TO_WAGMI_CHAIN[chain!.id]
       const publicClient = createPublicClient({ chain: wagmiChain, transport: http() })
 
+      // Process entries to add missing parents and sort
+      const processedEntries = processAndSortEntries(validEntries, parentName)
+
       const steps: Step[] = []
       
       // Step 1: Grant operator access
@@ -316,10 +376,10 @@ export default function BatchNamingForm() {
 
       // Step 2: Batch naming
       steps.push({
-        title: `Name ${validEntries.length} contracts`,
+        title: `Name ${processedEntries.length} entries (${validEntries.length} contracts + ${processedEntries.length - validEntries.length} parent subdomains)`,
         action: async () => {
-          const addresses = validEntries.map((e) => e.address as `0x${string}`)
-          const labels = validEntries.map((e) => e.label)
+          const addresses = processedEntries.map((e) => e.address as `0x${string}`)
+          const labels = processedEntries.map((e) => e.label)
 
           const pricing = await readContract(publicClient, {
             address: config!.ENSCRIBE_CONTRACT as `0x${string}`,
@@ -329,7 +389,13 @@ export default function BatchNamingForm() {
           })
 
           // Determine coin types based on selected L2 chains
-          const coinTypes: bigint[] = [60n] // Always include ETH
+          const coinTypes: bigint[] = []
+          
+          // Only include cointype 60 if NOT skipping L1 naming
+          if (!skipL1Naming) {
+            coinTypes.push(60n)
+          }
+          
           const isL1Mainnet = chain?.id === CHAINS.MAINNET
 
           for (const chainName of selectedL2ChainNames) {
@@ -377,32 +443,39 @@ export default function BatchNamingForm() {
         }
       })
 
-      // Step 3: Check each contract for reverse resolution
-      for (const entry of validEntries) {
-        const isOwnable = await checkIfOwnable(entry.address)
-        if (isOwnable) {
-          const isOwner = await checkIsOwner(entry.address)
-          if (isOwner) {
-            const name = `${entry.label}.${parentName}`
-            
-            // Add reverse resolution for L1
-            steps.push({
-              title: `Set reverse record for ${entry.label}`,
-              action: async () => {
-                const tx = await writeContract(walletClient!, {
-                  address: config!.REVERSE_REGISTRAR as `0x${string}`,
-                  abi: reverseRegistrarABI,
-                  functionName: 'setNameForAddr',
-                  args: [
-                    entry.address as `0x${string}`,
-                    walletAddress!,
-                    config!.PUBLIC_RESOLVER as `0x${string}`,
-                    name,
-                  ],
-                })
-                await publicClient.waitForTransactionReceipt({ hash: tx })
-              }
-            })
+      // Step 3: Check each contract for reverse resolution (only for non-zero addresses and if not skipping L1)
+      if (!skipL1Naming) {
+        for (const entry of processedEntries) {
+          // Skip zero addresses
+          if (entry.address === '0x0000000000000000000000000000000000000000') {
+            continue
+          }
+          
+          const isOwnable = await checkIfOwnable(entry.address)
+          if (isOwnable) {
+            const isOwner = await checkIsOwner(entry.address)
+            if (isOwner) {
+              const labelOnly = entry.label.split('.')[0]
+              
+              // Add reverse resolution for L1
+              steps.push({
+                title: `Set reverse record for ${labelOnly}`,
+                action: async () => {
+                  const tx = await writeContract(walletClient!, {
+                    address: config!.REVERSE_REGISTRAR as `0x${string}`,
+                    abi: reverseRegistrarABI,
+                    functionName: 'setNameForAddr',
+                    args: [
+                      entry.address as `0x${string}`,
+                      walletAddress!,
+                      config!.PUBLIC_RESOLVER as `0x${string}`,
+                      entry.label,
+                    ],
+                  })
+                  await publicClient.waitForTransactionReceipt({ hash: tx })
+                }
+              })
+            }
           }
         }
       }
@@ -417,7 +490,7 @@ export default function BatchNamingForm() {
 
       setModalSteps(steps)
       setModalTitle('Batch Naming')
-      setModalSubtitle(`Naming ${validEntries.length} contracts`)
+      setModalSubtitle(`Naming ${processedEntries.length} entries (${validEntries.length} contracts + ${processedEntries.length - validEntries.length} parent subdomains)`)
       setModalOpen(true)
 
     } catch (error: any) {
@@ -468,25 +541,26 @@ export default function BatchNamingForm() {
             <div key={entry.id} className="flex items-center gap-2">
               <Input
                 type="text"
-                placeholder="Enter address or ENS..."
+                placeholder="Enter address"
                 value={entry.address}
                 onChange={(e) => updateEntry(entry.id, 'address', e.target.value)}
                 className="flex-1 px-4 py-2 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600"
               />
               <Input
                 type="text"
-                placeholder="Label"
+                placeholder="Name"
                 value={entry.label}
                 onChange={(e) => updateEntry(entry.id, 'label', e.target.value)}
                 className="w-48 px-4 py-2 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600"
               />
-              <button
-                onClick={() => removeEntry(entry.id)}
-                className="p-2 text-gray-400 hover:text-red-600 dark:hover:text-red-400 rounded"
-                disabled={batchEntries.length === 1}
-              >
-                <X className="w-5 h-5" />
-              </button>
+              {batchEntries.length > 1 && (
+                <button
+                  onClick={() => removeEntry(entry.id)}
+                  className="p-2 text-gray-400 hover:text-red-600 dark:hover:text-red-400 rounded"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              )}
             </div>
           ))}
           
@@ -522,9 +596,25 @@ export default function BatchNamingForm() {
 
       {/* Advanced Options - L2 Chains */}
       <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-gray-50 dark:bg-gray-800">
-        <label className="block text-gray-700 dark:text-gray-300 mb-3">
-          Naming on L2 Chains (Optional)
-        </label>
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <label className="block text-gray-700 dark:text-gray-300">
+            Naming on L2 Chains (Optional)
+          </label>
+          
+          {selectedL2ChainNames.length > 0 && (
+            <div className="flex items-center gap-2 shrink-0 whitespace-nowrap">
+              <span className="text-gray-700 dark:text-gray-300 text-sm">
+                Skip L1 Naming
+              </span>
+              <input
+                type="checkbox"
+                checked={skipL1Naming}
+                onChange={(e) => setSkipL1Naming(e.target.checked)}
+                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+              />
+            </div>
+          )}
+        </div>
 
         {selectedL2ChainNames.length > 0 && (
           <div className="mb-4">
@@ -739,6 +829,7 @@ export default function BatchNamingForm() {
           setParentType('web3labs')
           setParentName(enscribeDomain)
           setSelectedL2ChainNames([])
+          setSkipL1Naming(false)
         }}
         steps={modalSteps}
         title={modalTitle}
