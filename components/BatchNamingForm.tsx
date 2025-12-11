@@ -3,12 +3,20 @@ import { useAccount, useWalletClient } from 'wagmi'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
+import { Checkbox } from '@/components/ui/checkbox'
 import { useToast } from '@/hooks/use-toast'
 import { CONTRACTS, CHAINS } from '../utils/constants'
 import { isAddress, encodeFunctionData, namehash } from 'viem'
 import { readContract, writeContract } from 'viem/actions'
 import { createPublicClient, http } from 'viem'
-import { X } from 'lucide-react'
+import { X, Copy, Check } from 'lucide-react'
+import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import enscribeV2ContractABI from '../contracts/EnscribeV2'
 import ensRegistryABI from '../contracts/ENSRegistry'
 import nameWrapperABI from '../contracts/NameWrapper'
@@ -79,6 +87,11 @@ export default function BatchNamingForm() {
   const [showENSModal, setShowENSModal] = useState(false)
   const [fetchingENS, setFetchingENS] = useState(false)
   const [userOwnedDomains, setUserOwnedDomains] = useState<string[]>([])
+  const [isAdvancedOpen, setIsAdvancedOpen] = useState(false)
+  const [callDataList, setCallDataList] = useState<string[]>([])
+  const [copied, setCopied] = useState<{ [key: string]: boolean }>({})
+  const [allCallData, setAllCallData] = useState<string>('')
+  const [isCallDataOpen, setIsCallDataOpen] = useState<boolean>(false)
 
   useEffect(() => {
     if (enscribeDomain) {
@@ -181,6 +194,147 @@ export default function BatchNamingForm() {
     }
     reader.readAsText(file)
   }
+
+  const copyToClipboard = (text: string, id: string) => {
+    navigator.clipboard.writeText(text)
+    setCopied({ ...copied, [id]: true })
+    setTimeout(() => {
+      setCopied({ ...copied, [id]: false })
+    }, 2000)
+  }
+
+  const generateCallData = async () => {
+    if (!walletClient || !config || !parentName) {
+      setCallDataList([])
+      return
+    }
+
+    const validEntries = batchEntries.filter(
+      (e) => e.address && e.label && isAddress(e.address)
+    )
+
+    if (validEntries.length === 0) {
+      setCallDataList([])
+      return
+    }
+
+    const processedEntries = processAndSortEntries(validEntries, parentName)
+    const callDataArray: string[] = []
+
+    try {
+      // 1. Grant operator access
+      const parentNode = namehash(parentName)
+      const wagmiChain = CHAIN_TO_WAGMI_CHAIN[chain!.id]
+      const publicClient = createPublicClient({ chain: wagmiChain, transport: http() })
+
+      const owner = await readContract(publicClient, {
+        address: config.ENS_REGISTRY as `0x${string}`,
+        abi: ensRegistryABI,
+        functionName: 'owner',
+        args: [parentNode],
+      })
+
+      const isWrapped = owner === config.NAME_WRAPPER
+
+      const approvalCallData = encodeFunctionData({
+        abi: isWrapped ? nameWrapperABI : ensRegistryABI,
+        functionName: 'setApprovalForAll',
+        args: [config.ENSCRIBE_CONTRACT, true],
+      })
+      callDataArray.push(`${isWrapped ? 'NameWrapper' : 'ENSRegistry'}.setApprovalForAll (grant): ${approvalCallData}`)
+
+      // 2. Batch naming
+      const addresses = processedEntries.map((e) => e.address as `0x${string}`)
+      const labels = processedEntries.map((e) => e.label)
+
+      const coinTypes: bigint[] = []
+      if (!skipL1Naming) {
+        coinTypes.push(60n)
+      }
+
+      const isL1Mainnet = chain?.id === CHAINS.MAINNET
+      for (const chainName of selectedL2ChainNames) {
+        if (chainName === 'Optimism') {
+          const chainId = isL1Mainnet ? CHAINS.OPTIMISM : CHAINS.OPTIMISM_SEPOLIA
+          coinTypes.push(BigInt(CONTRACTS[chainId].COIN_TYPE))
+        } else if (chainName === 'Arbitrum') {
+          const chainId = isL1Mainnet ? CHAINS.ARBITRUM : CHAINS.ARBITRUM_SEPOLIA
+          coinTypes.push(BigInt(CONTRACTS[chainId].COIN_TYPE))
+        } else if (chainName === 'Scroll') {
+          const chainId = isL1Mainnet ? CHAINS.SCROLL : CHAINS.SCROLL_SEPOLIA
+          coinTypes.push(BigInt(CONTRACTS[chainId].COIN_TYPE))
+        } else if (chainName === 'Base') {
+          const chainId = isL1Mainnet ? CHAINS.BASE : CHAINS.BASE_SEPOLIA
+          coinTypes.push(BigInt(CONTRACTS[chainId].COIN_TYPE))
+        } else if (chainName === 'Linea') {
+          const chainId = isL1Mainnet ? CHAINS.LINEA : CHAINS.LINEA_SEPOLIA
+          coinTypes.push(BigInt(CONTRACTS[chainId].COIN_TYPE))
+        }
+      }
+
+      const uniqueCoinTypes = [...new Set(coinTypes)]
+
+      let batchCallData
+      if (uniqueCoinTypes.length === 1 && uniqueCoinTypes[0] === 60n) {
+        batchCallData = encodeFunctionData({
+          abi: enscribeV2ContractABI,
+          functionName: 'setNameBatch',
+          args: [addresses, labels, parentName],
+        })
+      } else {
+        batchCallData = encodeFunctionData({
+          abi: enscribeV2ContractABI,
+          functionName: 'setNameBatch',
+          args: [addresses, labels, parentName, uniqueCoinTypes],
+        })
+      }
+      callDataArray.push(`Enscribe.setNameBatch: ${batchCallData}`)
+
+      // 3. Reverse resolution (if applicable)
+      if (!skipL1Naming) {
+        for (const entry of processedEntries) {
+          if (entry.address === '0x0000000000000000000000000000000000000000') {
+            continue
+          }
+          
+          const labelOnly = entry.label.split('.')[0]
+          const reverseCallData = encodeFunctionData({
+            abi: reverseRegistrarABI,
+            functionName: 'setNameForAddr',
+            args: [
+              entry.address as `0x${string}`,
+              walletAddress!,
+              config.PUBLIC_RESOLVER as `0x${string}`,
+              entry.label,
+            ],
+          })
+          callDataArray.push(`ReverseRegistrar.setNameForAddr (${labelOnly}): ${reverseCallData}`)
+        }
+      }
+
+      // 4. Revoke operator access
+      const revokeCallData = encodeFunctionData({
+        abi: isWrapped ? nameWrapperABI : ensRegistryABI,
+        functionName: 'setApprovalForAll',
+        args: [config.ENSCRIBE_CONTRACT, false],
+      })
+      callDataArray.push(`${isWrapped ? 'NameWrapper' : 'ENSRegistry'}.setApprovalForAll (revoke): ${revokeCallData}`)
+
+      setCallDataList(callDataArray)
+      setAllCallData(callDataArray.join('\n\n'))
+    } catch (error) {
+      console.error('Error generating call data:', error)
+      setCallDataList([])
+    }
+  }
+
+  useEffect(() => {
+    if (parentName && batchEntries.some(e => e.address && e.label)) {
+      generateCallData()
+    } else {
+      setCallDataList([])
+    }
+  }, [batchEntries, parentName, selectedL2ChainNames, skipL1Naming, walletAddress, config, chain?.id])
 
   const downloadTemplate = () => {
     const csvContent = 'address,name\n0x1234567890123456789012345678901234567890,mycontract.enscribe.eth\n0x0987654321098765432109876543210987654321,anothercontract.enscribe.eth'
@@ -594,64 +748,192 @@ export default function BatchNamingForm() {
         </div>
       </div>
 
-      {/* Advanced Options - L2 Chains */}
-      <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-gray-50 dark:bg-gray-800">
-        <div className="flex items-center justify-between gap-3 mb-3">
-          <label className="block text-gray-700 dark:text-gray-300">
-            Naming on L2 Chains (Optional)
-          </label>
-          
-          {selectedL2ChainNames.length > 0 && (
-            <div className="flex items-center gap-2 shrink-0 whitespace-nowrap">
-              <span className="text-gray-700 dark:text-gray-300 text-sm">
-                Skip L1 Naming
-              </span>
-              <input
-                type="checkbox"
-                checked={skipL1Naming}
-                onChange={(e) => setSkipL1Naming(e.target.checked)}
-                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-              />
-            </div>
+      {/* Advanced Options */}
+      <div className="mt-4 mb-4">
+        <button
+          type="button"
+          onClick={() => setIsAdvancedOpen(!isAdvancedOpen)}
+          className="flex items-center gap-2 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors"
+        >
+          {isAdvancedOpen ? (
+            <ChevronDownIcon className="w-5 h-5" />
+          ) : (
+            <ChevronRightIcon className="w-5 h-5" />
           )}
-        </div>
+          <span className="text-lg font-medium">Advanced Options</span>
+        </button>
 
-        {selectedL2ChainNames.length > 0 && (
-          <div className="mb-4">
-            <div className="flex flex-wrap gap-2">
-              {selectedL2ChainNames.map((chainName) => {
-                const logoSrc =
-                  chainName === 'Optimism' ? '/images/optimism.svg' :
-                  chainName === 'Arbitrum' ? '/images/arbitrum.svg' :
-                  chainName === 'Scroll' ? '/images/scroll.svg' :
-                  chainName === 'Base' ? '/images/base.svg' :
-                  '/images/linea.svg'
-                
-                return (
-                  <div key={chainName} className="flex items-center gap-2 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-3 py-1 rounded-full text-sm">
-                    <Image src={logoSrc} alt={chainName} width={14} height={14} />
-                    <span>{chainName}</span>
-                    <button
-                      onClick={() => setSelectedL2ChainNames(selectedL2ChainNames.filter(c => c !== chainName))}
-                      className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200"
-                    >
-                      ×
-                    </button>
-                  </div>
-                )
-              })}
+        {isAdvancedOpen && (
+          <div className="mt-4 space-y-4 border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-gray-50 dark:bg-gray-800">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <label className="block text-gray-700 dark:text-gray-300">
+                  Naming on L2 Chains
+                </label>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="inline-flex items-center justify-center w-4 h-4 rounded-full border border-gray-400 text-gray-600 dark:text-gray-300 text-xs select-none">
+                        i
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      <p>
+                        Select which L2 chains to set coin types for. This will add the corresponding coin types for all contracts.
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+
+              {selectedL2ChainNames.length > 0 && (
+                <div className="flex items-center gap-2 shrink-0 whitespace-nowrap">
+                  <span className="text-gray-700 dark:text-gray-300">
+                    Skip L1 Naming
+                  </span>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="inline-flex items-center justify-center w-4 h-4 rounded-full border border-gray-400 text-gray-600 dark:text-gray-300 text-xs select-none">
+                          i
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        <p>
+                          Select this if you want to name only on the selected L2 chains and skip L1 naming (cointype 60).
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                  <Checkbox
+                    checked={skipL1Naming}
+                    onCheckedChange={(val) => setSkipL1Naming(Boolean(val))}
+                    aria-label="Skip L1 Naming"
+                  />
+                </div>
+              )}
             </div>
+
+            {/* Selected L2 Chains Display */}
+            {selectedL2ChainNames.length > 0 && (
+              <div>
+                <div className="flex flex-wrap gap-2">
+                  {selectedL2ChainNames.map((chainName) => {
+                    const logoSrc =
+                      chainName === 'Optimism' ? '/images/optimism.svg' :
+                      chainName === 'Arbitrum' ? '/images/arbitrum.svg' :
+                      chainName === 'Scroll' ? '/images/scroll.svg' :
+                      chainName === 'Base' ? '/images/base.svg' :
+                      '/images/linea.svg'
+                    
+                    return (
+                      <div key={chainName} className="flex items-center gap-2 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-3 py-1 rounded-full text-sm">
+                        <Image src={logoSrc} alt={chainName} width={14} height={14} />
+                        <span>{chainName}</span>
+                        <button
+                          onClick={() => setSelectedL2ChainNames(selectedL2ChainNames.filter(c => c !== chainName))}
+                          className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* L2 Chain chooser button */}
+            <div>
+              <Button
+                type="button"
+                className="bg-gray-900 text-white dark:bg-blue-700 dark:hover:bg-gray-800 dark:text-white"
+                onClick={() => setShowL2Modal(true)}
+                disabled={L2_CHAIN_OPTIONS.filter(c => !selectedL2ChainNames.includes(c)).length === 0}
+              >
+                Choose L2 Chains
+              </Button>
+            </div>
+
+            {/* Call data section */}
+            {callDataList.length > 0 && (
+              <div className="border-t border-gray-200 dark:border-gray-600 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setIsCallDataOpen(!isCallDataOpen)}
+                  className="flex items-center gap-2 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors mb-3"
+                >
+                  {isCallDataOpen ? (
+                    <ChevronDownIcon className="w-4 h-4" />
+                  ) : (
+                    <ChevronRightIcon className="w-4 h-4" />
+                  )}
+                  <span className="text-sm font-medium">Call Data ({callDataList.length} calls)</span>
+                </button>
+
+                {isCallDataOpen && (
+                  <div className="space-y-3">
+                    {/* Copy All Button */}
+                    <div className="flex justify-end">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => copyToClipboard(allCallData, 'all')}
+                        className="text-xs"
+                      >
+                        {copied['all'] ? (
+                          <>
+                            <Check className="h-3 w-3 mr-1 text-green-500" />
+                            Copied All
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="h-3 w-3 mr-1" />
+                            Copy All
+                          </>
+                        )}
+                      </Button>
+                    </div>
+
+                    {/* Individual Call Data Items */}
+                    <div className="space-y-2 max-h-96 overflow-y-auto">
+                      {callDataList.map((callData, index) => (
+                        <div
+                          key={index}
+                          className="bg-white dark:bg-gray-900 rounded p-3 border border-gray-200 dark:border-gray-700"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-mono text-gray-600 dark:text-gray-400 break-all whitespace-pre-wrap">
+                                {callData}
+                              </p>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0 flex-shrink-0"
+                              onClick={() => {
+                                const parts = callData.split(': ')
+                                const hexData = parts.length > 1 ? parts[1] : callData
+                                copyToClipboard(hexData, `callData-${index}`)
+                              }}
+                            >
+                              {copied[`callData-${index}`] ? (
+                                <Check className="h-3 w-3 text-green-500" />
+                              ) : (
+                                <Copy className="h-3 w-3" />
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
-
-        <Button
-          type="button"
-          onClick={() => setShowL2Modal(true)}
-          className="bg-gray-900 text-white dark:bg-blue-700 dark:hover:bg-gray-800 dark:text-white"
-          disabled={L2_CHAIN_OPTIONS.filter(c => !selectedL2ChainNames.includes(c)).length === 0}
-        >
-          Choose L2 Chains
-        </Button>
       </div>
 
       {/* Submit Button */}

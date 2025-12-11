@@ -250,7 +250,25 @@ export default function Layout({ children }: LayoutProps) {
           {/* Navigation menu */}
           <nav className="px-4 py-6">
             <ul className="space-y-2">
-              {navigation.map((item) => (
+              {navigation.slice(0, 3).map((item) => (
+                <li key={item.name}>
+                  <Link href={item.href} legacyBehavior>
+                    <a className="flex items-center p-3 text-gray-300 hover:bg-gray-800 dark:hover:bg-gray-900 rounded-md transition-colors">
+                      <item.icon className="w-5 h-5 mr-3 text-gray-400" />
+                      {item.name}
+                    </a>
+                  </Link>
+                </li>
+              ))}
+              
+              {/* Divider */}
+              {navigation.length > 3 && (
+                <li className="py-2">
+                  <div className="border-t border-gray-700 dark:border-gray-600"></div>
+                </li>
+              )}
+              
+              {navigation.slice(3).map((item) => (
                 <li key={item.name}>
                   <Link href={item.href} legacyBehavior>
                     <a className="flex items-center p-3 text-gray-300 hover:bg-gray-800 dark:hover:bg-gray-900 rounded-md transition-colors">
@@ -340,7 +358,25 @@ export default function Layout({ children }: LayoutProps) {
         {/* Navigation Links */}
         <nav className="px-4 py-6 flex-grow">
           <ul className="space-y-2">
-            {navigation.map((item) => (
+            {navigation.slice(0, 3).map((item) => (
+              <li key={item.name}>
+                <Link href={item.href} legacyBehavior>
+                  <a className="flex items-center p-3 text-gray-300 hover:bg-gray-800 dark:hover:bg-gray-700 rounded-md transition-colors">
+                    <item.icon className="w-5 h-5 mr-3 text-gray-400" />
+                    {item.name}
+                  </a>
+                </Link>
+              </li>
+            ))}
+            
+            {/* Divider */}
+            {navigation.length > 3 && (
+              <li className="py-2">
+                <div className="border-t border-gray-700 dark:border-gray-600"></div>
+              </li>
+            )}
+            
+            {navigation.slice(3).map((item) => (
               <li key={item.name}>
                 <Link href={item.href} legacyBehavior>
                   <a className="flex items-center p-3 text-gray-300 hover:bg-gray-800 dark:hover:bg-gray-700 rounded-md transition-colors">
