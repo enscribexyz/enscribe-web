@@ -7,8 +7,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { useToast } from '@/hooks/use-toast'
 import { CONTRACTS, CHAINS } from '../utils/constants'
 import { isAddress, encodeFunctionData, namehash } from 'viem'
-import { readContract, writeContract } from 'viem/actions'
-import { createPublicClient, http } from 'viem'
+import { readContract, writeContract, waitForTransactionReceipt } from 'viem/actions'
 import { X, Copy, Check } from 'lucide-react'
 import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline'
 import {
@@ -23,20 +22,6 @@ import nameWrapperABI from '../contracts/NameWrapper'
 import reverseRegistrarABI from '@/contracts/ReverseRegistrar'
 import ownableContractABI from '@/contracts/Ownable'
 import Image from 'next/image'
-import {
-  mainnet,
-  base,
-  linea,
-  optimism,
-  arbitrum,
-  scroll,
-  sepolia,
-  baseSepolia,
-  lineaSepolia,
-  optimismSepolia,
-  arbitrumSepolia,
-  scrollSepolia,
-} from 'wagmi/chains'
 import SetNameStepsModal, { Step } from './SetNameStepsModal'
 
 interface BatchEntry {
@@ -45,20 +30,6 @@ interface BatchEntry {
   label: string
 }
 
-const CHAIN_TO_WAGMI_CHAIN: Record<number, any> = {
-  [CHAINS.MAINNET]: mainnet,
-  [CHAINS.BASE]: base,
-  [CHAINS.LINEA]: linea,
-  [CHAINS.OPTIMISM]: optimism,
-  [CHAINS.ARBITRUM]: arbitrum,
-  [CHAINS.SCROLL]: scroll,
-  [CHAINS.SEPOLIA]: sepolia,
-  [CHAINS.BASE_SEPOLIA]: baseSepolia,
-  [CHAINS.LINEA_SEPOLIA]: lineaSepolia,
-  [CHAINS.OPTIMISM_SEPOLIA]: optimismSepolia,
-  [CHAINS.ARBITRUM_SEPOLIA]: arbitrumSepolia,
-  [CHAINS.SCROLL_SEPOLIA]: scrollSepolia,
-}
 
 const L2_CHAIN_OPTIONS = ['Optimism', 'Arbitrum', 'Scroll', 'Base', 'Linea']
 
@@ -76,6 +47,7 @@ export default function BatchNamingForm() {
   ])
   const [parentName, setParentName] = useState('')
   const [parentType, setParentType] = useState<'web3labs' | 'own'>('web3labs')
+  const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [showL2Modal, setShowL2Modal] = useState(false)
   const [selectedL2ChainNames, setSelectedL2ChainNames] = useState<string[]>([])
@@ -93,6 +65,7 @@ export default function BatchNamingForm() {
   const [allCallData, setAllCallData] = useState<string>('')
   const [isCallDataOpen, setIsCallDataOpen] = useState<boolean>(false)
 
+  // Unsupported L2 gating for this page: Optimism/Arbitrum/Scroll/Linea/Base L2s should show guidance
   const isUnsupportedL2Chain = [
     CHAINS.OPTIMISM,
     CHAINS.OPTIMISM_SEPOLIA,
@@ -102,6 +75,8 @@ export default function BatchNamingForm() {
     CHAINS.SCROLL_SEPOLIA,
     CHAINS.LINEA,
     CHAINS.LINEA_SEPOLIA,
+    CHAINS.BASE,
+    CHAINS.BASE_SEPOLIA,
   ].includes((chain?.id as number) || -1)
 
   const unsupportedL2Name =
@@ -128,13 +103,53 @@ export default function BatchNamingForm() {
                         : ''
 
   useEffect(() => {
-    if (enscribeDomain) {
-      setParentName(enscribeDomain)
+    // Don't reset form if modal is open (to prevent closing during transaction)
+    if (modalOpen) {
+      console.log('Modal is open, skipping form reset to prevent interruption')
+      return
     }
-  }, [enscribeDomain])
+
+    setParentName(enscribeDomain)
+    setParentType('web3labs')
+    setError('')
+    setLoading(false)
+    setBatchEntries([{ id: '1', address: '', label: '' }])
+    setModalOpen(false)
+    setModalSteps([])
+    setModalTitle('')
+    setModalSubtitle('')
+    setUserOwnedDomains([])
+    setShowENSModal(false)
+    setSelectedL2ChainNames([])
+    setSkipL1Naming(false)
+    setIsAdvancedOpen(false)
+    setCallDataList([])
+    setCopied({})
+    setAllCallData('')
+    setIsCallDataOpen(false)
+  }, [chain?.id, isConnected, modalOpen, enscribeDomain])
+
+  useEffect(() => {
+    if (selectedL2ChainNames.length === 0) {
+      setSkipL1Naming(false)
+      // Collapse Advanced Options when all L2 chains are cleared
+      setIsAdvancedOpen(false)
+    }
+  }, [selectedL2ChainNames])
+
+  useEffect(() => {
+    if (parentName && batchEntries.some(e => e.address && e.label)) {
+      generateCallData()
+    } else {
+      setCallDataList([])
+    }
+  }, [batchEntries, parentName, selectedL2ChainNames, skipL1Naming, walletAddress, config, chain?.id])
 
   const addEntry = () => {
-    setBatchEntries([...batchEntries, { id: Date.now().toString(), address: '', label: '' }])
+    setBatchEntries([
+      ...batchEntries,
+      { id: Date.now().toString(), address: '', label: '' },
+    ])
   }
 
   const updateEntry = (id: string, field: 'address' | 'label', value: string) => {
@@ -149,6 +164,21 @@ export default function BatchNamingForm() {
     if (batchEntries.length > 1) {
       setBatchEntries(batchEntries.filter((entry) => entry.id !== id))
     }
+  }
+
+  // Function to copy text to clipboard
+  const copyToClipboard = (text: string, id: string) => {
+    navigator.clipboard
+      .writeText(text)
+      .then(() => {
+        setCopied({ ...copied, [id]: true })
+        setTimeout(() => {
+          setCopied({ ...copied, [id]: false })
+        }, 2000)
+      })
+      .catch((err) => {
+        console.error('Failed to copy text: ', err)
+      })
   }
 
   const fetchUserOwnedDomains = async () => {
@@ -335,6 +365,20 @@ export default function BatchNamingForm() {
     }
   }
 
+  const downloadTemplate = () => {
+    const csvContent =
+      'address,name\n0x1234567890123456789012345678901234567890,mycontract.enscribe.eth\n0x0987654321098765432109876543210987654321,anothercontract.enscribe.eth'
+    const blob = new Blob([csvContent], { type: 'text/csv' })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'batch-naming-template.csv'
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    window.URL.revokeObjectURL(url)
+  }
+
   const handleCsvUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
@@ -373,25 +417,29 @@ export default function BatchNamingForm() {
 
         if (detectedParentName) {
           setParentName(detectedParentName)
-          setParentType(detectedParentName === enscribeDomain ? 'web3labs' : 'own')
+          setParentType(
+            detectedParentName === enscribeDomain ? 'web3labs' : 'own'
+          )
         }
-        setBatchEntries([...batchEntries.filter(e => e.address || e.label), ...newEntries])
-        toast({ title: 'CSV Imported', description: `Imported ${newEntries.length} entries` })
+        setBatchEntries([
+          ...batchEntries.filter((e) => e.address || e.label),
+          ...newEntries,
+        ])
+        toast({
+          title: 'CSV Imported',
+          description: `Imported ${newEntries.length} entries`,
+        })
       } catch (error) {
-        toast({ title: 'Error', description: 'Failed to parse CSV', variant: 'destructive' })
+        toast({
+          title: 'Error',
+          description: 'Failed to parse CSV',
+          variant: 'destructive',
+        })
       } finally {
         if (fileInputRef.current) fileInputRef.current.value = ''
       }
     }
     reader.readAsText(file)
-  }
-
-  const copyToClipboard = (text: string, id: string) => {
-    navigator.clipboard.writeText(text)
-    setCopied({ ...copied, [id]: true })
-    setTimeout(() => {
-      setCopied({ ...copied, [id]: false })
-    }, 2000)
   }
 
   const generateCallData = async () => {
@@ -415,10 +463,8 @@ export default function BatchNamingForm() {
     try {
       // 1. Grant operator access
       const parentNode = namehash(parentName)
-      const wagmiChain = CHAIN_TO_WAGMI_CHAIN[chain!.id]
-      const publicClient = createPublicClient({ chain: wagmiChain, transport: http() })
 
-      const owner = await readContract(publicClient, {
+      const owner = await readContract(walletClient, {
         address: config.ENS_REGISTRY as `0x${string}`,
         abi: ensRegistryABI,
         functionName: 'owner',
@@ -432,7 +478,9 @@ export default function BatchNamingForm() {
         functionName: 'setApprovalForAll',
         args: [config.ENSCRIBE_CONTRACT, true],
       })
-      callDataArray.push(`${isWrapped ? 'NameWrapper' : 'ENSRegistry'}.setApprovalForAll (grant): ${approvalCallData}`)
+      callDataArray.push(
+        `${isWrapped ? 'NameWrapper' : 'ENSRegistry'}.setApprovalForAll (grant): ${approvalCallData}`
+      )
 
       // 2. Batch naming
       const addresses = processedEntries.map((e) => e.address as `0x${string}`)
@@ -444,21 +492,18 @@ export default function BatchNamingForm() {
       }
 
       const isL1Mainnet = chain?.id === CHAINS.MAINNET
+      
       for (const chainName of selectedL2ChainNames) {
-        if (chainName === 'Optimism') {
-          const chainId = isL1Mainnet ? CHAINS.OPTIMISM : CHAINS.OPTIMISM_SEPOLIA
-          coinTypes.push(BigInt(CONTRACTS[chainId].COIN_TYPE))
-        } else if (chainName === 'Arbitrum') {
-          const chainId = isL1Mainnet ? CHAINS.ARBITRUM : CHAINS.ARBITRUM_SEPOLIA
-          coinTypes.push(BigInt(CONTRACTS[chainId].COIN_TYPE))
-        } else if (chainName === 'Scroll') {
-          const chainId = isL1Mainnet ? CHAINS.SCROLL : CHAINS.SCROLL_SEPOLIA
-          coinTypes.push(BigInt(CONTRACTS[chainId].COIN_TYPE))
-        } else if (chainName === 'Base') {
-          const chainId = isL1Mainnet ? CHAINS.BASE : CHAINS.BASE_SEPOLIA
-          coinTypes.push(BigInt(CONTRACTS[chainId].COIN_TYPE))
-        } else if (chainName === 'Linea') {
-          const chainId = isL1Mainnet ? CHAINS.LINEA : CHAINS.LINEA_SEPOLIA
+        const chainConfigs = {
+          Optimism: isL1Mainnet ? CHAINS.OPTIMISM : CHAINS.OPTIMISM_SEPOLIA,
+          Arbitrum: isL1Mainnet ? CHAINS.ARBITRUM : CHAINS.ARBITRUM_SEPOLIA,
+          Scroll: isL1Mainnet ? CHAINS.SCROLL : CHAINS.SCROLL_SEPOLIA,
+          Base: isL1Mainnet ? CHAINS.BASE : CHAINS.BASE_SEPOLIA,
+          Linea: isL1Mainnet ? CHAINS.LINEA : CHAINS.LINEA_SEPOLIA,
+        }
+        
+        const chainId = chainConfigs[chainName as keyof typeof chainConfigs]
+        if (chainId) {
           coinTypes.push(BigInt(CONTRACTS[chainId].COIN_TYPE))
         }
       }
@@ -484,10 +529,12 @@ export default function BatchNamingForm() {
       // 3. Reverse resolution (if applicable)
       if (!skipL1Naming) {
         for (const entry of processedEntries) {
-          if (entry.address === '0x0000000000000000000000000000000000000000') {
+          if (
+            entry.address === '0x0000000000000000000000000000000000000000'
+          ) {
             continue
           }
-          
+
           const labelOnly = entry.label.split('.')[0]
           const reverseCallData = encodeFunctionData({
             abi: reverseRegistrarABI,
@@ -499,7 +546,9 @@ export default function BatchNamingForm() {
               entry.label,
             ],
           })
-          callDataArray.push(`ReverseRegistrar.setNameForAddr (${labelOnly}): ${reverseCallData}`)
+          callDataArray.push(
+            `ReverseRegistrar.setNameForAddr (${labelOnly}): ${reverseCallData}`
+          )
         }
       }
 
@@ -509,7 +558,9 @@ export default function BatchNamingForm() {
         functionName: 'setApprovalForAll',
         args: [config.ENSCRIBE_CONTRACT, false],
       })
-      callDataArray.push(`${isWrapped ? 'NameWrapper' : 'ENSRegistry'}.setApprovalForAll (revoke): ${revokeCallData}`)
+      callDataArray.push(
+        `${isWrapped ? 'NameWrapper' : 'ENSRegistry'}.setApprovalForAll (revoke): ${revokeCallData}`
+      )
 
       setCallDataList(callDataArray)
       setAllCallData(callDataArray.join('\n\n'))
@@ -519,118 +570,241 @@ export default function BatchNamingForm() {
     }
   }
 
-  useEffect(() => {
-    if (parentName && batchEntries.some(e => e.address && e.label)) {
-      generateCallData()
-    } else {
-      setCallDataList([])
-    }
-  }, [batchEntries, parentName, selectedL2ChainNames, skipL1Naming, walletAddress, config, chain?.id])
 
-  const downloadTemplate = () => {
-    const csvContent = 'address,name\n0x1234567890123456789012345678901234567890,mycontract.enscribe.eth\n0x0987654321098765432109876543210987654321,anothercontract.enscribe.eth'
-    const blob = new Blob([csvContent], { type: 'text/csv' })
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = 'batch-naming-template.csv'
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    window.URL.revokeObjectURL(url)
+  const getParentNode = (name: string) => {
+    try {
+      return namehash(name)
+    } catch (error) {
+      return ''
+    }
   }
 
-  const checkIfOwnable = async (contractAddress: string): Promise<boolean> => {
+  function isEmpty(value: string) {
+    return value == null || value.trim().length === 0
+  }
+
+  const checkIfAddressEmpty = (address: string): boolean => {
+    return isEmpty(address)
+  }
+
+  const isAddressValidCheck = (address: string): boolean => {
+    if (isEmpty(address)) {
+      return false
+    }
+
+    if (!isAddress(address)) {
+      return false
+    }
+    return true
+  }
+
+  const checkIfOwnable = async (
+    contractAddress: string
+  ): Promise<boolean> => {
+    if (
+      checkIfAddressEmpty(contractAddress) ||
+      !isAddressValidCheck(contractAddress) ||
+      !walletClient
+    ) {
+      return false
+    }
+
     try {
-      const wagmiChain = CHAIN_TO_WAGMI_CHAIN[chain!.id]
-      const publicClient = createPublicClient({ chain: wagmiChain, transport: http() })
-      await readContract(publicClient, {
+      const ownerAddress = (await readContract(walletClient, {
         address: contractAddress as `0x${string}`,
         abi: ownableContractABI,
         functionName: 'owner',
-      })
+        args: [],
+      })) as `0x${string}`
+
+      console.log('contract ownable')
       return true
-    } catch {
+    } catch (err) {
+      console.log('err ' + err)
       return false
     }
   }
 
-  const checkIsOwner = async (contractAddress: string): Promise<boolean> => {
+  const checkIfContractOwner = async (
+    contractAddress: string
+  ): Promise<boolean> => {
+    if (
+      checkIfAddressEmpty(contractAddress) ||
+      !isAddressValidCheck(contractAddress) ||
+      !walletClient ||
+      !config?.ENS_REGISTRY ||
+      !walletAddress
+    ) {
+      return false
+    }
+    
     try {
-      const wagmiChain = CHAIN_TO_WAGMI_CHAIN[chain!.id]
-      const publicClient = createPublicClient({ chain: wagmiChain, transport: http() })
-      const owner = await readContract(publicClient, {
+      const ownerAddress = (await readContract(walletClient, {
         address: contractAddress as `0x${string}`,
         abi: ownableContractABI,
         functionName: 'owner',
-      })
-      return owner === walletAddress
-    } catch {
-      return false
+        args: [],
+      })) as `0x${string}`
+      
+      console.log(
+        `ownerAddress: ${ownerAddress.toLowerCase()} signer: ${walletAddress}`,
+      )
+      return ownerAddress.toLowerCase() === walletAddress.toLowerCase()
+    } catch (err) {
+      console.log('err ' + err)
+      const addrLabel = contractAddress.slice(2).toLowerCase()
+      const reversedNode = namehash(addrLabel + '.' + 'addr.reverse')
+      
+      try {
+        const resolvedAddr = (await readContract(walletClient, {
+          address: config.ENS_REGISTRY as `0x${string}`,
+          abi: ensRegistryABI,
+          functionName: 'owner',
+          args: [reversedNode],
+        })) as string
+
+        console.log(
+          `resolvedAddr: ${resolvedAddr.toLowerCase()} signer: ${walletAddress}`,
+        )
+        return resolvedAddr.toLowerCase() === walletAddress.toLowerCase()
+      } catch (error) {
+        console.log('Error checking reverse registrar owner:', error)
+        return false
+      }
     }
   }
 
   const grantOperatorAccess = async () => {
-    if (!walletClient || !config) return
+    if (
+      !walletClient ||
+      !walletAddress ||
+      !config?.ENS_REGISTRY ||
+      !config?.ENSCRIBE_CONTRACT ||
+      !getParentNode(parentName)
+    ) {
+      console.log('Missing required parameters for granting operator access')
+      return
+    }
 
-    const parentNode = namehash(parentName)
-    const wagmiChain = CHAIN_TO_WAGMI_CHAIN[chain!.id]
-    const publicClient = createPublicClient({ chain: wagmiChain, transport: http() })
+    try {
+      const parentNode = getParentNode(parentName)
+      
+      if (chain?.id === CHAINS.BASE || chain?.id === CHAINS.BASE_SEPOLIA) {
+        const tx = await writeContract(walletClient, {
+          address: config.ENS_REGISTRY as `0x${string}`,
+          abi: ensRegistryABI,
+          functionName: 'setApprovalForAll',
+          args: [config.ENSCRIBE_CONTRACT, true],
+          account: walletAddress,
+        })
 
-    const owner = await readContract(publicClient, {
-      address: config.ENS_REGISTRY as `0x${string}`,
-      abi: ensRegistryABI,
-      functionName: 'owner',
-      args: [parentNode],
-    })
+        await waitForTransactionReceipt(walletClient, { hash: tx })
+      } else {
+        const isWrapped = (await readContract(walletClient, {
+          address: config.NAME_WRAPPER as `0x${string}`,
+          abi: nameWrapperABI,
+          functionName: 'isWrapped',
+          args: [parentNode],
+        })) as boolean
 
-    const isWrapped = owner === config.NAME_WRAPPER
+        const tx = isWrapped
+          ? await writeContract(walletClient, {
+              address: config.NAME_WRAPPER as `0x${string}`,
+              abi: nameWrapperABI,
+              functionName: 'setApprovalForAll',
+              args: [config.ENSCRIBE_CONTRACT, true],
+              account: walletAddress,
+            })
+          : await writeContract(walletClient, {
+              address: config.ENS_REGISTRY as `0x${string}`,
+              abi: ensRegistryABI,
+              functionName: 'setApprovalForAll',
+              args: [config.ENSCRIBE_CONTRACT, true],
+              account: walletAddress,
+            })
 
-    const tx = await writeContract(walletClient, {
-      address: (isWrapped ? config.NAME_WRAPPER : config.ENS_REGISTRY) as `0x${string}`,
-      abi: isWrapped ? nameWrapperABI : ensRegistryABI,
-      functionName: 'setApprovalForAll',
-      args: [config.ENSCRIBE_CONTRACT, true],
-      account: walletAddress,
-    })
+        await waitForTransactionReceipt(walletClient, { hash: tx })
+      }
 
-    await publicClient.waitForTransactionReceipt({ hash: tx })
+      console.log('Operator access granted successfully')
+    } catch (err) {
+      console.error('Error granting operator access:', err)
+      throw err
+    }
   }
 
   const revokeOperatorAccess = async () => {
-    if (!walletClient || !config) return
+    if (
+      !walletClient ||
+      !walletAddress ||
+      !config?.ENS_REGISTRY ||
+      !config?.ENSCRIBE_CONTRACT ||
+      !getParentNode(parentName)
+    ) {
+      console.log('Missing required parameters for revoking operator access')
+      return
+    }
 
-    const parentNode = namehash(parentName)
-    const wagmiChain = CHAIN_TO_WAGMI_CHAIN[chain!.id]
-    const publicClient = createPublicClient({ chain: wagmiChain, transport: http() })
+    try {
+      const parentNode = getParentNode(parentName)
 
-    const owner = await readContract(publicClient, {
-      address: config.ENS_REGISTRY as `0x${string}`,
-      abi: ensRegistryABI,
-      functionName: 'owner',
-      args: [parentNode],
-    })
+      if (chain?.id === CHAINS.BASE || chain?.id === CHAINS.BASE_SEPOLIA) {
+        const tx = await writeContract(walletClient, {
+          address: config.ENS_REGISTRY as `0x${string}`,
+          abi: ensRegistryABI,
+          functionName: 'setApprovalForAll',
+          args: [config.ENSCRIBE_CONTRACT, false],
+          account: walletAddress,
+        })
 
-    const isWrapped = owner === config.NAME_WRAPPER
+        await waitForTransactionReceipt(walletClient, { hash: tx })
+      } else {
+        const isWrapped = (await readContract(walletClient, {
+          address: config.NAME_WRAPPER as `0x${string}`,
+          abi: nameWrapperABI,
+          functionName: 'isWrapped',
+          args: [parentNode],
+        })) as boolean
 
-    const tx = await writeContract(walletClient, {
-      address: (isWrapped ? config.NAME_WRAPPER : config.ENS_REGISTRY) as `0x${string}`,
-      abi: isWrapped ? nameWrapperABI : ensRegistryABI,
-      functionName: 'setApprovalForAll',
-      args: [config.ENSCRIBE_CONTRACT, false],
-      account: walletAddress,
-    })
+        const tx = isWrapped
+          ? await writeContract(walletClient, {
+              address: config.NAME_WRAPPER as `0x${string}`,
+              abi: nameWrapperABI,
+              functionName: 'setApprovalForAll',
+              args: [config.ENSCRIBE_CONTRACT, false],
+              account: walletAddress,
+            })
+          : await writeContract(walletClient, {
+              address: config.ENS_REGISTRY as `0x${string}`,
+              abi: ensRegistryABI,
+              functionName: 'setApprovalForAll',
+              args: [config.ENSCRIBE_CONTRACT, false],
+              account: walletAddress,
+            })
 
-    await publicClient.waitForTransactionReceipt({ hash: tx })
+        await waitForTransactionReceipt(walletClient, { hash: tx })
+      }
+
+      console.log('Operator access revoked successfully')
+    } catch (err) {
+      console.error('Error revoking operator access:', err)
+      throw err
+    }
   }
 
-  // Process entries to add missing parent subdomains and sort
-  const processAndSortEntries = (entries: BatchEntry[], parent: string) => {
+  /**
+   * Process entries to add missing parent subdomains and sort
+   * This ensures that all intermediate subdomains are created before their children
+   */
+  const processAndSortEntries = (
+    entries: BatchEntry[],
+    parent: string
+  ): BatchEntry[] => {
     const processed: BatchEntry[] = []
     const fullNames = new Set<string>()
-    
+
     // Build full names for each entry
-    entries.forEach(entry => {
+    entries.forEach((entry) => {
       if (entry.address && entry.label) {
         const fullName = `${entry.label}.${parent}`
         fullNames.add(fullName)
@@ -640,7 +814,7 @@ export default function BatchNamingForm() {
 
     // Find all required parent subdomains
     const requiredParents = new Set<string>()
-    fullNames.forEach(name => {
+    fullNames.forEach((name) => {
       const parts = name.split('.')
       // For each subdomain, check if parent exists
       for (let i = 1; i < parts.length - 1; i++) {
@@ -653,13 +827,13 @@ export default function BatchNamingForm() {
     })
 
     // Add zero address entries for missing parents
-    requiredParents.forEach(parentSubdomain => {
+    requiredParents.forEach((parentSubdomain) => {
       // Extract just the label part (everything before the parent domain)
       const label = parentSubdomain.replace(`.${parent}`, '')
       processed.push({
         id: `zero-${Date.now()}-${Math.random()}`,
         address: '0x0000000000000000000000000000000000000000',
-        label: parentSubdomain
+        label: parentSubdomain,
       })
     })
 
@@ -667,12 +841,12 @@ export default function BatchNamingForm() {
     processed.sort((a, b) => {
       const aLevel = a.label.split('.').length
       const bLevel = b.label.split('.').length
-      
+
       // First sort by nesting level (fewer dots = higher level = first)
       if (aLevel !== bLevel) {
         return aLevel - bLevel
       }
-      
+
       // If same level, sort alphabetically
       return a.label.localeCompare(b.label)
     })
@@ -681,8 +855,22 @@ export default function BatchNamingForm() {
   }
 
   const handleBatchNaming = async () => {
+    setError('')
+
     if (!isConnected) {
-      toast({ title: 'Error', description: 'Please connect your wallet', variant: 'destructive' })
+      setError('Please connect your wallet first')
+      toast({
+        title: 'Error',
+        description: 'Please connect your wallet',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    if (isUnsupportedL2Chain) {
+      setError(
+        `To batch name contracts on ${unsupportedL2Name}, change to the ${chain?.id === CHAINS.OPTIMISM || chain?.id === CHAINS.ARBITRUM || chain?.id === CHAINS.SCROLL || chain?.id === CHAINS.LINEA || chain?.id === CHAINS.BASE ? 'Ethereum Mainnet' : 'Sepolia'} network and use the Naming on L2 Chains option.`
+      )
       return
     }
 
@@ -691,42 +879,58 @@ export default function BatchNamingForm() {
     )
 
     if (validEntries.length === 0) {
-      toast({ title: 'Error', description: 'Please add valid entries', variant: 'destructive' })
+      setError('Please add at least one valid entry with address and name')
+      toast({
+        title: 'Error',
+        description: 'Please add valid entries',
+        variant: 'destructive',
+      })
       return
     }
 
-    if (!parentName) {
-      toast({ title: 'Error', description: 'Please provide parent name', variant: 'destructive' })
+    if (!parentName || !parentName.trim()) {
+      setError('Parent name cannot be empty')
+      toast({
+        title: 'Error',
+        description: 'Please provide parent name',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    if (!config) {
+      console.error('Unsupported network')
+      setError('Unsupported network')
       return
     }
 
     setLoading(true)
+    setError('')
 
     try {
-      const wagmiChain = CHAIN_TO_WAGMI_CHAIN[chain!.id]
-      const publicClient = createPublicClient({ chain: wagmiChain, transport: http() })
-
       // Process entries to add missing parents and sort
       const processedEntries = processAndSortEntries(validEntries, parentName)
 
       const steps: Step[] = []
-      
+
       // Step 1: Grant operator access
       steps.push({
         title: 'Grant operator access',
+        chainId: chain!.id, // Add chainId for L1 transaction
         action: async () => {
           await grantOperatorAccess()
-        }
+        },
       })
 
       // Step 2: Batch naming
       steps.push({
         title: `Name ${processedEntries.length} entries (${validEntries.length} contracts + ${processedEntries.length - validEntries.length} parent subdomains)`,
+        chainId: chain!.id, // Add chainId for L1 transaction
         action: async () => {
           const addresses = processedEntries.map((e) => e.address as `0x${string}`)
           const labels = processedEntries.map((e) => e.label)
 
-          const pricing = await readContract(publicClient, {
+          const pricing = await readContract(walletClient!, {
             address: config!.ENSCRIBE_CONTRACT as `0x${string}`,
             abi: enscribeV2ContractABI,
             functionName: 'pricing',
@@ -735,29 +939,26 @@ export default function BatchNamingForm() {
 
           // Determine coin types based on selected L2 chains
           const coinTypes: bigint[] = []
-          
+
           // Only include cointype 60 if NOT skipping L1 naming
           if (!skipL1Naming) {
             coinTypes.push(60n)
           }
-          
+
           const isL1Mainnet = chain?.id === CHAINS.MAINNET
 
+          const chainConfigs = {
+            Optimism: isL1Mainnet ? CHAINS.OPTIMISM : CHAINS.OPTIMISM_SEPOLIA,
+            Arbitrum: isL1Mainnet ? CHAINS.ARBITRUM : CHAINS.ARBITRUM_SEPOLIA,
+            Scroll: isL1Mainnet ? CHAINS.SCROLL : CHAINS.SCROLL_SEPOLIA,
+            Base: isL1Mainnet ? CHAINS.BASE : CHAINS.BASE_SEPOLIA,
+            Linea: isL1Mainnet ? CHAINS.LINEA : CHAINS.LINEA_SEPOLIA,
+          }
+
           for (const chainName of selectedL2ChainNames) {
-            if (chainName === 'Optimism') {
-              const chainId = isL1Mainnet ? CHAINS.OPTIMISM : CHAINS.OPTIMISM_SEPOLIA
-              coinTypes.push(BigInt(CONTRACTS[chainId].COIN_TYPE))
-            } else if (chainName === 'Arbitrum') {
-              const chainId = isL1Mainnet ? CHAINS.ARBITRUM : CHAINS.ARBITRUM_SEPOLIA
-              coinTypes.push(BigInt(CONTRACTS[chainId].COIN_TYPE))
-            } else if (chainName === 'Scroll') {
-              const chainId = isL1Mainnet ? CHAINS.SCROLL : CHAINS.SCROLL_SEPOLIA
-              coinTypes.push(BigInt(CONTRACTS[chainId].COIN_TYPE))
-            } else if (chainName === 'Base') {
-              const chainId = isL1Mainnet ? CHAINS.BASE : CHAINS.BASE_SEPOLIA
-              coinTypes.push(BigInt(CONTRACTS[chainId].COIN_TYPE))
-            } else if (chainName === 'Linea') {
-              const chainId = isL1Mainnet ? CHAINS.LINEA : CHAINS.LINEA_SEPOLIA
+            const chainId =
+              chainConfigs[chainName as keyof typeof chainConfigs]
+            if (chainId) {
               coinTypes.push(BigInt(CONTRACTS[chainId].COIN_TYPE))
             }
           }
@@ -784,27 +985,30 @@ export default function BatchNamingForm() {
             })
           }
 
-          await publicClient.waitForTransactionReceipt({ hash })
-        }
+          await waitForTransactionReceipt(walletClient!, { hash })
+        },
       })
 
       // Step 3: Check each contract for reverse resolution (only for non-zero addresses and if not skipping L1)
       if (!skipL1Naming) {
         for (const entry of processedEntries) {
           // Skip zero addresses
-          if (entry.address === '0x0000000000000000000000000000000000000000') {
+          if (
+            entry.address === '0x0000000000000000000000000000000000000000'
+          ) {
             continue
           }
-          
+
           const isOwnable = await checkIfOwnable(entry.address)
           if (isOwnable) {
-            const isOwner = await checkIsOwner(entry.address)
+            const isOwner = await checkIfContractOwner(entry.address)
             if (isOwner) {
               const labelOnly = entry.label.split('.')[0]
-              
+
               // Add reverse resolution for L1
               steps.push({
                 title: `Set reverse record for ${labelOnly}`,
+                chainId: chain!.id, // Add chainId for L1 transaction
                 action: async () => {
                   const tx = await writeContract(walletClient!, {
                     address: config!.REVERSE_REGISTRAR as `0x${string}`,
@@ -817,8 +1021,8 @@ export default function BatchNamingForm() {
                       entry.label,
                     ],
                   })
-                  await publicClient.waitForTransactionReceipt({ hash: tx })
-                }
+                  await waitForTransactionReceipt(walletClient!, { hash: tx })
+                },
               })
             }
           }
@@ -828,19 +1032,26 @@ export default function BatchNamingForm() {
       // Step 4: Revoke operator access
       steps.push({
         title: 'Revoke operator access',
+        chainId: chain!.id, // Add chainId for L1 transaction
         action: async () => {
           await revokeOperatorAccess()
-        }
+        },
       })
 
       setModalSteps(steps)
       setModalTitle('Batch Naming')
-      setModalSubtitle(`Naming ${processedEntries.length} entries (${validEntries.length} contracts + ${processedEntries.length - validEntries.length} parent subdomains)`)
+      setModalSubtitle(
+        `Naming ${processedEntries.length} entries (${validEntries.length} contracts + ${processedEntries.length - validEntries.length} parent subdomains)`
+      )
       setModalOpen(true)
-
     } catch (error: any) {
       console.error('Batch naming error:', error)
-      toast({ title: 'Error', description: error.message || 'Failed to start batch naming', variant: 'destructive' })
+      setError(error?.message || 'Error during batch naming')
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to start batch naming',
+        variant: 'destructive',
+      })
     } finally {
       setLoading(false)
     }
@@ -852,10 +1063,10 @@ export default function BatchNamingForm() {
         Batch Naming
       </h2>
       {(!isConnected || isUnsupportedL2Chain) && (
-        <p className="text-red-500">
+        <p className="text-red-500 mt-4">
           {!isConnected
             ? 'Please connect your wallet.'
-            : `To name your contract on ${unsupportedL2Name}, change to the ${chain?.id === CHAINS.OPTIMISM || chain?.id === CHAINS.ARBITRUM || chain?.id === CHAINS.SCROLL || chain?.id === CHAINS.LINEA || chain?.id === CHAINS.BASE ? 'Ethereum Mainnet' : 'Sepolia'} network and use the Naming on L2 Chain option.`}
+            : `To batch name contracts on ${unsupportedL2Name}, change to the ${chain?.id === CHAINS.OPTIMISM || chain?.id === CHAINS.ARBITRUM || chain?.id === CHAINS.SCROLL || chain?.id === CHAINS.LINEA || chain?.id === CHAINS.BASE ? 'Ethereum Mainnet' : 'Sepolia'} network and use the Naming on L2 Chains option.`}
         </p>
       )}
     
@@ -883,7 +1094,7 @@ export default function BatchNamingForm() {
               setShowENSModal(true)
               fetchUserOwnedDomains()
             }}
-            className="bg-gray-900 text-white dark:bg-blue-700 dark:hover:bg-gray-800 dark:text-white"
+            className="bg-blue-600 text-white hover:bg-blue-700 focus:ring-4 focus:ring-blue-500/50"
           >
             Select Domain
           </Button>
@@ -900,14 +1111,14 @@ export default function BatchNamingForm() {
             <div key={entry.id} className="flex items-center gap-2">
               <Input
                 type="text"
-                placeholder="Enter address"
+                placeholder="Contract Address"
                 value={entry.address}
                 onChange={(e) => updateEntry(entry.id, 'address', e.target.value)}
                 className="flex-1 px-4 py-2 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600"
               />
               <Input
                 type="text"
-                placeholder="Name"
+                placeholder="ENS Name"
                 value={entry.label}
                 onChange={(e) => updateEntry(entry.id, 'label', e.target.value)}
                 className="w-48 px-4 py-2 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600"
@@ -1175,6 +1386,12 @@ export default function BatchNamingForm() {
         <span className="absolute inset-0 h-full w-full bg-gradient-to-r from-blue-500/0 via-blue-500/40 to-blue-500/0 opacity-0 group-hover:opacity-100 group-hover:animate-shine pointer-events-none"></span>
       </Button>
 
+      {error && (
+        <div className="mt-4 bg-red-50 dark:bg-red-900 border border-red-300 dark:border-red-700 text-red-700 dark:text-red-300 text-sm rounded-md p-3 break-words max-w-full overflow-hidden">
+          <strong>Error:</strong> {error}
+        </div>
+      )}
+
       {/* ENS Domain Selection Modal */}
       <Dialog open={showENSModal} onOpenChange={setShowENSModal}>
         <DialogContent className="max-w-3xl bg-white dark:bg-gray-900 shadow-lg rounded-lg">
@@ -1199,23 +1416,101 @@ export default function BatchNamingForm() {
                 </div>
               ) : userOwnedDomains.length > 0 ? (
                 <div className="max-h-[30vh] overflow-y-auto pr-1">
-                  <div className="flex flex-wrap gap-2">
-                    {userOwnedDomains.map((domain) => (
-                      <div
-                        key={domain}
-                        className="px-4 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-full cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors inline-flex items-center"
-                        onClick={() => {
-                          setParentName(domain)
-                          setParentType(domain === enscribeDomain ? 'web3labs' : 'own')
-                          setShowENSModal(false)
-                        }}
-                      >
-                        <span className="text-gray-800 dark:text-gray-200 font-medium whitespace-nowrap">
-                          {domain}
-                        </span>
+                  {(() => {
+                    // Function to get the 2LD for a domain
+                    const get2LD = (domain: string): string => {
+                      const parts = domain.split('.')
+                      if (parts.length < 2) return domain
+                      return `${parts[parts.length - 2]}.${parts[parts.length - 1]}`
+                    }
+
+                    // Separate domains with labelhashes
+                    const domainsWithLabelhash = userOwnedDomains.filter(
+                      (domain) =>
+                        domain.includes('[') && domain.includes(']'),
+                    )
+                    const regularDomains = userOwnedDomains.filter(
+                      (domain) =>
+                        !(domain.includes('[') && domain.includes(']')),
+                    )
+
+                    // Group regular domains by 2LD
+                    const domainGroups: { [key: string]: string[] } = {}
+
+                    regularDomains.forEach((domain) => {
+                      const parent2LD = get2LD(domain)
+                      if (!domainGroups[parent2LD]) {
+                        domainGroups[parent2LD] = []
+                      }
+                      domainGroups[parent2LD].push(domain)
+                    })
+
+                    // Sort 2LDs alphabetically
+                    const sorted2LDs = Object.keys(domainGroups).sort()
+
+                    return (
+                      <div className="space-y-4">
+                        {/* Regular domains grouped by 2LD */}
+                        {sorted2LDs.map((parent2LD) => (
+                          <div
+                            key={parent2LD}
+                            className="border-b border-gray-200 dark:border-gray-700 pb-4 last:border-0"
+                          >
+                            <div className="flex flex-wrap gap-2">
+                              {domainGroups[parent2LD].map(
+                                (domain, index) => (
+                                  <div
+                                    key={domain}
+                                    className={`px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-full cursor-pointer transition-colors inline-flex items-center ${index === 0 ? 'bg-gray-100 hover:bg-gray-200 dark:bg-gray-800' : 'bg-white dark:bg-gray-900 hover:bg-gray-200 dark:hover:bg-gray-800'}`}
+                                    onClick={() => {
+                                      setParentName(domain)
+                                      setParentType(
+                                        domain === enscribeDomain
+                                          ? 'web3labs'
+                                          : 'own',
+                                      )
+                                      setShowENSModal(false)
+                                    }}
+                                  >
+                                    <span className="text-gray-800 dark:text-gray-200 font-medium whitespace-nowrap">
+                                      {domain}
+                                    </span>
+                                  </div>
+                                ),
+                              )}
+                            </div>
+                          </div>
+                        ))}
+
+                        {/* Domains with labelhashes at the end */}
+                        {domainsWithLabelhash.length > 0 && (
+                          <div className="pt-2">
+                            <div className="flex flex-wrap gap-2">
+                              {domainsWithLabelhash.map((domain) => (
+                                <div
+                                  key={domain}
+                                  className="px-4 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-full cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors inline-flex items-center"
+                                  onClick={() => {
+                                    setParentName(domain)
+                                    setParentType(
+                                      domain === enscribeDomain
+                                        ? 'web3labs'
+                                        : 'own',
+                                    )
+                                    setShowENSModal(false)
+                                  }}
+                                >
+                                  <span className="text-gray-800 dark:text-gray-200 font-medium whitespace-nowrap">
+                                    {domain}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
-                    ))}
-                  </div>
+                    )
+                  })()}
                 </div>
               ) : (
                 <div className="text-center py-4 bg-gray-50 dark:bg-gray-800 rounded-md">
@@ -1310,13 +1605,36 @@ export default function BatchNamingForm() {
       {/* Steps Modal */}
       <SetNameStepsModal
         open={modalOpen}
-        onClose={() => {
+        onClose={(result) => {
+          console.log('Modal closed with result:', result)
           setModalOpen(false)
-          setBatchEntries([{ id: '1', address: '', label: '' }])
-          setParentType('web3labs')
-          setParentName(enscribeDomain)
-          setSelectedL2ChainNames([])
-          setSkipL1Naming(false)
+
+          if (result?.startsWith('ERROR')) {
+            // Extract the actual error message (remove 'ERROR: ' prefix)
+            const errorMessage = result.replace('ERROR: ', '')
+            setError(errorMessage)
+            return
+          }
+
+          if (result === 'INCOMPLETE') {
+            setError(
+              'Steps not completed. Please complete all steps before closing.'
+            )
+          } else {
+            console.log('Success - resetting form')
+            // Reset form after successful batch naming
+            setBatchEntries([{ id: '1', address: '', label: '' }])
+            setParentType('web3labs')
+            setParentName(enscribeDomain)
+            setSelectedL2ChainNames([])
+            setSkipL1Naming(false)
+            setError('')
+            setIsAdvancedOpen(false)
+            setCallDataList([])
+            setCopied({})
+            setAllCallData('')
+            setIsCallDataOpen(false)
+          }
         }}
         steps={modalSteps}
         title={modalTitle}
