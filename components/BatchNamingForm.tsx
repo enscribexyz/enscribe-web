@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { useAccount, useWalletClient } from 'wagmi'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -28,6 +28,8 @@ interface BatchEntry {
   id: string
   address: string
   label: string
+  addressError?: string
+  labelError?: string
 }
 
 
@@ -64,6 +66,10 @@ export default function BatchNamingForm() {
   const [copied, setCopied] = useState<{ [key: string]: boolean }>({})
   const [allCallData, setAllCallData] = useState<string>('')
   const [isCallDataOpen, setIsCallDataOpen] = useState<boolean>(false)
+  const [focusedInputId, setFocusedInputId] = useState<string | null>(null)
+  const addressInputRefs = useRef<{ [key: string]: HTMLInputElement | null }>({})
+  const [shouldTruncateAddress, setShouldTruncateAddress] = useState<{ [key: string]: boolean }>({})
+  const [truncatedAddresses, setTruncatedAddresses] = useState<{ [key: string]: string }>({})
 
   // Unsupported L2 gating for this page: Optimism/Arbitrum/Scroll/Linea/Base L2s should show guidance
   const isUnsupportedL2Chain = [
@@ -152,13 +158,170 @@ export default function BatchNamingForm() {
     ])
   }
 
+  const validateAddress = (address: string): string | undefined => {
+    if (!address || address.trim() === '') {
+      return undefined // Empty is OK, will be caught when submitting
+    }
+    if (!isAddress(address)) {
+      return 'Invalid contract address'
+    }
+    return undefined
+  }
+
+  const validateLabel = (label: string, parentDomain: string): string | undefined => {
+    if (!label || label.trim() === '') {
+      return undefined // Empty is OK, will be caught when submitting
+    }
+    
+    if (!parentDomain || parentDomain.trim() === '') {
+      return 'Please enter parent domain first'
+    }
+
+    // Check if label contains dots (meaning it might include parent)
+    if (label.includes('.')) {
+      // Full ENS name provided, extract parent and validate
+      const parts = label.split('.')
+      if (parts.length < 2) {
+        return 'Invalid ENS name format'
+      }
+      
+      // Get the parent part (everything after first label)
+      const labelParent = parts.slice(1).join('.')
+      const normalizedParent = parentDomain.toLowerCase().trim()
+      const normalizedLabelParent = labelParent.toLowerCase().trim()
+      
+      if (normalizedLabelParent !== normalizedParent) {
+        return `Parent name doesn't match. Expected: ${parentDomain}`
+      }
+    }
+    
+    return undefined
+  }
+
+  const checkIfAddressNeedsTruncation = useCallback((id: string, address: string) => {
+    const input = addressInputRefs.current[id]
+    if (!input || !address) {
+      setShouldTruncateAddress((prev) => ({ ...prev, [id]: false }))
+      setTruncatedAddresses((prev) => {
+        const newState = { ...prev }
+        delete newState[id]
+        return newState
+      })
+      return
+    }
+
+    const containerWidth = input.offsetWidth - 32 // Account for padding (16px each side)
+    const last4Chars = address.slice(-4)
+    const ellipsis = '...'
+
+    // Create a temporary span to measure text width
+    const measureSpan = document.createElement('span')
+    measureSpan.style.visibility = 'hidden'
+    measureSpan.style.position = 'absolute'
+    measureSpan.style.fontSize = window.getComputedStyle(input).fontSize
+    measureSpan.style.fontFamily = window.getComputedStyle(input).fontFamily
+    measureSpan.style.fontWeight = window.getComputedStyle(input).fontWeight
+    measureSpan.style.padding = '0'
+    measureSpan.style.border = '0'
+    measureSpan.style.whiteSpace = 'nowrap'
+    
+    // Measure full address width
+    measureSpan.textContent = address
+    document.body.appendChild(measureSpan)
+    const fullTextWidth = measureSpan.offsetWidth
+
+    // Measure ellipsis + last 4 chars width
+    measureSpan.textContent = ellipsis + last4Chars
+    const suffixWidth = measureSpan.offsetWidth
+
+    document.body.removeChild(measureSpan)
+
+    if (fullTextWidth <= containerWidth) {
+      // Full address fits, no truncation needed
+      setShouldTruncateAddress((prev) => ({ ...prev, [id]: false }))
+      setTruncatedAddresses((prev) => {
+        const newState = { ...prev }
+        delete newState[id]
+        return newState
+      })
+      return
+    }
+
+    // Need truncation - calculate how many chars from start can fit
+    const availableWidth = containerWidth - suffixWidth
+    let startChars = ''
+    let startCharsWidth = 0
+    let charIndex = 0
+
+    // Binary search or linear search to find max chars that fit
+    while (charIndex < address.length - 4) {
+      const testChars = address.slice(0, charIndex + 1)
+      measureSpan.textContent = testChars
+      document.body.appendChild(measureSpan)
+      const testWidth = measureSpan.offsetWidth
+      document.body.removeChild(measureSpan)
+
+      if (testWidth <= availableWidth) {
+        startChars = testChars
+        startCharsWidth = testWidth
+        charIndex++
+      } else {
+        break
+      }
+    }
+
+    const truncated = startChars + ellipsis + last4Chars
+    setShouldTruncateAddress((prev) => ({ ...prev, [id]: true }))
+    setTruncatedAddresses((prev) => ({ ...prev, [id]: truncated }))
+  }, [])
+
   const updateEntry = (id: string, field: 'address' | 'label', value: string) => {
     setBatchEntries(
-      batchEntries.map((entry) =>
-        entry.id === id ? { ...entry, [field]: value } : entry
-      )
+      batchEntries.map((entry) => {
+        if (entry.id === id) {
+          const updatedEntry = { ...entry, [field]: value }
+          
+          // Validate the field
+          if (field === 'address') {
+            updatedEntry.addressError = validateAddress(value)
+            // Check if truncation is needed
+            setTimeout(() => checkIfAddressNeedsTruncation(id, value), 0)
+          } else if (field === 'label') {
+            updatedEntry.labelError = validateLabel(value, parentName)
+          }
+          
+          return updatedEntry
+        }
+        return entry
+      })
     )
   }
+
+  // Re-validate all labels when parent name changes
+  useEffect(() => {
+    if (parentName) {
+      setBatchEntries((entries) =>
+        entries.map((entry) => ({
+          ...entry,
+          labelError: validateLabel(entry.label, parentName),
+        }))
+      )
+    }
+  }, [parentName])
+
+  // Re-check truncation when window resizes
+  useEffect(() => {
+    const handleResize = () => {
+      batchEntries.forEach((entry) => {
+        if (entry.address) {
+          checkIfAddressNeedsTruncation(entry.id, entry.address)
+        }
+      })
+    }
+
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [batchEntries, checkIfAddressNeedsTruncation])
 
   const removeEntry = (id: string) => {
     if (batchEntries.length > 1) {
@@ -366,8 +529,8 @@ export default function BatchNamingForm() {
   }
 
   const downloadTemplate = () => {
-    const csvContent =
-      'address,name\n0x1234567890123456789012345678901234567890,mycontract.enscribe.eth\n0x0987654321098765432109876543210987654321,anothercontract.enscribe.eth'
+    const parent = parentName || 'yourdomain.eth'
+    const csvContent = `address,name\n0x1234567890123456789012345678901234567890,mycontract.${parent}\n0x0987654321098765432109876543210987654321,anothercontract.${parent}`
     const blob = new Blob([csvContent], { type: 'text/csv' })
     const url = window.URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -377,6 +540,11 @@ export default function BatchNamingForm() {
     a.click()
     document.body.removeChild(a)
     window.URL.revokeObjectURL(url)
+  }
+
+  // Check if there are any validation errors
+  const hasValidationErrors = (): boolean => {
+    return batchEntries.some((entry) => entry.addressError || entry.labelError)
   }
 
   const handleCsvUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -390,7 +558,6 @@ export default function BatchNamingForm() {
         const lines = text.split('\n').filter((line) => line.trim())
         const startIndex = lines[0].toLowerCase().includes('address') ? 1 : 0
         const newEntries: BatchEntry[] = []
-        let detectedParentName = ''
 
         for (let i = startIndex; i < lines.length; i++) {
           const line = lines[i].trim()
@@ -401,34 +568,43 @@ export default function BatchNamingForm() {
             const address = parts[0]
             const fullName = parts[1]
 
-            if (!isAddress(address)) continue
+            // Validate address
+            const addressError = validateAddress(address)
+            
+            // Keep full name (don't strip parent)
+            const labelError = validateLabel(fullName, parentName)
 
-            const nameParts = fullName.split('.')
-            if (nameParts.length >= 2) {
-              const label = nameParts[0]
-              const parent = nameParts.slice(1).join('.')
-              if (!detectedParentName) detectedParentName = parent
-              newEntries.push({ id: `${Date.now()}-${i}`, address, label })
-            } else {
-              newEntries.push({ id: `${Date.now()}-${i}`, address, label: fullName })
-            }
+            newEntries.push({
+              id: `${Date.now()}-${i}`,
+              address,
+              label: fullName, // Keep full name
+              addressError,
+              labelError,
+            })
           }
         }
 
-        if (detectedParentName) {
-          setParentName(detectedParentName)
-          setParentType(
-            detectedParentName === enscribeDomain ? 'web3labs' : 'own'
-          )
-        }
         setBatchEntries([
           ...batchEntries.filter((e) => e.address || e.label),
           ...newEntries,
         ])
-        toast({
-          title: 'CSV Imported',
-          description: `Imported ${newEntries.length} entries`,
-        })
+        
+        const errorCount = newEntries.filter(
+          (e) => e.addressError || e.labelError
+        ).length
+        
+        if (errorCount > 0) {
+          toast({
+            title: 'CSV Imported with Errors',
+            description: `Imported ${newEntries.length} entries, ${errorCount} with validation errors`,
+            variant: 'destructive',
+          })
+        } else {
+          toast({
+            title: 'CSV Imported',
+            description: `Successfully imported ${newEntries.length} entries`,
+          })
+        }
       } catch (error) {
         toast({
           title: 'Error',
@@ -792,6 +968,60 @@ export default function BatchNamingForm() {
     }
   }
 
+  const checkOperatorAccess = async (name: string): Promise<boolean> => {
+    if (
+      !walletClient ||
+      !walletAddress ||
+      !config?.ENS_REGISTRY ||
+      !config?.ENSCRIBE_CONTRACT ||
+      !name
+    )
+      return false
+
+    try {
+
+      const parentNode = getParentNode(name)
+
+      if (chain?.id == CHAINS.BASE || chain?.id == CHAINS.BASE_SEPOLIA) {
+        return (await readContract(walletClient, {
+          address: config.ENS_REGISTRY as `0x${string}`,
+          abi: ensRegistryABI,
+          functionName: 'isApprovedForAll',
+          args: [walletAddress, config.ENSCRIBE_CONTRACT],
+        })) as boolean
+      } else {
+        const isWrapped = (await readContract(walletClient, {
+          address: config.NAME_WRAPPER as `0x${string}`,
+          abi: nameWrapperABI,
+          functionName: 'isWrapped',
+          args: [parentNode],
+        })) as boolean
+        if (isWrapped) {
+          // Wrapped Names
+          console.log(`Wrapped detected.`)
+          return (await readContract(walletClient, {
+            address: config.NAME_WRAPPER as `0x${string}`,
+            abi: nameWrapperABI,
+            functionName: 'isApprovedForAll',
+            args: [walletAddress, config.ENSCRIBE_CONTRACT],
+          })) as boolean
+        } else {
+          //Unwrapped Names
+          console.log(`Unwrapped detected.`)
+          return (await readContract(walletClient, {
+            address: config.ENS_REGISTRY as `0x${string}`,
+            abi: ensRegistryABI,
+            functionName: 'isApprovedForAll',
+            args: [walletAddress, config.ENSCRIBE_CONTRACT],
+          })) as boolean
+        }
+      }
+    } catch (err) {
+      console.error('Approval check failed:', err)
+      return false
+    }
+  }
+
   /**
    * Process entries to add missing parent subdomains and sort
    * This ensures that all intermediate subdomains are created before their children
@@ -806,7 +1036,13 @@ export default function BatchNamingForm() {
     // Build full names for each entry
     entries.forEach((entry) => {
       if (entry.address && entry.label) {
-        const fullName = `${entry.label}.${parent}`
+        // Check if label already includes parent
+        let fullName: string
+        if (entry.label.toLowerCase().endsWith(`.${parent.toLowerCase()}`)) {
+          fullName = entry.label // Already has parent
+        } else {
+          fullName = `${entry.label}.${parent}` // Add parent
+        }
         fullNames.add(fullName)
         processed.push({ ...entry, label: fullName })
       }
@@ -871,6 +1107,17 @@ export default function BatchNamingForm() {
       setError(
         `To batch name contracts on ${unsupportedL2Name}, change to the ${chain?.id === CHAINS.OPTIMISM || chain?.id === CHAINS.ARBITRUM || chain?.id === CHAINS.SCROLL || chain?.id === CHAINS.LINEA || chain?.id === CHAINS.BASE ? 'Ethereum Mainnet' : 'Sepolia'} network and use the Naming on L2 Chains option.`
       )
+      return
+    }
+
+    // Check for validation errors first
+    if (hasValidationErrors()) {
+      setError('Please fix all validation errors before proceeding')
+      toast({
+        title: 'Validation Errors',
+        description: 'Please fix all errors in the contract entries',
+        variant: 'destructive',
+      })
       return
     }
 
@@ -1094,8 +1341,8 @@ export default function BatchNamingForm() {
               setShowENSModal(true)
               fetchUserOwnedDomains()
             }}
-            className="bg-blue-600 text-white hover:bg-blue-700 focus:ring-4 focus:ring-blue-500/50"
-          >
+            className="bg-gray-900 text-white dark:bg-blue-700 dark:hover:bg-gray-800 dark:text-white"
+                >
             Select Domain
           </Button>
         </div>
@@ -1106,31 +1353,86 @@ export default function BatchNamingForm() {
         <label className="block text-gray-700 dark:text-gray-300">
           Contracts
         </label>
-        <div className="border border-gray-200 dark:border-gray-600 rounded-lg p-4 bg-gray-50 dark:bg-gray-800 space-y-2">
+        <div className="border border-gray-200 dark:border-gray-600 rounded-lg p-4 bg-gray-50 dark:bg-gray-800 space-y-3">
           {batchEntries.map((entry, index) => (
-            <div key={entry.id} className="flex items-center gap-2">
-              <Input
-                type="text"
-                placeholder="Contract Address"
-                value={entry.address}
-                onChange={(e) => updateEntry(entry.id, 'address', e.target.value)}
-                className="flex-1 px-4 py-2 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600"
-              />
-              <Input
-                type="text"
-                placeholder="ENS Name"
-                value={entry.label}
-                onChange={(e) => updateEntry(entry.id, 'label', e.target.value)}
-                className="w-48 px-4 py-2 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600"
-              />
-              {batchEntries.length > 1 && (
-                <button
-                  onClick={() => removeEntry(entry.id)}
-                  className="p-2 text-gray-400 hover:text-red-600 dark:hover:text-red-400 rounded"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              )}
+            <div key={entry.id} className="space-y-1">
+              <div className="flex items-start gap-2">
+                <div className="flex-1 space-y-1 min-w-0">
+                  <div className="relative">
+                    <Input
+                      ref={(el) => {
+                        addressInputRefs.current[entry.id] = el
+                        if (el && entry.address) {
+                          setTimeout(() => checkIfAddressNeedsTruncation(entry.id, entry.address), 0)
+                        }
+                      }}
+                      type="text"
+                      placeholder="Contract Address"
+                      value={entry.address}
+                      onChange={(e) => updateEntry(entry.id, 'address', e.target.value)}
+                      onFocus={() => setFocusedInputId(`${entry.id}-address`)}
+                      onBlur={() => {
+                        setFocusedInputId(null)
+                        if (entry.address) {
+                          checkIfAddressNeedsTruncation(entry.id, entry.address)
+                        }
+                      }}
+                      className={`w-full px-4 py-2 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-sm ${
+                        entry.addressError
+                          ? 'border-red-500 dark:border-red-500 focus:ring-red-500'
+                          : ''
+                      } ${
+                        shouldTruncateAddress[entry.id] && focusedInputId !== `${entry.id}-address`
+                          ? 'text-transparent'
+                          : ''
+                      }`}
+                    />
+                    {entry.address && shouldTruncateAddress[entry.id] && focusedInputId !== `${entry.id}-address` && truncatedAddresses[entry.id] && (
+                      <div className="absolute inset-0 px-4 py-2 pointer-events-none flex items-center">
+                        <span className="text-gray-900 dark:text-gray-200 text-sm whitespace-nowrap">
+                          {truncatedAddresses[entry.id]}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  {entry.addressError && (
+                    <p className="text-xs text-red-600 dark:text-red-400 ml-1">
+                      {entry.addressError}
+                    </p>
+                  )}
+                </div>
+                <div className="flex-1 space-y-1 min-w-0">
+                  <Input
+                    type="text"
+                    placeholder={`name.${parentName || 'domain.eth'}`}
+                    value={entry.label}
+                    onChange={(e) => updateEntry(entry.id, 'label', e.target.value)}
+                    className={`w-full px-4 py-2 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 ${
+                      entry.labelError
+                        ? 'border-red-500 dark:border-red-500 focus:ring-red-500'
+                        : ''
+                    }`}
+                    style={{
+                      textOverflow: 'ellipsis',
+                      overflow: 'hidden',
+                      whiteSpace: 'nowrap',
+                    }}
+                  />
+                  {entry.labelError && (
+                    <p className="text-xs text-red-600 dark:text-red-400 ml-1">
+                      {entry.labelError}
+                    </p>
+                  )}
+                </div>
+                {batchEntries.length > 1 && (
+                  <button
+                    onClick={() => removeEntry(entry.id)}
+                    className="p-2 text-gray-400 hover:text-red-600 dark:hover:text-red-400 rounded mt-0.5"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                )}
+              </div>
             </div>
           ))}
           
@@ -1355,8 +1657,8 @@ export default function BatchNamingForm() {
       {/* Submit Button */}
       <Button
         onClick={handleBatchNaming}
-        disabled={loading || !isConnected || !parentName}
-        className="relative overflow-hidden w-full py-6 text-lg font-medium transition-all duration-300 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-600 hover:shadow-lg hover:shadow-blue-500/30 hover:-translate-y-0.5 focus:ring-4 focus:ring-blue-500/30 group"
+        disabled={loading || !isConnected || !parentName || hasValidationErrors()}
+        className="relative overflow-hidden w-full py-6 text-lg font-medium transition-all duration-300 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-600 hover:shadow-lg hover:shadow-blue-500/30 hover:-translate-y-0.5 focus:ring-4 focus:ring-blue-500/30 group disabled:opacity-50 disabled:cursor-not-allowed"
         style={{ backgroundSize: '200% 100%' }}
       >
         <span className="absolute top-0 left-0 w-full h-full bg-white/10 transform -skew-x-12 group-hover:animate-shimmer pointer-events-none"></span>
