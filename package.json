@@ -29,7 +29,7 @@
     "ethers": "^6.13.5",
     "json-parse-safe": "^2.0.0",
     "lucide-react": "^0.479.0",
-    "next": "^15.3.6",
+    "next": "^15.3.8",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "tailwind-merge": "^3.0.2",
