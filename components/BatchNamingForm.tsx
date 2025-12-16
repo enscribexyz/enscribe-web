@@ -154,10 +154,9 @@ export default function BatchNamingForm() {
   }, [batchEntries, parentName, selectedL2ChainNames, skipL1Naming, walletAddress, config, chain?.id])
 
   const addEntry = () => {
-    setBatchEntries([
-      ...batchEntries,
-      { id: Date.now().toString(), address: '', label: '' },
-    ])
+    const newEntry = { id: Date.now().toString(), address: '', label: '' }
+    // Add new entry at the end, it will be sorted if needed
+    setBatchEntries([...batchEntries, newEntry])
   }
 
   const validateAddress = (address: string): string | undefined => {
@@ -181,19 +180,19 @@ export default function BatchNamingForm() {
 
     // Check if label contains dots (meaning it might include parent)
     if (label.includes('.')) {
-      // Full ENS name provided, extract parent and validate
-      const parts = label.split('.')
-      if (parts.length < 2) {
-        return 'Invalid ENS name format'
+      // Full ENS name provided, validate that it ends with the parent domain
+      const normalizedLabel = label.toLowerCase().trim()
+      const normalizedParent = parentDomain.toLowerCase().trim()
+      
+      // Check if the label ends with .parentDomain
+      if (!normalizedLabel.endsWith(`.${normalizedParent}`)) {
+        return `Parent name doesn't match. Expected: ${parentDomain}`
       }
       
-      // Get the parent part (everything after first label)
-      const labelParent = parts.slice(1).join('.')
-      const normalizedParent = parentDomain.toLowerCase().trim()
-      const normalizedLabelParent = labelParent.toLowerCase().trim()
-      
-      if (normalizedLabelParent !== normalizedParent) {
-        return `Parent name doesn't match. Expected: ${parentDomain}`
+      // Check that there's at least one label before the parent
+      const labelWithoutParent = normalizedLabel.slice(0, -(normalizedParent.length + 1))
+      if (!labelWithoutParent || labelWithoutParent.trim() === '') {
+        return 'Invalid ENS name format'
       }
     }
     
@@ -310,6 +309,33 @@ export default function BatchNamingForm() {
       )
     }
   }, [parentName])
+
+  // Auto-sort entries by batch logic when they have valid data and parent name exists
+  useEffect(() => {
+    if (!parentName) return
+
+    const hasValidEntries = batchEntries.some(
+      (e) => e.address && e.label && !e.addressError && !e.labelError
+    )
+
+    if (hasValidEntries) {
+      // Use a timer to avoid sorting on every keystroke
+      const timer = setTimeout(() => {
+        const sortedEntries = sortEntriesByBatchLogic(batchEntries, parentName)
+        
+        // Only update if order actually changed
+        const orderChanged = sortedEntries.some(
+          (entry, index) => entry.id !== batchEntries[index].id
+        )
+        
+        if (orderChanged) {
+          setBatchEntries(sortedEntries)
+        }
+      }, 500) // Wait 500ms after last change
+
+      return () => clearTimeout(timer)
+    }
+  }, [batchEntries, parentName])
 
   // Re-check truncation when window resizes
   useEffect(() => {
@@ -549,6 +575,55 @@ export default function BatchNamingForm() {
     return batchEntries.some((entry) => entry.addressError || entry.labelError)
   }
 
+  /**
+   * Sort batch entries by batch logic (same order as transaction batches)
+   */
+  const sortEntriesByBatchLogic = (entries: BatchEntry[], parent: string): BatchEntry[] => {
+    if (!parent || entries.length === 0) {
+      return entries
+    }
+
+    // Create a temporary structure to calculate sort order
+    const entriesWithMetadata = entries.map((entry) => {
+      let fullName = entry.label
+      if (entry.label && !entry.label.toLowerCase().endsWith(`.${parent.toLowerCase()}`)) {
+        fullName = `${entry.label}.${parent}`
+      }
+
+      const parts = fullName.split('.')
+      const parentParts = parent.split('.')
+      const level = parts.length - parentParts.length
+
+      // Get immediate parent
+      let immediateParent: string
+      if (level === 1) {
+        immediateParent = parent
+      } else {
+        immediateParent = parts.slice(1).join('.')
+      }
+
+      return {
+        entry,
+        fullName,
+        level,
+        immediateParent,
+      }
+    })
+
+    // Sort by: level (ascending), then immediate parent (alphabetically), then full name (alphabetically)
+    entriesWithMetadata.sort((a, b) => {
+      if (a.level !== b.level) {
+        return a.level - b.level
+      }
+      if (a.immediateParent !== b.immediateParent) {
+        return a.immediateParent.localeCompare(b.immediateParent)
+      }
+      return a.fullName.localeCompare(b.fullName)
+    })
+
+    return entriesWithMetadata.map((item) => item.entry)
+  }
+
   const handleCsvUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
@@ -586,10 +661,12 @@ export default function BatchNamingForm() {
           }
         }
 
-        setBatchEntries([
-          ...batchEntries.filter((e) => e.address || e.label),
-          ...newEntries,
-        ])
+        const existingEntries = batchEntries.filter((e) => e.address || e.label)
+        const combinedEntries = [...existingEntries, ...newEntries]
+        
+        // Sort combined entries by batch logic
+        const sortedEntries = sortEntriesByBatchLogic(combinedEntries, parentName)
+        setBatchEntries(sortedEntries)
         
         const errorCount = newEntries.filter(
           (e) => e.addressError || e.labelError
@@ -627,7 +704,7 @@ export default function BatchNamingForm() {
     }
 
     const validEntries = batchEntries.filter(
-      (e) => e.address && e.label && isAddress(e.address)
+      (e: BatchEntry) => e.address && e.label && isAddress(e.address)
     )
 
     if (validEntries.length === 0) {
@@ -635,7 +712,7 @@ export default function BatchNamingForm() {
       return
     }
 
-    const processedEntries = processAndSortEntries(validEntries, parentName)
+    const batchGroups = processAndGroupEntriesForBatching(validEntries, parentName)
     const callDataArray: string[] = []
 
     try {
@@ -660,10 +737,7 @@ export default function BatchNamingForm() {
         `${isWrapped ? 'NameWrapper' : 'ENSRegistry'}.setApprovalForAll (grant): ${approvalCallData}`
       )
 
-      // 2. Batch naming
-      const addresses = processedEntries.map((e) => e.address as `0x${string}`)
-      const labels = processedEntries.map((e) => e.label)
-
+      // 2. Batch naming (multiple batches)
       const coinTypes: bigint[] = []
       if (!skipL1Naming) {
         coinTypes.push(60n)
@@ -688,25 +762,45 @@ export default function BatchNamingForm() {
 
       const uniqueCoinTypes = [...new Set(coinTypes)]
 
-      let batchCallData
-      if (uniqueCoinTypes.length === 1 && uniqueCoinTypes[0] === 60n) {
-        batchCallData = encodeFunctionData({
-          abi: enscribeV2ContractABI,
-          functionName: 'setNameBatch',
-          args: [addresses, labels, parentName],
+      // Generate call data for each batch
+      batchGroups.forEach((batch, index) => {
+        const labels = batch.entries.map((e: BatchEntry) => {
+          const fullName = e.label
+          const parentSuffix = `.${batch.parentName}`
+          if (fullName.endsWith(parentSuffix)) {
+            return fullName.slice(0, -parentSuffix.length)
+          }
+          return fullName
         })
-      } else {
-        batchCallData = encodeFunctionData({
-          abi: enscribeV2ContractABI,
-          functionName: 'setNameBatch',
-          args: [addresses, labels, parentName, uniqueCoinTypes],
-        })
-      }
-      callDataArray.push(`Enscribe.setNameBatch: ${batchCallData}`)
+        const addresses = batch.entries.map((e: BatchEntry) => e.address as `0x${string}`)
+
+        let batchCallData
+        if (uniqueCoinTypes.length === 1 && uniqueCoinTypes[0] === 60n) {
+          batchCallData = encodeFunctionData({
+            abi: enscribeV2ContractABI,
+            functionName: 'setNameBatch',
+            args: [addresses, labels, batch.parentName],
+          })
+        } else {
+          batchCallData = encodeFunctionData({
+            abi: enscribeV2ContractABI,
+            functionName: 'setNameBatch',
+            args: [addresses, labels, batch.parentName, uniqueCoinTypes],
+          })
+        }
+        const levelSuffix = batch.level === 1 ? '3LD' : batch.level === 2 ? '4LD' : batch.level === 3 ? '5LD' : `${batch.level + 2}LD`
+        callDataArray.push(`Enscribe.setNameBatch [${levelSuffix} under ${batch.parentName}]: ${batchCallData}`)
+      })
 
       // 3. Reverse resolution (if applicable)
+      // Flatten all entries from all batches
+      const allEntries: BatchEntry[] = []
+      batchGroups.forEach((batch) => {
+        allEntries.push(...batch.entries)
+      })
+
       if (!skipL1Naming) {
-        for (const entry of processedEntries) {
+        for (const entry of allEntries) {
           // Skip zero addresses (normalize to full address format)
           const normalizedAddress = entry.address.toLowerCase().padEnd(42, '0')
           if (
@@ -1224,40 +1318,40 @@ export default function BatchNamingForm() {
   }
 
   /**
-   * Process entries to add missing parent subdomains and sort
-   * This ensures that all intermediate subdomains are created before their children
+   * Process entries and group them into batches by level and parent
+   * Each batch contains entries at the same level under the same parent
    */
-  const processAndSortEntries = (
+  const processAndGroupEntriesForBatching = (
     entries: BatchEntry[],
-    parent: string
-  ): BatchEntry[] => {
-    const processed: BatchEntry[] = []
-    const fullNames = new Set<string>()
+    rootParent: string
+  ): Array<{
+    parentName: string
+    entries: BatchEntry[]
+    level: number
+  }> => {
+    const allNames = new Map<string, BatchEntry>() // fullName -> entry
 
     // Build full names for each entry
     entries.forEach((entry) => {
       if (entry.address && entry.label) {
-        // Check if label already includes parent
         let fullName: string
-        if (entry.label.toLowerCase().endsWith(`.${parent.toLowerCase()}`)) {
-          fullName = entry.label // Already has parent
+        if (entry.label.toLowerCase().endsWith(`.${rootParent.toLowerCase()}`)) {
+          fullName = entry.label
         } else {
-          fullName = `${entry.label}.${parent}` // Add parent
+          fullName = `${entry.label}.${rootParent}`
         }
-        fullNames.add(fullName)
-        processed.push({ ...entry, label: fullName })
+        allNames.set(fullName, { ...entry, label: fullName })
       }
     })
 
-    // Find all required parent subdomains
+    // Find all required parent subdomains and add them with zero address
     const requiredParents = new Set<string>()
-    fullNames.forEach((name) => {
+    allNames.forEach((entry, name) => {
       const parts = name.split('.')
-      // For each subdomain, check if parent exists
-      for (let i = 1; i < parts.length - 1; i++) {
+      // Check all intermediate parents
+      for (let i = 1; i < parts.length - rootParent.split('.').length; i++) {
         const parentSubdomain = parts.slice(i).join('.')
-        // Only add if it's not the base parent and doesn't already exist
-        if (parentSubdomain !== parent && !fullNames.has(parentSubdomain)) {
+        if (parentSubdomain !== rootParent && !allNames.has(parentSubdomain)) {
           requiredParents.add(parentSubdomain)
         }
       }
@@ -1265,30 +1359,86 @@ export default function BatchNamingForm() {
 
     // Add zero address entries for missing parents
     requiredParents.forEach((parentSubdomain) => {
-      // Extract just the label part (everything before the parent domain)
-      const label = parentSubdomain.replace(`.${parent}`, '')
-      processed.push({
+      allNames.set(parentSubdomain, {
         id: `zero-${Date.now()}-${Math.random()}`,
         address: '0x0000000000000000000000000000000000000000',
         label: parentSubdomain,
       })
     })
 
-    // Sort by nesting level and alphabetically
-    processed.sort((a, b) => {
-      const aLevel = a.label.split('.').length
-      const bLevel = b.label.split('.').length
+    // Group entries by their immediate parent and level
+    const batches = new Map<string, Map<number, BatchEntry[]>>() // parentName -> level -> entries
 
-      // First sort by nesting level (fewer dots = higher level = first)
-      if (aLevel !== bLevel) {
-        return aLevel - bLevel
+    allNames.forEach((entry, fullName) => {
+      const parts = fullName.split('.')
+      const rootParentParts = rootParent.split('.')
+      const level = parts.length - rootParentParts.length
+
+      // Get immediate parent
+      let immediateParent: string
+      if (level === 1) {
+        // This is a 3LD directly under root parent
+        immediateParent = rootParent
+      } else {
+        // Get the parent (everything after the first label)
+        immediateParent = parts.slice(1).join('.')
       }
 
-      // If same level, sort alphabetically
-      return a.label.localeCompare(b.label)
+      if (!batches.has(immediateParent)) {
+        batches.set(immediateParent, new Map())
+      }
+
+      const parentBatches = batches.get(immediateParent)!
+      if (!parentBatches.has(level)) {
+        parentBatches.set(level, [])
+      }
+
+      parentBatches.get(level)!.push(entry)
     })
 
-    return processed
+    // Convert to array and sort by level, then by parent name
+    const result: Array<{
+      parentName: string
+      entries: BatchEntry[]
+      level: number
+    }> = []
+
+    // Get all unique levels
+    const allLevels = new Set<number>()
+    batches.forEach((levelMap) => {
+      levelMap.forEach((_, level) => allLevels.add(level))
+    })
+
+    // Sort levels ascending (3LD first, then 4LD, etc.)
+    const sortedLevels = Array.from(allLevels).sort((a, b) => a - b)
+
+    // For each level, add all batches at that level
+    sortedLevels.forEach((level) => {
+      const batchesAtLevel: Array<{
+        parentName: string
+        entries: BatchEntry[]
+        level: number
+      }> = []
+
+      batches.forEach((levelMap, parentName) => {
+        if (levelMap.has(level)) {
+          const entries = levelMap.get(level)!
+          // Sort entries alphabetically within the batch
+          entries.sort((a, b) => a.label.localeCompare(b.label))
+          batchesAtLevel.push({
+            parentName,
+            entries,
+            level,
+          })
+        }
+      })
+
+      // Sort batches at this level alphabetically by parent name
+      batchesAtLevel.sort((a, b) => a.parentName.localeCompare(b.parentName))
+      result.push(...batchesAtLevel)
+    })
+
+    return result
   }
 
   const handleBatchNaming = async () => {
@@ -1356,8 +1506,21 @@ export default function BatchNamingForm() {
     setError('')
 
     try {
-      // Process entries to add missing parents and sort
-      const processedEntries = processAndSortEntries(validEntries, parentName)
+      // Process entries and group them into batches
+      const batchGroups = processAndGroupEntriesForBatching(validEntries, parentName)
+
+      console.log(`Created ${batchGroups.length} batch groups:`)
+      batchGroups.forEach((batch, index) => {
+        console.log(
+          `  Batch ${index + 1}: ${batch.entries.length} entries under "${batch.parentName}" (Level ${batch.level})`
+        )
+      })
+
+      // Get all processed entries for reverse resolution checks
+      const allProcessedEntries: BatchEntry[] = []
+      batchGroups.forEach((batch) => {
+        allProcessedEntries.push(...batch.entries)
+      })
 
       const steps: Step[] = []
 
@@ -1365,15 +1528,15 @@ export default function BatchNamingForm() {
       if(await checkOperatorAccess(parentName)) {
         steps.push({
           title: 'Grant operator access',
-          chainId: chain!.id, // Add chainId for L1 transaction
+          chainId: chain!.id,
           action: async () => {
             await grantOperatorAccess()
           },
         })
       }
 
-      // Count real contracts (non-zero addresses) vs parent subdomains (zero addresses)
-      const realContracts = processedEntries.filter((e) => {
+      // Count total real contracts and parent subdomains
+      const realContracts = allProcessedEntries.filter((e) => {
         const normalizedAddress = e.address.toLowerCase().padEnd(42, '0')
         return (
           normalizedAddress !== '0x0000000000000000000000000000000000000000' &&
@@ -1381,78 +1544,99 @@ export default function BatchNamingForm() {
           e.address !== ''
         )
       }).length
-      const parentSubdomains = processedEntries.length - realContracts
+      const parentSubdomains = allProcessedEntries.length - realContracts
 
-      // Step 2: Batch naming
-      steps.push({
-        title: `Name ${processedEntries.length} entries (${realContracts} contract${realContracts !== 1 ? 's' : ''}${parentSubdomains > 0 ? ` + ${parentSubdomains} parent subdomain${parentSubdomains !== 1 ? 's' : ''}` : ''})`,
-        chainId: chain!.id, // Add chainId for L1 transaction
-        action: async () => {
-          const addresses = processedEntries.map((e) => e.address as `0x${string}`)
-          const labels = processedEntries.map((e) => e.label)
+      // Determine coin types based on selected L2 chains (same for all batches)
+      const coinTypes: bigint[] = []
+      if (!skipL1Naming) {
+        coinTypes.push(60n)
+      }
 
-          const pricing = await readContract(walletClient!, {
-            address: config!.ENSCRIBE_CONTRACT as `0x${string}`,
-            abi: enscribeV2ContractABI,
-            functionName: 'pricing',
-            args: [],
-          })
+      const isL1Mainnet = chain?.id === CHAINS.MAINNET
+      const chainConfigs = {
+        Optimism: isL1Mainnet ? CHAINS.OPTIMISM : CHAINS.OPTIMISM_SEPOLIA,
+        Arbitrum: isL1Mainnet ? CHAINS.ARBITRUM : CHAINS.ARBITRUM_SEPOLIA,
+        Scroll: isL1Mainnet ? CHAINS.SCROLL : CHAINS.SCROLL_SEPOLIA,
+        Base: isL1Mainnet ? CHAINS.BASE : CHAINS.BASE_SEPOLIA,
+        Linea: isL1Mainnet ? CHAINS.LINEA : CHAINS.LINEA_SEPOLIA,
+      }
 
-          // Determine coin types based on selected L2 chains
-          const coinTypes: bigint[] = []
+      for (const chainName of selectedL2ChainNames) {
+        const chainId = chainConfigs[chainName as keyof typeof chainConfigs]
+        if (chainId) {
+          coinTypes.push(BigInt(CONTRACTS[chainId].COIN_TYPE))
+        }
+      }
 
-          // Only include cointype 60 if NOT skipping L1 naming
-          if (!skipL1Naming) {
-            coinTypes.push(60n)
-          }
+      const uniqueCoinTypes = [...new Set(coinTypes)]
 
-          const isL1Mainnet = chain?.id === CHAINS.MAINNET
+      // Step 2+: Create a batch naming step for each group
+      batchGroups.forEach((batch, index) => {
+        const batchRealContracts = batch.entries.filter((e) => {
+          const normalizedAddress = e.address.toLowerCase().padEnd(42, '0')
+          return (
+            normalizedAddress !== '0x0000000000000000000000000000000000000000' &&
+            e.address.toLowerCase() !== '0x0' &&
+            e.address !== ''
+          )
+        }).length
+        const batchParentSubdomains = batch.entries.length - batchRealContracts
 
-          const chainConfigs = {
-            Optimism: isL1Mainnet ? CHAINS.OPTIMISM : CHAINS.OPTIMISM_SEPOLIA,
-            Arbitrum: isL1Mainnet ? CHAINS.ARBITRUM : CHAINS.ARBITRUM_SEPOLIA,
-            Scroll: isL1Mainnet ? CHAINS.SCROLL : CHAINS.SCROLL_SEPOLIA,
-            Base: isL1Mainnet ? CHAINS.BASE : CHAINS.BASE_SEPOLIA,
-            Linea: isL1Mainnet ? CHAINS.LINEA : CHAINS.LINEA_SEPOLIA,
-          }
+        const levelSuffix = batch.level === 1 ? '3LD' : batch.level === 2 ? '4LD' : batch.level === 3 ? '5LD' : `${batch.level + 2}LD`
+        
+        steps.push({
+          title: `Name ${batch.entries.length} ${levelSuffix} entries under "${batch.parentName}" (${batchRealContracts} contract${batchRealContracts !== 1 ? 's' : ''}${batchParentSubdomains > 0 ? ` + ${batchParentSubdomains} subdomain${batchParentSubdomains !== 1 ? 's' : ''}` : ''})`,
+          chainId: chain!.id,
+          action: async () => {
+            // Extract just the label part (remove parent from full name)
+            const labels = batch.entries.map((e) => {
+              // e.label is the full name like "label.parent.eth"
+              // We need to extract just "label" part relative to batch.parentName
+              const fullName = e.label
+              const parentSuffix = `.${batch.parentName}`
+              if (fullName.endsWith(parentSuffix)) {
+                return fullName.slice(0, -parentSuffix.length)
+              }
+              return fullName
+            })
 
-          for (const chainName of selectedL2ChainNames) {
-            const chainId =
-              chainConfigs[chainName as keyof typeof chainConfigs]
-            if (chainId) {
-              coinTypes.push(BigInt(CONTRACTS[chainId].COIN_TYPE))
+            const addresses = batch.entries.map((e) => e.address as `0x${string}`)
+
+            const pricing = await readContract(walletClient!, {
+              address: config!.ENSCRIBE_CONTRACT as `0x${string}`,
+              abi: enscribeV2ContractABI,
+              functionName: 'pricing',
+              args: [],
+            })
+
+            let hash
+            if (uniqueCoinTypes.length === 1 && uniqueCoinTypes[0] === 60n) {
+              hash = await writeContract(walletClient!, {
+                address: config!.ENSCRIBE_CONTRACT as `0x${string}`,
+                abi: enscribeV2ContractABI,
+                functionName: 'setNameBatch',
+                args: [addresses, labels, batch.parentName],
+                value: pricing as bigint,
+              })
+            } else {
+              hash = await writeContract(walletClient!, {
+                address: config!.ENSCRIBE_CONTRACT as `0x${string}`,
+                abi: enscribeV2ContractABI,
+                functionName: 'setNameBatch',
+                args: [addresses, labels, batch.parentName, uniqueCoinTypes],
+                value: pricing as bigint,
+              })
             }
-          }
 
-          // Remove duplicates
-          const uniqueCoinTypes = [...new Set(coinTypes)]
-
-          let hash
-          if (uniqueCoinTypes.length === 1 && uniqueCoinTypes[0] === 60n) {
-            hash = await writeContract(walletClient!, {
-              address: config!.ENSCRIBE_CONTRACT as `0x${string}`,
-              abi: enscribeV2ContractABI,
-              functionName: 'setNameBatch',
-              args: [addresses, labels, parentName],
-              value: pricing as bigint,
-            })
-          } else {
-            hash = await writeContract(walletClient!, {
-              address: config!.ENSCRIBE_CONTRACT as `0x${string}`,
-              abi: enscribeV2ContractABI,
-              functionName: 'setNameBatch',
-              args: [addresses, labels, parentName, uniqueCoinTypes],
-              value: pricing as bigint,
-            })
-          }
-
-          await waitForTransactionReceipt(walletClient!, { hash })
-        },
+            await waitForTransactionReceipt(walletClient!, { hash })
+            console.log(`Batch ${index + 1} completed`)
+          },
+        })
       })
 
       // Step 3: Check each contract for reverse resolution on L1 (only for non-zero addresses and if not skipping L1)
       if (!skipL1Naming) {
-        for (const entry of processedEntries) {
+        for (const entry of allProcessedEntries) {
           // Skip zero addresses (normalize to full address format)
           const normalizedAddress = entry.address.toLowerCase().padEnd(42, '0')
           if (
@@ -1596,7 +1780,7 @@ export default function BatchNamingForm() {
             labelOnly: string
           }> = []
 
-          for (const entry of processedEntries) {
+          for (const entry of allProcessedEntries) {
             // Skip zero addresses (normalize to full address format)
             const normalizedAddress = entry.address.toLowerCase().padEnd(42, '0')
             if (
@@ -1772,7 +1956,7 @@ export default function BatchNamingForm() {
       setModalSteps(steps)
       setModalTitle('Batch Naming')
       setModalSubtitle(
-        `Naming ${processedEntries.length} entries (${realContracts} contract${realContracts !== 1 ? 's' : ''}${parentSubdomains > 0 ? ` + ${parentSubdomains} parent subdomain${parentSubdomains !== 1 ? 's' : ''}` : ''})`
+        `Naming ${allProcessedEntries.length} entries in ${batchGroups.length} batch${batchGroups.length !== 1 ? 'es' : ''} (${realContracts} contract${realContracts !== 1 ? 's' : ''}${parentSubdomains > 0 ? ` + ${parentSubdomains} subdomain${parentSubdomains !== 1 ? 's' : ''}` : ''})`
       )
       setModalOpen(true)
     } catch (error: any) {
@@ -1838,9 +2022,66 @@ export default function BatchNamingForm() {
           Contracts
         </label>
         <div className="border border-gray-200 dark:border-gray-600 rounded-lg p-4 bg-gray-50 dark:bg-gray-800 space-y-3">
-          {batchEntries.map((entry, index) => (
-            <div key={entry.id} className="space-y-1">
-              <div className="flex items-start gap-2">
+          {batchEntries.map((entry, index) => {
+            // Determine if we need a batch separator before this entry
+            let showBatchSeparator = false
+            let batchLabel = ''
+            
+            if (parentName && index > 0) {
+              const prevEntry = batchEntries[index - 1]
+              
+              // Calculate metadata for current entry
+              let currFullName = entry.label
+              if (entry.label && !entry.label.toLowerCase().endsWith(`.${parentName.toLowerCase()}`)) {
+                currFullName = `${entry.label}.${parentName}`
+              }
+              const currParts = currFullName.split('.')
+              const parentParts = parentName.split('.')
+              const currLevel = currParts.length - parentParts.length
+              const currImmediateParent = currLevel === 1 ? parentName : currParts.slice(1).join('.')
+              
+              // Calculate metadata for previous entry
+              let prevFullName = prevEntry.label
+              if (prevEntry.label && !prevEntry.label.toLowerCase().endsWith(`.${parentName.toLowerCase()}`)) {
+                prevFullName = `${prevEntry.label}.${parentName}`
+              }
+              const prevParts = prevFullName.split('.')
+              const prevLevel = prevParts.length - parentParts.length
+              const prevImmediateParent = prevLevel === 1 ? parentName : prevParts.slice(1).join('.')
+              
+              // Show separator if level or immediate parent changed
+              if (currLevel !== prevLevel || currImmediateParent !== prevImmediateParent) {
+                showBatchSeparator = true
+                const levelSuffix = currLevel === 1 ? '3LD' : currLevel === 2 ? '4LD' : currLevel === 3 ? '5LD' : `${currLevel + 2}LD`
+                batchLabel = `${levelSuffix} under "${currImmediateParent}"`
+              }
+            } else if (parentName && index === 0 && entry.label) {
+              // Show label for first entry
+              let currFullName = entry.label
+              if (entry.label && !entry.label.toLowerCase().endsWith(`.${parentName.toLowerCase()}`)) {
+                currFullName = `${entry.label}.${parentName}`
+              }
+              const currParts = currFullName.split('.')
+              const parentParts = parentName.split('.')
+              const currLevel = currParts.length - parentParts.length
+              const currImmediateParent = currLevel === 1 ? parentName : currParts.slice(1).join('.')
+              const levelSuffix = currLevel === 1 ? '3LD' : currLevel === 2 ? '4LD' : currLevel === 3 ? '5LD' : `${currLevel + 2}LD`
+              batchLabel = `${levelSuffix} under "${currImmediateParent}"`
+              showBatchSeparator = true
+            }
+            
+            return (
+              <div key={entry.id} className="space-y-1">
+                {showBatchSeparator && (
+                  <div className="flex items-center gap-2 py-2">
+                    <div className="flex-1 h-px bg-gradient-to-r from-blue-400 via-blue-500 to-blue-400 dark:from-blue-600 dark:via-blue-500 dark:to-blue-600"></div>
+                    <span className="text-xs font-semibold text-blue-600 dark:text-blue-400 px-2 whitespace-nowrap">
+                      Batch: {batchLabel}
+                    </span>
+                    <div className="flex-1 h-px bg-gradient-to-r from-blue-400 via-blue-500 to-blue-400 dark:from-blue-600 dark:via-blue-500 dark:to-blue-600"></div>
+                  </div>
+                )}
+                <div className="flex items-start gap-2">
                 <div className="flex-1 space-y-1 min-w-0">
                   <div className="relative">
                     <Input
@@ -1888,7 +2129,7 @@ export default function BatchNamingForm() {
                 <div className="flex-1 space-y-1 min-w-0">
                   <Input
                     type="text"
-                    placeholder={`name.${parentName || 'domain.eth'}`}
+                    placeholder={`myawesomeapp.${parentName || 'domain.eth'}`}
                     value={entry.label}
                     onChange={(e) => updateEntry(entry.id, 'label', e.target.value)}
                     className={`w-full px-4 py-2 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 ${
@@ -1918,7 +2159,8 @@ export default function BatchNamingForm() {
                 )}
               </div>
             </div>
-          ))}
+            )
+          })}
           
           <div className="flex items-center gap-4 pt-2">
             <button
