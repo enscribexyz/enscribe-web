@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { useAccount, useWalletClient } from 'wagmi'
+import { useAccount, useWalletClient, useSwitchChain } from 'wagmi'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Checkbox } from '@/components/ui/checkbox'
 import { useToast } from '@/hooks/use-toast'
 import { CONTRACTS, CHAINS } from '../utils/constants'
-import { isAddress, encodeFunctionData, namehash } from 'viem'
+import { isAddress, encodeFunctionData, namehash, createPublicClient, http } from 'viem'
 import { readContract, writeContract, waitForTransactionReceipt } from 'viem/actions'
+import * as chains from 'viem/chains'
 import { X, Copy, Check } from 'lucide-react'
 import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline'
 import {
@@ -38,6 +39,7 @@ const L2_CHAIN_OPTIONS = ['Optimism', 'Arbitrum', 'Scroll', 'Base', 'Linea']
 export default function BatchNamingForm() {
   const { address: walletAddress, isConnected, chain } = useAccount()
   const { data: walletClient } = useWalletClient()
+  const { switchChain } = useSwitchChain()
   const { toast } = useToast()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -705,8 +707,12 @@ export default function BatchNamingForm() {
       // 3. Reverse resolution (if applicable)
       if (!skipL1Naming) {
         for (const entry of processedEntries) {
+          // Skip zero addresses (normalize to full address format)
+          const normalizedAddress = entry.address.toLowerCase().padEnd(42, '0')
           if (
-            entry.address === '0x0000000000000000000000000000000000000000'
+            normalizedAddress === '0x0000000000000000000000000000000000000000' ||
+            entry.address.toLowerCase() === '0x0' ||
+            entry.address === ''
           ) {
             continue
           }
@@ -847,6 +853,201 @@ export default function BatchNamingForm() {
         console.log('Error checking reverse registrar owner:', error)
         return false
       }
+    }
+  }
+
+  const checkIfReverseClaimable = async (
+    contractAddress: string
+  ): Promise<boolean> => {
+    if (
+      checkIfAddressEmpty(contractAddress) ||
+      !isAddressValidCheck(contractAddress) ||
+      !walletClient ||
+      !config?.ENS_REGISTRY ||
+      !walletAddress
+    ) {
+      return false
+    }
+
+    try {
+      const addrLabel = contractAddress.slice(2).toLowerCase()
+      const reversedNode = namehash(addrLabel + '.' + 'addr.reverse')
+      const resolvedAddr = (await readContract(walletClient, {
+        address: config.ENS_REGISTRY as `0x${string}`,
+        abi: ensRegistryABI,
+        functionName: 'owner',
+        args: [reversedNode],
+      })) as `0x${string}`
+      console.log(
+        `Reverse claimable check - resolvedAddr: ${resolvedAddr.toLowerCase()} vs wallet: ${walletAddress.toLowerCase()}`,
+      )
+
+      return resolvedAddr.toLowerCase() === walletAddress.toLowerCase()
+    } catch (err) {
+      console.log('Error checking reverse claimable:', err)
+      return false
+    }
+  }
+
+  /**
+   * Check if a contract is ownable on a specific L2 chain
+   */
+  const checkIfOwnableOnL2 = async (
+    contractAddress: string,
+    l2ChainId: number
+  ): Promise<boolean> => {
+    if (
+      checkIfAddressEmpty(contractAddress) ||
+      !isAddressValidCheck(contractAddress)
+    ) {
+      return false
+    }
+
+    try {
+      // Get the viem chain object for the L2
+      let viemChain
+      switch (l2ChainId) {
+        case CHAINS.OPTIMISM:
+          viemChain = chains.optimism
+          break
+        case CHAINS.OPTIMISM_SEPOLIA:
+          viemChain = chains.optimismSepolia
+          break
+        case CHAINS.ARBITRUM:
+          viemChain = chains.arbitrum
+          break
+        case CHAINS.ARBITRUM_SEPOLIA:
+          viemChain = chains.arbitrumSepolia
+          break
+        case CHAINS.SCROLL:
+          viemChain = chains.scroll
+          break
+        case CHAINS.SCROLL_SEPOLIA:
+          viemChain = chains.scrollSepolia
+          break
+        case CHAINS.BASE:
+          viemChain = chains.base
+          break
+        case CHAINS.BASE_SEPOLIA:
+          viemChain = chains.baseSepolia
+          break
+        case CHAINS.LINEA:
+          viemChain = chains.linea
+          break
+        case CHAINS.LINEA_SEPOLIA:
+          viemChain = chains.lineaSepolia
+          break
+        default:
+          console.error(`Unknown chain ID: ${l2ChainId}`)
+          return false
+      }
+
+      // Create a public client for the L2 chain
+      const l2PublicClient = createPublicClient({
+        chain: viemChain,
+        transport: http(),
+      })
+
+      // Try to read the owner from the contract on L2
+      const ownerAddress = (await readContract(l2PublicClient, {
+        address: contractAddress as `0x${string}`,
+        abi: ownableContractABI,
+        functionName: 'owner',
+        args: [],
+      })) as `0x${string}`
+
+      console.log(
+        `Contract ${contractAddress} is ownable on chain ${l2ChainId}. Owner: ${ownerAddress}`
+      )
+      return true
+    } catch (err) {
+      console.log(
+        `Contract ${contractAddress} is not ownable on chain ${l2ChainId}:`,
+        err
+      )
+      return false
+    }
+  }
+
+  /**
+   * Check if wallet is the owner of a contract on a specific L2 chain
+   */
+  const checkIfContractOwnerOnL2 = async (
+    contractAddress: string,
+    l2ChainId: number
+  ): Promise<boolean> => {
+    if (
+      checkIfAddressEmpty(contractAddress) ||
+      !isAddressValidCheck(contractAddress) ||
+      !walletAddress
+    ) {
+      return false
+    }
+
+    try {
+      // Get the viem chain object for the L2
+      let viemChain
+      switch (l2ChainId) {
+        case CHAINS.OPTIMISM:
+          viemChain = chains.optimism
+          break
+        case CHAINS.OPTIMISM_SEPOLIA:
+          viemChain = chains.optimismSepolia
+          break
+        case CHAINS.ARBITRUM:
+          viemChain = chains.arbitrum
+          break
+        case CHAINS.ARBITRUM_SEPOLIA:
+          viemChain = chains.arbitrumSepolia
+          break
+        case CHAINS.SCROLL:
+          viemChain = chains.scroll
+          break
+        case CHAINS.SCROLL_SEPOLIA:
+          viemChain = chains.scrollSepolia
+          break
+        case CHAINS.BASE:
+          viemChain = chains.base
+          break
+        case CHAINS.BASE_SEPOLIA:
+          viemChain = chains.baseSepolia
+          break
+        case CHAINS.LINEA:
+          viemChain = chains.linea
+          break
+        case CHAINS.LINEA_SEPOLIA:
+          viemChain = chains.lineaSepolia
+          break
+        default:
+          console.error(`Unknown chain ID: ${l2ChainId}`)
+          return false
+      }
+
+      // Create a public client for the L2 chain
+      const l2PublicClient = createPublicClient({
+        chain: viemChain,
+        transport: http(),
+      })
+
+      // Try to read the owner from the contract on L2
+      const ownerAddress = (await readContract(l2PublicClient, {
+        address: contractAddress as `0x${string}`,
+        abi: ownableContractABI,
+        functionName: 'owner',
+        args: [],
+      })) as `0x${string}`
+
+      console.log(
+        `Contract ${contractAddress} owner on chain ${l2ChainId}: ${ownerAddress}, Wallet: ${walletAddress}`
+      )
+
+      return ownerAddress.toLowerCase() === walletAddress.toLowerCase()
+    } catch (err) {
+      console.log(
+        `Error checking contract owner on chain ${l2ChainId}:`,
+        err
+      )
+      return false
     }
   }
 
@@ -1161,17 +1362,30 @@ export default function BatchNamingForm() {
       const steps: Step[] = []
 
       // Step 1: Grant operator access
-      steps.push({
-        title: 'Grant operator access',
-        chainId: chain!.id, // Add chainId for L1 transaction
-        action: async () => {
-          await grantOperatorAccess()
-        },
-      })
+      if(await checkOperatorAccess(parentName)) {
+        steps.push({
+          title: 'Grant operator access',
+          chainId: chain!.id, // Add chainId for L1 transaction
+          action: async () => {
+            await grantOperatorAccess()
+          },
+        })
+      }
+
+      // Count real contracts (non-zero addresses) vs parent subdomains (zero addresses)
+      const realContracts = processedEntries.filter((e) => {
+        const normalizedAddress = e.address.toLowerCase().padEnd(42, '0')
+        return (
+          normalizedAddress !== '0x0000000000000000000000000000000000000000' &&
+          e.address.toLowerCase() !== '0x0' &&
+          e.address !== ''
+        )
+      }).length
+      const parentSubdomains = processedEntries.length - realContracts
 
       // Step 2: Batch naming
       steps.push({
-        title: `Name ${processedEntries.length} entries (${validEntries.length} contracts + ${processedEntries.length - validEntries.length} parent subdomains)`,
+        title: `Name ${processedEntries.length} entries (${realContracts} contract${realContracts !== 1 ? 's' : ''}${parentSubdomains > 0 ? ` + ${parentSubdomains} parent subdomain${parentSubdomains !== 1 ? 's' : ''}` : ''})`,
         chainId: chain!.id, // Add chainId for L1 transaction
         action: async () => {
           const addresses = processedEntries.map((e) => e.address as `0x${string}`)
@@ -1236,17 +1450,23 @@ export default function BatchNamingForm() {
         },
       })
 
-      // Step 3: Check each contract for reverse resolution (only for non-zero addresses and if not skipping L1)
+      // Step 3: Check each contract for reverse resolution on L1 (only for non-zero addresses and if not skipping L1)
       if (!skipL1Naming) {
         for (const entry of processedEntries) {
-          // Skip zero addresses
+          // Skip zero addresses (normalize to full address format)
+          const normalizedAddress = entry.address.toLowerCase().padEnd(42, '0')
           if (
-            entry.address === '0x0000000000000000000000000000000000000000'
+            normalizedAddress === '0x0000000000000000000000000000000000000000' ||
+            entry.address.toLowerCase() === '0x0' ||
+            entry.address === ''
           ) {
             continue
           }
 
+          // First check if contract is ownable on L1
           const isOwnable = await checkIfOwnable(entry.address)
+          
+          // Only proceed if contract is ownable on L1 (meaning it's deployed on L1)
           if (isOwnable) {
             const isOwner = await checkIfContractOwner(entry.address)
             if (isOwner) {
@@ -1272,15 +1492,279 @@ export default function BatchNamingForm() {
                 },
               })
             }
+          } else {
+            // If not ownable, check if reverse claimable (for contracts that don't implement Ownable)
+            const isReverseClaimable = await checkIfReverseClaimable(
+              entry.address
+            )
+            if (isReverseClaimable) {
+              const labelOnly = entry.label.split('.')[0]
+
+              // Add reverse resolution for L1
+              steps.push({
+                title: `Set reverse record for ${labelOnly}`,
+                chainId: chain!.id,
+                action: async () => {
+                  const tx = await writeContract(walletClient!, {
+                    address: config!.REVERSE_REGISTRAR as `0x${string}`,
+                    abi: reverseRegistrarABI,
+                    functionName: 'setNameForAddr',
+                    args: [
+                      entry.address as `0x${string}`,
+                      walletAddress!,
+                      config!.PUBLIC_RESOLVER as `0x${string}`,
+                      entry.label,
+                    ],
+                  })
+                  await waitForTransactionReceipt(walletClient!, { hash: tx })
+                },
+              })
+            }
           }
         }
       }
 
-      // Step 4: Revoke operator access
+      // Step 4: Add L2 reverse resolution steps for selected L2 chains
+      if (selectedL2ChainNames.length > 0) {
+        const isL1Mainnet = chain?.id === CHAINS.MAINNET
+
+        const stepChainConfigs = {
+          Optimism: {
+            chainId: isL1Mainnet ? CHAINS.OPTIMISM : CHAINS.OPTIMISM_SEPOLIA,
+            chain: isL1Mainnet
+              ? { id: CHAINS.OPTIMISM, name: 'Optimism' }
+              : { id: CHAINS.OPTIMISM_SEPOLIA, name: 'Optimism Sepolia' },
+          },
+          Arbitrum: {
+            chainId: isL1Mainnet ? CHAINS.ARBITRUM : CHAINS.ARBITRUM_SEPOLIA,
+            chain: isL1Mainnet
+              ? { id: CHAINS.ARBITRUM, name: 'Arbitrum' }
+              : { id: CHAINS.ARBITRUM_SEPOLIA, name: 'Arbitrum Sepolia' },
+          },
+          Scroll: {
+            chainId: isL1Mainnet ? CHAINS.SCROLL : CHAINS.SCROLL_SEPOLIA,
+            chain: isL1Mainnet
+              ? { id: CHAINS.SCROLL, name: 'Scroll' }
+              : { id: CHAINS.SCROLL_SEPOLIA, name: 'Scroll Sepolia' },
+          },
+          Base: {
+            chainId: isL1Mainnet ? CHAINS.BASE : CHAINS.BASE_SEPOLIA,
+            chain: isL1Mainnet
+              ? { id: CHAINS.BASE, name: 'Base' }
+              : { id: CHAINS.BASE_SEPOLIA, name: 'Base Sepolia' },
+          },
+          Linea: {
+            chainId: isL1Mainnet ? CHAINS.LINEA : CHAINS.LINEA_SEPOLIA,
+            chain: isL1Mainnet
+              ? { id: CHAINS.LINEA, name: 'Linea' }
+              : { id: CHAINS.LINEA_SEPOLIA, name: 'Linea Sepolia' },
+          },
+        }
+
+        const selectedL2Chains: Array<{
+          name: string
+          chainId: number
+          chain: any
+        }> = []
+
+        for (const selectedChain of selectedL2ChainNames) {
+          const config =
+            stepChainConfigs[selectedChain as keyof typeof stepChainConfigs]
+          if (config) {
+            selectedL2Chains.push({ name: selectedChain, ...config })
+          }
+        }
+
+        // Track if we need to switch back to L1 at the end
+        let needsSwitchBackToL1 = false
+
+        // For each L2 chain, check ownership for all contracts BEFORE creating steps
+        for (const l2Chain of selectedL2Chains) {
+          const l2Config = CONTRACTS[l2Chain.chainId]
+
+          if (!l2Config || !l2Config.L2_REVERSE_REGISTRAR) {
+            console.error(`${l2Chain.name} configuration missing`)
+            continue
+          }
+
+          console.log(`Checking ownership for contracts on ${l2Chain.name}...`)
+
+          // Collect contracts that need reverse resolution on this L2
+          const contractsForL2: Array<{
+            address: string
+            label: string
+            labelOnly: string
+          }> = []
+
+          for (const entry of processedEntries) {
+            // Skip zero addresses (normalize to full address format)
+            const normalizedAddress = entry.address.toLowerCase().padEnd(42, '0')
+            if (
+              normalizedAddress === '0x0000000000000000000000000000000000000000' ||
+              entry.address.toLowerCase() === '0x0' ||
+              entry.address === ''
+            ) {
+              continue
+            }
+
+            // Check if contract is ownable AND we're the owner on this L2
+            const isOwnableOnL2 = await checkIfOwnableOnL2(
+              entry.address,
+              l2Chain.chainId
+            )
+
+            if (isOwnableOnL2) {
+              const isOwnerOnL2 = await checkIfContractOwnerOnL2(
+                entry.address,
+                l2Chain.chainId
+              )
+
+              if (isOwnerOnL2) {
+                const labelOnly = entry.label.split('.')[0]
+                console.log(
+                  `✓ ${entry.address} (${labelOnly}) is ownable and owned on ${l2Chain.name}`
+                )
+                contractsForL2.push({
+                  address: entry.address,
+                  label: entry.label,
+                  labelOnly,
+                })
+              } else {
+                console.log(
+                  `✗ ${entry.address} is ownable on ${l2Chain.name} but wallet is not the owner`
+                )
+              }
+            } else {
+              console.log(
+                `✗ ${entry.address} is not ownable/deployed on ${l2Chain.name}`
+              )
+            }
+          }
+
+          // Only create steps for contracts that are ownable AND owned on this L2
+          if (contractsForL2.length > 0) {
+            console.log(
+              `Creating ${contractsForL2.length} reverse resolution steps for ${l2Chain.name}`
+            )
+
+            // Add individual steps for each contract
+            let isFirstContract = true
+            for (const contract of contractsForL2) {
+              steps.push({
+                title: `${isFirstContract ? `Switch to ${l2Chain.name} and set` : 'Set'} reverse record for ${contract.labelOnly}`,
+                chainId: l2Chain.chainId,
+                action: async () => {
+                  // Switch to L2 chain if not already there
+                  const currentChainId = await walletClient!.getChainId()
+                  if (currentChainId !== l2Chain.chainId) {
+                    console.log(
+                      `Switching to ${l2Chain.name} (chain ID: ${l2Chain.chainId})...`
+                    )
+                    await switchChain({ chainId: l2Chain.chainId })
+
+                    // Wait for chain switch to complete
+                    console.log('Waiting for chain switch to complete...')
+                    await new Promise((resolve) => setTimeout(resolve, 3000))
+
+                    // Wait for the chain to actually change
+                    console.log('Waiting for chain to actually change...')
+                    let attempts = 0
+                    while (attempts < 10) {
+                      const newChainId = await walletClient!.getChainId()
+                      console.log(
+                        `Current chain ID: ${newChainId}, Target: ${l2Chain.chainId}`
+                      )
+                      if (newChainId === l2Chain.chainId) {
+                        console.log('Chain switch confirmed!')
+                        break
+                      }
+                      await new Promise((resolve) => setTimeout(resolve, 1000))
+                      attempts++
+                    }
+
+                    if (attempts >= 10) {
+                      throw new Error(
+                        `Chain switch timeout - chain did not change to ${l2Chain.name}`
+                      )
+                    }
+                  }
+
+                  // Set reverse record on L2
+                  console.log(
+                    `Setting reverse record for ${contract.labelOnly} on ${l2Chain.name}...`
+                  )
+
+                  const txn = await writeContract(walletClient!, {
+                    address: l2Config.L2_REVERSE_REGISTRAR as `0x${string}`,
+                    abi: [
+                      {
+                        inputs: [
+                          {
+                            internalType: 'address',
+                            name: 'addr',
+                            type: 'address',
+                          },
+                          {
+                            internalType: 'string',
+                            name: 'name',
+                            type: 'string',
+                          },
+                        ],
+                        name: 'setNameForAddr',
+                        outputs: [],
+                        stateMutability: 'nonpayable',
+                        type: 'function',
+                      },
+                    ],
+                    functionName: 'setNameForAddr',
+                    args: [contract.address as `0x${string}`, contract.label],
+                  })
+
+                  await waitForTransactionReceipt(walletClient!, { hash: txn })
+                  console.log(
+                    `Reverse record set for ${contract.labelOnly} on ${l2Chain.name}`
+                  )
+                },
+              })
+
+              isFirstContract = false
+              needsSwitchBackToL1 = true
+            }
+          } else {
+            console.log(
+              `No contracts need reverse resolution on ${l2Chain.name}`
+            )
+          }
+        }
+
+        // Add a final step to switch back to L1 if we switched to any L2
+        if (needsSwitchBackToL1) {
+          steps.push({
+            title: `Switch back to ${chain?.name || 'L1'}`,
+            chainId: chain!.id,
+            action: async () => {
+              console.log(`Switching back to L1 (chain ID: ${chain!.id})...`)
+              await switchChain({ chainId: chain!.id })
+              await new Promise((resolve) => setTimeout(resolve, 2000))
+            },
+          })
+        }
+      }
+
+      // Final Step: Revoke operator access
       steps.push({
         title: 'Revoke operator access',
         chainId: chain!.id, // Add chainId for L1 transaction
         action: async () => {
+          // Ensure we're back on L1 before revoking
+          const currentChainId = await walletClient!.getChainId()
+          if (currentChainId !== chain!.id) {
+            console.log(
+              `Switching back to L1 (chain ID: ${chain!.id}) before revoking...`
+            )
+            await switchChain({ chainId: chain!.id })
+            await new Promise((resolve) => setTimeout(resolve, 2000))
+          }
           await revokeOperatorAccess()
         },
       })
@@ -1288,7 +1772,7 @@ export default function BatchNamingForm() {
       setModalSteps(steps)
       setModalTitle('Batch Naming')
       setModalSubtitle(
-        `Naming ${processedEntries.length} entries (${validEntries.length} contracts + ${processedEntries.length - validEntries.length} parent subdomains)`
+        `Naming ${processedEntries.length} entries (${realContracts} contract${realContracts !== 1 ? 's' : ''}${parentSubdomains > 0 ? ` + ${parentSubdomains} parent subdomain${parentSubdomains !== 1 ? 's' : ''}` : ''})`
       )
       setModalOpen(true)
     } catch (error: any) {
