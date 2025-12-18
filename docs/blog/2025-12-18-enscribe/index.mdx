@@ -46,9 +46,9 @@ Let’s see how developers can set names for their contract with Enscribe and Fo
     import "@openzeppelin/contracts/access/Ownable.sol";  
 
     contract Counter is Ownable {      
-    constructor(uint256 initialCount) Ownable(msg.sender) {
-        number = initialCount      
-    }
+        constructor(uint256 initialCount) Ownable(msg.sender) {
+            number = initialCount      
+        }
     }
     ```
 
