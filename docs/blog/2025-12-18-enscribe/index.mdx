@@ -68,7 +68,7 @@ Let’s see how developers can set names for their contract with Enscribe and Fo
             vm.startBroadcast();  
 
             counter = new Counter(0);
-                Ens.setName(block.chainid, address(counter), "v1.counter.abhi.eth");
+            Ens.setName(block.chainid, address(counter), "v1.counter.abhi.eth");
             
             vm.stopBroadcast();
         }
