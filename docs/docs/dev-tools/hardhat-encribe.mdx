@@ -14,13 +14,13 @@ It auto-detects common patterns like Ownable and ReverseClaimer, waits for confi
 
 It can be installed using the following command:
 
-```
+```bash
 pnpm install @enscribe/hardhat-enscribe  
 ```
 
 Let’s create new Hardhat project to deploy a contract –
 
-```
+```bash
 mkdir hardhat-example
 cd hardhat-example
 pnpm dlx hardhat --init
@@ -28,7 +28,7 @@ pnpm dlx hardhat --init
 
 This will generate a skeletal Hardhat project with a sample contract with the following project structure –
 
-```
+```bash
 hardhat.config.ts
 contracts
 ├── Counter.sol
@@ -44,13 +44,13 @@ scripts
 
 We can build our project with the following command –
 
-```
+```bash
 npx hardhat build
 ```
 
 Let’s now deploy our contract on Sepolia. For this, we’ll need to add configuration to interact with Sepolia. First, let’s export some env variables for the RPC url and the private key of the account that we want to use to deploy the contract –
 
-```
+```bash
 $ export SEPOLIA_RPC_URL=<sepolia rpc url>
 $ export SEPOLIA_PRIVATE_KEY=<your sepolia account private key>
 $ npx hardhat keystore set SEPOLIA_RPC_URL
@@ -59,7 +59,7 @@ $ npx hardhat keystore set SEPOLIA_PRIVATE_KEY
 
 Now open the hardhat.config.ts file and add configuration for sepolia –
 
-```
+```typescript
 const config: HardhatUserConfig = {
   …
   networks: {
@@ -75,13 +75,13 @@ const config: HardhatUserConfig = {
 
 Our sample contract Counter.sol can now be deployed on sepolia with –
 
-```
+```bash
 npx hardhat ignition --network localhost deploy ignition/modules/Counter.ts
 ```
 
 Once deployed, we are now ready to name our deployed contract. We need to add the hardhat-enscribe plugin to the list of plugins first. Open the hardhat.config.ts file and add the plugin –
 
-```
+```typescript
 import hardhatEnscribePlugin from "@enscribe/hardhat-enscribe";
 …
 const config: HardhatUserConfig = {
@@ -92,13 +92,13 @@ const config: HardhatUserConfig = {
 
 Then, invoke the plugin by passing the name and contract address in the command–
 
-```
+```bash
 pnpm hardhat enscribe name mycontract.app.eth --contract 0x1234...abcd
 ```
 
 This is what you’ll see in the output –
 
-```
+```bash
 normalized name is mycontract.app.eth
 
 Naming completed successfully!
@@ -115,7 +115,7 @@ Transactions: {
 You aren’t limited to setting a name for a contract from the CLI though. Scripting is a very powerful feature of Hardhat that allows you to do more than just contract development. You can call APIs, interact with contracts and even interact with the blockchain. You can now name your contract from a script too and we shall now see how you can do that.
 First, connect to the network and deploy the CounterModule –
 
-```
+```typescript
 import hre from "hardhat";
 import CounterModule from "../ignition/modules/Counter.js";
 
@@ -126,13 +126,13 @@ const { counter } = await connection.ignition.deploy(CounterModule);
 
 Next, get the walletClient –
 
-```
+```typescript 
  const [walletClient] = await connection.viem.getWalletClients();
  console.log(`Using account: ${walletClient.account?.address}`);
 ```
 
 
-```
+```typescript 
  const ensName = `wpsqhsld.abhi.eth`;
  const normalizedName = normalize(ensName);
 
@@ -140,7 +140,7 @@ Next, get the walletClient –
 
 We are now ready to set the name by using the enscribe library –
 
-```
+```typescript 
 import { nameContract } from "@enscribe/enscribe";
 …
 
