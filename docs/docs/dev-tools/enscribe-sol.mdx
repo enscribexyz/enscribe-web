@@ -1,0 +1,76 @@
+---
+sidebar_position: 3
+---
+
+
+# Solidity Library
+
+> Solidity library that works with Foundry scripts to enable contract naming at deployment time.
+
+## Installation
+
+```bash
+forge install enscribexyz/enscribe
+```
+---
+
+## High-level API
+
+```solidity
+function setName(
+    uint256 chainId,
+    address contractAddress,
+    string memory fullName
+) internal returns (bool success)
+```
+
+Sets both forward and reverse resolution for a contract address. This is the main function you'll use in most cases.
+
+#### Example
+
+```solidity
+import {Script, console} from "forge-std/Script.sol";
+import {Counter} from "../src/Counter.sol";
+import {Ens} from "enscribe/Ens.sol";
+
+contract CounterScript is Script {
+    function run() public {
+        vm.startBroadcast();
+
+        counter = new Counter();
+        Ens.setName(block.chainid, address(counter), "mycontract.mydomain.eth");
+
+        vm.stopBroadcast();
+    }
+}
+```
+---
+
+```solidity
+function setName(
+    uint256 chainId,
+    address contractAddress,
+    string memory fullName
+) internal returns (bool success)
+```
+
+Sets only forward resolution (name → address) without setting reverse resolution. Useful when you only need forward lookup.
+
+#### Example
+
+```solidity
+import {Script, console} from "forge-std/Script.sol";
+import {Counter} from "../src/Counter.sol";
+import {Ens} from "enscribe/Ens.sol";
+
+contract CounterScript is Script {
+    function run() public {
+        vm.startBroadcast();
+
+        counter = new Counter();
+        Ens.setForwardResolution(block.chainid, address(counter), "mycontract.mydomain.eth");
+
+        vm.stopBroadcast();
+    }
+}
+```
