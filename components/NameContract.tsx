@@ -28,13 +28,6 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
-  Select,
-  SelectItem,
-  SelectContent,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -53,6 +46,7 @@ import {
   fetchGeneratedName,
   logMetric,
   checkIfSafe,
+  isTestNet,
 } from '@/components/componentUtils'
 import {
   getEnsAddress,
@@ -1591,22 +1585,24 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
                   })
                 }
 
-                try {
-                  await logMetric(
-                    corelationId,
-                    Date.now(),
-                    chainId,
-                    existingContractAddress,
-                    walletAddress,
-                    name,
-                    'subname::setName',
-                    txn,
-                    isOwnable ? 'Ownable' : 'ReverseClaimer',
-                    opType,
-                  )
-                } catch (err) {
-                  console.log('err ' + err)
-                  setError('Failed to log metric')
+                if (!isTestNet(chainId)) {
+                  try {
+                    await logMetric(
+                      corelationId,
+                      Date.now(),
+                      chainId,
+                      existingContractAddress,
+                      walletAddress,
+                      name,
+                      'subname::setName',
+                      txn,
+                      isOwnable ? 'Ownable' : 'ReverseClaimer',
+                      opType,
+                    )
+                  } catch (err) {
+                    console.log('err ' + err)
+                    setError('Failed to log metric')
+                  }
                 }
                 return txn
               } else {
@@ -1625,22 +1621,25 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
                 args: [parentNode as `0x${string}`, labelHash, walletAddress as `0x${string}`, config.PUBLIC_RESOLVER as `0x${string}`, BigInt(0)],
                 account: walletAddress
               });
-              try {
-                await logMetric(
-                  corelationId,
-                  Date.now(),
-                  chainId,
-                  existingContractAddress,
-                  walletAddress,
-                  name,
-                  'subname::setSubnodeRecord',
-                  txn,
-                  isOwnable ? 'Ownable' : 'ReverseClaimer',
-                  opType,
-                )
-              } catch (err) {
-                console.log('err ' + err)
-                setError('Failed to log metric')
+
+              if (!isTestNet(chainId)) {
+                try {
+                  await logMetric(
+                    corelationId,
+                    Date.now(),
+                    chainId,
+                    existingContractAddress,
+                    walletAddress,
+                    name,
+                    'subname::setSubnodeRecord',
+                    txn,
+                    isOwnable ? 'Ownable' : 'ReverseClaimer',
+                    opType,
+                  )
+                } catch (err) {
+                  console.log('err ' + err)
+                  setError('Failed to log metric')
+                }
               }
               return txn
             } else {
@@ -1693,22 +1692,24 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
                     })
                   }
 
-                  try {
-                    await logMetric(
-                      corelationId,
-                      Date.now(),
-                      chainId,
-                      existingContractAddress,
-                      walletAddress,
-                      name,
-                      'subname::setSubnodeRecord',
-                      txn,
-                      isOwnable ? 'Ownable' : 'ReverseClaimer',
-                      opType,
-                    )
-                  } catch (err) {
-                    console.log('err ' + err)
-                    setError('Failed to log metric')
+                  if (!isTestNet(chainId)) {
+                    try {
+                      await logMetric(
+                        corelationId,
+                        Date.now(),
+                        chainId,
+                        existingContractAddress,
+                        walletAddress,
+                        name,
+                        'subname::setSubnodeRecord',
+                        txn,
+                        isOwnable ? 'Ownable' : 'ReverseClaimer',
+                        opType,
+                      )
+                    } catch (err) {
+                      console.log('err ' + err)
+                      setError('Failed to log metric')
+                    }
                   }
                   return txn
                 } else {
@@ -1748,22 +1749,24 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
                     })
                   }
 
-                  try {
-                    await logMetric(
-                      corelationId,
-                      Date.now(),
-                      chainId,
-                      existingContractAddress,
-                      walletAddress,
-                      name,
-                      'subname::setSubnodeRecord',
-                      txn,
-                      isOwnable ? 'Ownable' : 'ReverseClaimer',
-                      opType,
-                    )
-                  } catch (err) {
-                    console.log('err ' + err)
-                    setError('Failed to log metric')
+                  if (!isTestNet(chainId)) {
+                    try {
+                      await logMetric(
+                        corelationId,
+                        Date.now(),
+                        chainId,
+                        existingContractAddress,
+                        walletAddress,
+                        name,
+                        'subname::setSubnodeRecord',
+                        txn,
+                        isOwnable ? 'Ownable' : 'ReverseClaimer',
+                        opType,
+                      )
+                    } catch (err) {
+                      console.log('err ' + err)
+                      setError('Failed to log metric')
+                    }
                   }
                   return txn
                 }
@@ -1839,24 +1842,25 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
                   account: walletAddress,
                 });
 
-                try {
-                  await logMetric(
-                    corelationId,
-                    Date.now(),
-                    chainId,
-                    existingContractAddress,
-                    walletAddress,
-                    name,
-                    'fwdres::setAddr',
-                    txn,
-                    isOwnable ? 'Ownable' : 'ReverseClaimer',
-                    opType,
-                  )
-                } catch (err) {
-                  console.log('err ' + err)
-                  setError('Failed to log metric')
+                if (!isTestNet(chainId)) {
+                  try {
+                    await logMetric(
+                      corelationId,
+                      Date.now(),
+                      chainId,
+                      existingContractAddress,
+                      walletAddress,
+                      name,
+                      'fwdres::setAddr',
+                      txn,
+                      isOwnable ? 'Ownable' : 'ReverseClaimer',
+                      opType,
+                    )
+                  } catch (err) {
+                    console.log('err ' + err)
+                    setError('Failed to log metric')
+                  }
                 }
-
                 return txn
               } else {
                 if (isSafeWallet) {
@@ -1878,22 +1882,24 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
                   })
                 }
 
-                try {
-                  await logMetric(
-                    corelationId,
-                    Date.now(),
-                    chainId,
-                    existingContractAddress,
-                    walletAddress,
-                    name,
-                    'fwdres::setAddr',
-                    txn,
-                    isOwnable ? 'Ownable' : 'ReverseClaimer',
-                    opType,
-                  )
-                } catch (err) {
-                  console.log('err ' + err)
-                  setError('Failed to log metric')
+                if (!isTestNet(chainId)) {
+                  try {
+                    await logMetric(
+                      corelationId,
+                      Date.now(),
+                      chainId,
+                      existingContractAddress,
+                      walletAddress,
+                      name,
+                      'fwdres::setAddr',
+                      txn,
+                      isOwnable ? 'Ownable' : 'ReverseClaimer',
+                      opType,
+                    )
+                  } catch (err) {
+                    console.log('err ' + err)
+                    setError('Failed to log metric')
+                  }
                 }
                 return txn
               }
@@ -1968,22 +1974,24 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
                 account: walletAddress,
               })
 
-              try {
-                await logMetric(
-                  corelationId,
-                  Date.now(),
-                  chainId,
-                  existingContractAddress,
-                  walletAddress,
-                  name,
-                  'revres::setNameForAddr',
-                  txn,
-                  'Ownable',
-                  opType,
-                )
-              } catch (err) {
-                console.log('err ' + err)
-                setError('Failed to log metric')
+              if (!isTestNet(chainId)) {
+                try {
+                  await logMetric(
+                    corelationId,
+                    Date.now(),
+                    chainId,
+                    existingContractAddress,
+                    walletAddress,
+                    name,
+                    'revres::setNameForAddr',
+                    txn,
+                    'Ownable',
+                    opType,
+                  )
+                } catch (err) {
+                  console.log('err ' + err)
+                  setError('Failed to log metric')
+                }
               }
 
               return txn
@@ -2025,22 +2033,24 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
                 })
               }
 
-              try {
-                await logMetric(
-                  corelationId,
-                  Date.now(),
-                  chainId,
-                  existingContractAddress,
-                  walletAddress,
-                  name,
-                  'revres::setNameForAddr',
-                  txn,
-                  'Ownable',
-                  opType,
-                )
-              } catch (err) {
-                console.log('err ' + err)
-                setError('Failed to log metric')
+              if (!isTestNet(chainId)) {
+                try {
+                  await logMetric(
+                    corelationId,
+                    Date.now(),
+                    chainId,
+                    existingContractAddress,
+                    walletAddress,
+                    name,
+                    'revres::setNameForAddr',
+                    txn,
+                    'Ownable',
+                    opType,
+                  )
+                } catch (err) {
+                  console.log('err ' + err)
+                  setError('Failed to log metric')
+                }
               }
               return txn
             }
@@ -2079,22 +2089,24 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
               })
             }
 
-            try {
-              await logMetric(
-                corelationId,
-                Date.now(),
-                chainId,
-                existingContractAddress,
-                walletAddress,
-                name,
-                'revres::setName',
-                txn,
-                'ReverseClaimer',
-                opType,
-              )
-            } catch (err) {
-              console.log('err ' + err)
-              setError('Failed to log metric')
+            if (!isTestNet(chainId)) {
+              try {
+                await logMetric(
+                  corelationId,
+                  Date.now(),
+                  chainId,
+                  existingContractAddress,
+                  walletAddress,
+                  name,
+                  'revres::setName',
+                  txn,
+                  'ReverseClaimer',
+                  opType,
+                )
+              } catch (err) {
+                console.log('err ' + err)
+                setError('Failed to log metric')
+              }
             }
             return txn
           },
@@ -2184,22 +2196,25 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
                     account: walletAddress,
                   })
                 }
-                try {
-                  await logMetric(
-                    corelationId,
-                    Date.now(),
-                    chainId,
-                    existingContractAddress,
-                    walletAddress,
-                    name,
-                    'fwdres::setAddr',
-                    txn,
-                    isOwnable ? 'Ownable' : 'ReverseClaimer',
-                    opType,
-                  )
-                } catch (err) {
-                  console.log('err ' + err)
-                  setError('Failed to log metric')
+
+                if (!isTestNet(chainId)) {
+                  try {
+                    await logMetric(
+                      corelationId,
+                      Date.now(),
+                      chainId,
+                      existingContractAddress,
+                      walletAddress,
+                      name,
+                      'fwdres::setAddr',
+                      txn,
+                      isOwnable ? 'Ownable' : 'ReverseClaimer',
+                      opType,
+                    )
+                  } catch (err) {
+                    console.log('err ' + err)
+                    setError('Failed to log metric')
+                  }
                 }
                 return txn
               } else {
@@ -2366,22 +2381,24 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
               console.log(`${l2Chain.name} transaction submitted:`, txn)
 
               // Log the L2 transaction
-              try {
-                await logMetric(
-                  `${l2Chain.name.toLowerCase()}-l2-primary`, // correlationId
-                  Date.now(),
-                  l2Chain.chainId,
-                  existingContractAddress,
-                  walletAddress,
-                  skipSubnameCreation ? label : name,
-                  'revres::setNameForAddr',
-                  txn,
-                  'L2Primary',
-                  opType,
-                )
-              } catch (err) {
-                console.log('err ' + err)
-                setError('Failed to log metric')
+              if (!isTestNet(l2Chain.chainId)) {
+                try {
+                  await logMetric(
+                    `${l2Chain.name.toLowerCase()}-l2-primary`, // correlationId
+                    Date.now(),
+                    l2Chain.chainId,
+                    existingContractAddress,
+                    walletAddress,
+                    skipSubnameCreation ? label : name,
+                    'revres::setNameForAddr',
+                    txn,
+                    'L2Primary',
+                    opType,
+                  )
+                } catch (err) {
+                  console.log('err ' + err)
+                  setError('Failed to log metric')
+                }
               }
 
               return txn
