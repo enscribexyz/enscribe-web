@@ -16,18 +16,34 @@ export function ThemeAwareRainbowKit({ children }: ThemeAwareRainbowKitProps) {
   // Determine which theme to use
   const getCurrentTheme = () => {
     if (theme === 'dark') {
-      return darkTheme()
+      return darkTheme({
+        borderRadius: 'large',
+        fontStack: 'system',
+      })
     } else if (theme === 'light') {
-      return lightTheme()
+      return lightTheme({
+        borderRadius: 'large',
+        fontStack: 'system',
+      })
     } else {
       // For 'system' theme, we'll use the current system preference
       if (typeof window !== 'undefined') {
-        return window.matchMedia('(prefers-color-scheme: dark)').matches
-          ? darkTheme()
-          : lightTheme()
+        const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+        return isDark
+          ? darkTheme({
+              borderRadius: 'large',
+              fontStack: 'system',
+            })
+          : lightTheme({
+              borderRadius: 'large',
+              fontStack: 'system',
+            })
       }
       // Default to light theme for SSR
-      return lightTheme()
+      return lightTheme({
+        borderRadius: 'large',
+        fontStack: 'system',
+      })
     }
   }
 
