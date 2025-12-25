@@ -777,7 +777,7 @@ export default function BatchNamingForm() {
       const approvalCallData = encodeFunctionData({
         abi: isWrapped ? nameWrapperABI : ensRegistryABI,
         functionName: 'setApprovalForAll',
-        args: [config.ENSCRIBE_CONTRACT, true],
+        args: [config.ENSCRIBE_V2_CONTRACT, true],
       })
       callDataArray.push(
         `${isWrapped ? 'NameWrapper' : 'ENSRegistry'}.setApprovalForAll (grant): ${approvalCallData}`
@@ -878,7 +878,7 @@ export default function BatchNamingForm() {
       const revokeCallData = encodeFunctionData({
         abi: isWrapped ? nameWrapperABI : ensRegistryABI,
         functionName: 'setApprovalForAll',
-        args: [config.ENSCRIBE_CONTRACT, false],
+        args: [config.ENSCRIBE_V2_CONTRACT, false],
       })
       callDataArray.push(
         `${isWrapped ? 'NameWrapper' : 'ENSRegistry'}.setApprovalForAll (revoke): ${revokeCallData}`
@@ -1196,7 +1196,7 @@ export default function BatchNamingForm() {
       !walletClient ||
       !walletAddress ||
       !config?.ENS_REGISTRY ||
-      !config?.ENSCRIBE_CONTRACT ||
+      !config?.ENSCRIBE_V2_CONTRACT ||
       !getParentNode(parentName)
     ) {
       console.log('Missing required parameters for granting operator access')
@@ -1211,7 +1211,7 @@ export default function BatchNamingForm() {
           address: config.ENS_REGISTRY as `0x${string}`,
           abi: ensRegistryABI,
           functionName: 'setApprovalForAll',
-          args: [config.ENSCRIBE_CONTRACT, true],
+          args: [config.ENSCRIBE_V2_CONTRACT, true],
           account: walletAddress,
         })
 
@@ -1229,14 +1229,14 @@ export default function BatchNamingForm() {
               address: config.NAME_WRAPPER as `0x${string}`,
               abi: nameWrapperABI,
               functionName: 'setApprovalForAll',
-              args: [config.ENSCRIBE_CONTRACT, true],
+              args: [config.ENSCRIBE_V2_CONTRACT, true],
               account: walletAddress,
             })
           : await writeContract(walletClient, {
               address: config.ENS_REGISTRY as `0x${string}`,
               abi: ensRegistryABI,
               functionName: 'setApprovalForAll',
-              args: [config.ENSCRIBE_CONTRACT, true],
+              args: [config.ENSCRIBE_V2_CONTRACT, true],
               account: walletAddress,
             })
 
@@ -1255,7 +1255,7 @@ export default function BatchNamingForm() {
       !walletClient ||
       !walletAddress ||
       !config?.ENS_REGISTRY ||
-      !config?.ENSCRIBE_CONTRACT ||
+      !config?.ENSCRIBE_V2_CONTRACT ||
       !getParentNode(parentName)
     ) {
       console.log('Missing required parameters for revoking operator access')
@@ -1270,7 +1270,7 @@ export default function BatchNamingForm() {
           address: config.ENS_REGISTRY as `0x${string}`,
           abi: ensRegistryABI,
           functionName: 'setApprovalForAll',
-          args: [config.ENSCRIBE_CONTRACT, false],
+          args: [config.ENSCRIBE_V2_CONTRACT, false],
           account: walletAddress,
         })
 
@@ -1288,14 +1288,14 @@ export default function BatchNamingForm() {
               address: config.NAME_WRAPPER as `0x${string}`,
               abi: nameWrapperABI,
               functionName: 'setApprovalForAll',
-              args: [config.ENSCRIBE_CONTRACT, false],
+              args: [config.ENSCRIBE_V2_CONTRACT, false],
               account: walletAddress,
             })
           : await writeContract(walletClient, {
               address: config.ENS_REGISTRY as `0x${string}`,
               abi: ensRegistryABI,
               functionName: 'setApprovalForAll',
-              args: [config.ENSCRIBE_CONTRACT, false],
+              args: [config.ENSCRIBE_V2_CONTRACT, false],
               account: walletAddress,
             })
 
@@ -1314,7 +1314,7 @@ export default function BatchNamingForm() {
       !walletClient ||
       !walletAddress ||
       !config?.ENS_REGISTRY ||
-      !config?.ENSCRIBE_CONTRACT ||
+      !config?.ENSCRIBE_V2_CONTRACT ||
       !name
     )
       return false
@@ -1328,7 +1328,7 @@ export default function BatchNamingForm() {
           address: config.ENS_REGISTRY as `0x${string}`,
           abi: ensRegistryABI,
           functionName: 'isApprovedForAll',
-          args: [walletAddress, config.ENSCRIBE_CONTRACT],
+          args: [walletAddress, config.ENSCRIBE_V2_CONTRACT],
         })) as boolean
       } else {
         const isWrapped = (await readContract(walletClient, {
@@ -1344,7 +1344,7 @@ export default function BatchNamingForm() {
             address: config.NAME_WRAPPER as `0x${string}`,
             abi: nameWrapperABI,
             functionName: 'isApprovedForAll',
-            args: [walletAddress, config.ENSCRIBE_CONTRACT],
+            args: [walletAddress, config.ENSCRIBE_V2_CONTRACT],
           })) as boolean
         } else {
           //Unwrapped Names
@@ -1353,7 +1353,7 @@ export default function BatchNamingForm() {
             address: config.ENS_REGISTRY as `0x${string}`,
             abi: ensRegistryABI,
             functionName: 'isApprovedForAll',
-            args: [walletAddress, config.ENSCRIBE_CONTRACT],
+            args: [walletAddress, config.ENSCRIBE_V2_CONTRACT],
           })) as boolean
         }
       }
@@ -1570,8 +1570,10 @@ export default function BatchNamingForm() {
 
       const steps: Step[] = []
 
+      const operatorAccess = await checkOperatorAccess(parentName)
+      console.log(`Operator access check for ${parentName}: ${operatorAccess}`)
       // Step 1: Grant operator access
-      if(await checkOperatorAccess(parentName)) {
+      if(!operatorAccess) {
         steps.push({
           title: 'Grant operator access',
           chainId: chain!.id,
@@ -1649,7 +1651,7 @@ export default function BatchNamingForm() {
             const addresses = batch.entries.map((e) => e.address as `0x${string}`)
 
             const pricing = await readContract(walletClient!, {
-              address: config!.ENSCRIBE_CONTRACT as `0x${string}`,
+              address: config!.ENSCRIBE_V2_CONTRACT as `0x${string}`,
               abi: enscribeV2ContractABI,
               functionName: 'pricing',
               args: [],
@@ -1658,7 +1660,7 @@ export default function BatchNamingForm() {
             let hash
             if (uniqueCoinTypes.length === 1 && uniqueCoinTypes[0] === 60n) {
               hash = await writeContract(walletClient!, {
-                address: config!.ENSCRIBE_CONTRACT as `0x${string}`,
+                address: config!.ENSCRIBE_V2_CONTRACT as `0x${string}`,
                 abi: enscribeV2ContractABI,
                 functionName: 'setNameBatch',
                 args: [addresses, labels, batch.parentName],
@@ -1666,7 +1668,7 @@ export default function BatchNamingForm() {
               })
             } else {
               hash = await writeContract(walletClient!, {
-                address: config!.ENSCRIBE_CONTRACT as `0x${string}`,
+                address: config!.ENSCRIBE_V2_CONTRACT as `0x${string}`,
                 abi: enscribeV2ContractABI,
                 functionName: 'setNameBatch',
                 args: [addresses, labels, batch.parentName, uniqueCoinTypes],

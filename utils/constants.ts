@@ -1,6 +1,7 @@
 export type NetworkConfig = {
   name: string
   ENSCRIBE_CONTRACT: string
+  ENSCRIBE_V2_CONTRACT: string
   ENS_REGISTRY: string
   BASE_REGISTRAR: string
   NAME_WRAPPER: string
@@ -22,6 +23,7 @@ export const CONTRACTS: Record<number, NetworkConfig> = {
   1: {
     name: 'Ethereum Mainnet',
     ENSCRIBE_CONTRACT: process.env.NEXT_PUBLIC_ENSCRIBE_CONTRACT || '',
+    ENSCRIBE_V2_CONTRACT: process.env.NEXT_PUBLIC_ENSCRIBE_V2_CONTRACT || '',
     ENS_REGISTRY: process.env.NEXT_PUBLIC_ENS_REGISTRY || '',
     BASE_REGISTRAR:
       process.env.NEXT_PUBLIC_ENS_BASE_REGISTRAR_IMPLEMENTATION || '',
@@ -42,6 +44,7 @@ export const CONTRACTS: Record<number, NetworkConfig> = {
   11155111: {
     name: 'Sepolia Testnet',
     ENSCRIBE_CONTRACT: process.env.NEXT_PUBLIC_ENSCRIBE_CONTRACT_SEPOLIA || '',
+    ENSCRIBE_V2_CONTRACT: process.env.NEXT_PUBLIC_ENSCRIBE_V2_CONTRACT_SEPOLIA || '',
     ENS_REGISTRY: process.env.NEXT_PUBLIC_ENS_REGISTRY_SEPOLIA || '',
     BASE_REGISTRAR:
       process.env.NEXT_PUBLIC_ENS_BASE_REGISTRAR_IMPLEMENTATION_SEPOLIA || '',
@@ -64,6 +67,7 @@ export const CONTRACTS: Record<number, NetworkConfig> = {
   59144: {
     name: 'Linea Mainnet',
     ENSCRIBE_CONTRACT: process.env.NEXT_PUBLIC_ENSCRIBE_CONTRACT_LINEA || '',
+    ENSCRIBE_V2_CONTRACT: process.env.NEXT_PUBLIC_ENSCRIBE_V2_CONTRACT_LINEA || '',
     ENS_REGISTRY: process.env.NEXT_PUBLIC_ENS_REGISTRY_LINEA || '',
     BASE_REGISTRAR:
       process.env.NEXT_PUBLIC_ENS_BASE_REGISTRAR_IMPLEMENTATION_LINEA || '',
@@ -87,6 +91,7 @@ export const CONTRACTS: Record<number, NetworkConfig> = {
     name: 'Linea Sepolia Testnet',
     ENSCRIBE_CONTRACT:
       process.env.NEXT_PUBLIC_ENSCRIBE_CONTRACT_LINEA_SEPOLIA || '',
+    ENSCRIBE_V2_CONTRACT: process.env.NEXT_PUBLIC_ENSCRIBE_V2_CONTRACT_LINEA_SEPOLIA || '',
     ENS_REGISTRY: process.env.NEXT_PUBLIC_ENS_REGISTRY_LINEA_SEPOLIA || '',
     BASE_REGISTRAR:
       process.env.NEXT_PUBLIC_ENS_BASE_REGISTRAR_IMPLEMENTATION_LINEA_SEPOLIA ||
@@ -113,6 +118,7 @@ export const CONTRACTS: Record<number, NetworkConfig> = {
   8453: {
     name: 'Base Mainnet',
     ENSCRIBE_CONTRACT: process.env.NEXT_PUBLIC_ENSCRIBE_CONTRACT_BASE || '',
+    ENSCRIBE_V2_CONTRACT: process.env.NEXT_PUBLIC_ENSCRIBE_V2_CONTRACT_BASE || '',
     ENS_REGISTRY: process.env.NEXT_PUBLIC_ENS_REGISTRY_BASE || '',
     BASE_REGISTRAR:
       process.env.NEXT_PUBLIC_ENS_BASE_REGISTRAR_IMPLEMENTATION_BASE || '',
@@ -136,6 +142,7 @@ export const CONTRACTS: Record<number, NetworkConfig> = {
     name: 'Base Sepolia Testnet',
     ENSCRIBE_CONTRACT:
       process.env.NEXT_PUBLIC_ENSCRIBE_CONTRACT_BASE_SEPOLIA || '',
+    ENSCRIBE_V2_CONTRACT: process.env.NEXT_PUBLIC_ENSCRIBE_V2_CONTRACT_BASE_SEPOLIA || '',
     ENS_REGISTRY: process.env.NEXT_PUBLIC_ENS_REGISTRY_BASE_SEPOLIA || '',
     BASE_REGISTRAR:
       process.env.NEXT_PUBLIC_ENS_BASE_REGISTRAR_IMPLEMENTATION_BASE_SEPOLIA ||
@@ -160,6 +167,7 @@ export const CONTRACTS: Record<number, NetworkConfig> = {
   10: {
     name: 'Optimism Mainnet',
     ENSCRIBE_CONTRACT: process.env.NEXT_PUBLIC_ENSCRIBE_CONTRACT_OPTIMISM || '',
+    ENSCRIBE_V2_CONTRACT: process.env.NEXT_PUBLIC_ENSCRIBE_V2_CONTRACT_OPTIMISM || '',
     ENS_REGISTRY: process.env.NEXT_PUBLIC_ENS_REGISTRY_OPTIMISM || '',
     BASE_REGISTRAR:
       process.env.NEXT_PUBLIC_ENS_BASE_REGISTRAR_IMPLEMENTATION_OPTIMISM || '',
@@ -183,6 +191,7 @@ export const CONTRACTS: Record<number, NetworkConfig> = {
     name: 'Optimism Sepolia Testnet',
     ENSCRIBE_CONTRACT:
       process.env.NEXT_PUBLIC_ENSCRIBE_CONTRACT_OPTIMISM_SEPOLIA || '',
+    ENSCRIBE_V2_CONTRACT: process.env.NEXT_PUBLIC_ENSCRIBE_V2_CONTRACT_OPTIMISM_SEPOLIA || '',
     ENS_REGISTRY: process.env.NEXT_PUBLIC_ENS_REGISTRY_OPTIMISM_SEPOLIA || '',
     BASE_REGISTRAR:
       process.env
@@ -209,6 +218,7 @@ export const CONTRACTS: Record<number, NetworkConfig> = {
   42161: {
     name: 'Arbitrum Mainnet',
     ENSCRIBE_CONTRACT: process.env.NEXT_PUBLIC_ENSCRIBE_CONTRACT_ARBITRUM || '',
+    ENSCRIBE_V2_CONTRACT: process.env.NEXT_PUBLIC_ENSCRIBE_V2_CONTRACT_ARBITRUM || '',
     ENS_REGISTRY: process.env.NEXT_PUBLIC_ENS_REGISTRY_ARBITRUM || '',
     BASE_REGISTRAR:
       process.env.NEXT_PUBLIC_ENS_BASE_REGISTRAR_IMPLEMENTATION_ARBITRUM || '',
@@ -232,6 +242,7 @@ export const CONTRACTS: Record<number, NetworkConfig> = {
     name: 'Arbitrum Sepolia Testnet',
     ENSCRIBE_CONTRACT:
       process.env.NEXT_PUBLIC_ENSCRIBE_CONTRACT_ARBITRUM_SEPOLIA || '',
+    ENSCRIBE_V2_CONTRACT: process.env.NEXT_PUBLIC_ENSCRIBE_V2_CONTRACT_ARBITRUM_SEPOLIA || '',
     ENS_REGISTRY: process.env.NEXT_PUBLIC_ENS_REGISTRY_ARBITRUM_SEPOLIA || '',
     BASE_REGISTRAR:
       process.env
@@ -258,6 +269,7 @@ export const CONTRACTS: Record<number, NetworkConfig> = {
   534352: {
     name: 'Scroll Mainnet',
     ENSCRIBE_CONTRACT: process.env.NEXT_PUBLIC_ENSCRIBE_CONTRACT_SCROLL || '',
+    ENSCRIBE_V2_CONTRACT: process.env.NEXT_PUBLIC_ENSCRIBE_V2_CONTRACT_SCROLL || '',
     ENS_REGISTRY: process.env.NEXT_PUBLIC_ENS_REGISTRY_SCROLL || '',
     BASE_REGISTRAR:
       process.env.NEXT_PUBLIC_ENS_BASE_REGISTRAR_IMPLEMENTATION_SCROLL || '',
@@ -281,6 +293,7 @@ export const CONTRACTS: Record<number, NetworkConfig> = {
     name: 'Scroll Sepolia Testnet',
     ENSCRIBE_CONTRACT:
       process.env.NEXT_PUBLIC_ENSCRIBE_CONTRACT_SCROLL_SEPOLIA || '',
+    ENSCRIBE_V2_CONTRACT: process.env.NEXT_PUBLIC_ENSCRIBE_V2_CONTRACT_SCROLL_SEPOLIA || '',
     ENS_REGISTRY: process.env.NEXT_PUBLIC_ENS_REGISTRY_SCROLL_SEPOLIA || '',
     BASE_REGISTRAR:
       process.env

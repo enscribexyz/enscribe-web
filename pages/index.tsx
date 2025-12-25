@@ -134,7 +134,7 @@ export default function Home() {
 
               {/* Or divider */}
               <div className="text-muted-foreground text-sm font-medium">
-                -or-
+                - or -
               </div>
             </>
           )}
