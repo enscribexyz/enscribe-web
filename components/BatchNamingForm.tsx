@@ -1208,6 +1208,7 @@ export default function BatchNamingForm() {
       
       if (chain?.id === CHAINS.BASE || chain?.id === CHAINS.BASE_SEPOLIA) {
         const tx = await writeContract(walletClient, {
+          chain,
           address: config.ENS_REGISTRY as `0x${string}`,
           abi: ensRegistryABI,
           functionName: 'setApprovalForAll',
@@ -1226,6 +1227,7 @@ export default function BatchNamingForm() {
 
         const tx = isWrapped
           ? await writeContract(walletClient, {
+              chain,
               address: config.NAME_WRAPPER as `0x${string}`,
               abi: nameWrapperABI,
               functionName: 'setApprovalForAll',
@@ -1233,6 +1235,7 @@ export default function BatchNamingForm() {
               account: walletAddress,
             })
           : await writeContract(walletClient, {
+              chain,
               address: config.ENS_REGISTRY as `0x${string}`,
               abi: ensRegistryABI,
               functionName: 'setApprovalForAll',
@@ -1267,6 +1270,7 @@ export default function BatchNamingForm() {
 
       if (chain?.id === CHAINS.BASE || chain?.id === CHAINS.BASE_SEPOLIA) {
         const tx = await writeContract(walletClient, {
+          chain,
           address: config.ENS_REGISTRY as `0x${string}`,
           abi: ensRegistryABI,
           functionName: 'setApprovalForAll',
@@ -1285,6 +1289,7 @@ export default function BatchNamingForm() {
 
         const tx = isWrapped
           ? await writeContract(walletClient, {
+              chain,
               address: config.NAME_WRAPPER as `0x${string}`,
               abi: nameWrapperABI,
               functionName: 'setApprovalForAll',
@@ -1292,6 +1297,7 @@ export default function BatchNamingForm() {
               account: walletAddress,
             })
           : await writeContract(walletClient, {
+              chain,
               address: config.ENS_REGISTRY as `0x${string}`,
               abi: ensRegistryABI,
               functionName: 'setApprovalForAll',
@@ -1660,6 +1666,7 @@ export default function BatchNamingForm() {
             let hash
             if (uniqueCoinTypes.length === 1 && uniqueCoinTypes[0] === 60n) {
               hash = await writeContract(walletClient!, {
+                chain,
                 address: config!.ENSCRIBE_V2_CONTRACT as `0x${string}`,
                 abi: enscribeV2ContractABI,
                 functionName: 'setNameBatch',
@@ -1668,6 +1675,7 @@ export default function BatchNamingForm() {
               })
             } else {
               hash = await writeContract(walletClient!, {
+                chain,
                 address: config!.ENSCRIBE_V2_CONTRACT as `0x${string}`,
                 abi: enscribeV2ContractABI,
                 functionName: 'setNameBatch',
@@ -1710,6 +1718,7 @@ export default function BatchNamingForm() {
                 chainId: chain!.id, // Add chainId for L1 transaction
                 action: async () => {
                   const tx = await writeContract(walletClient!, {
+                    chain,
                     address: config!.REVERSE_REGISTRAR as `0x${string}`,
                     abi: reverseRegistrarABI,
                     functionName: 'setNameForAddr',
@@ -1738,6 +1747,7 @@ export default function BatchNamingForm() {
                 chainId: chain!.id,
                 action: async () => {
                   const tx = await writeContract(walletClient!, {
+                    chain,
                     address: config!.REVERSE_REGISTRAR as `0x${string}`,
                     abi: reverseRegistrarABI,
                     functionName: 'setNameForAddr',
@@ -1927,6 +1937,7 @@ export default function BatchNamingForm() {
                   )
 
                   const txn = await writeContract(walletClient!, {
+                    chain: l2Chain.chain,
                     address: l2Config.L2_REVERSE_REGISTRAR as `0x${string}`,
                     abi: [
                       {
@@ -1969,18 +1980,8 @@ export default function BatchNamingForm() {
           }
         }
 
-        // Add a final step to switch back to L1 if we switched to any L2
-        if (needsSwitchBackToL1) {
-          steps.push({
-            title: `Switch back to ${chain?.name || 'L1'}`,
-            chainId: chain!.id,
-            action: async () => {
-              console.log(`Switching back to L1 (chain ID: ${chain!.id})...`)
-              await switchChain({ chainId: chain!.id })
-              await new Promise((resolve) => setTimeout(resolve, 2000))
-            },
-          })
-        }
+        // Don't add a separate "Switch back to L1" step
+        // The chain switching will be handled in the revoke operator access step
       }
 
       // Final Step: Revoke operator access
@@ -1995,7 +1996,32 @@ export default function BatchNamingForm() {
               `Switching back to L1 (chain ID: ${chain!.id}) before revoking...`
             )
             await switchChain({ chainId: chain!.id })
-            await new Promise((resolve) => setTimeout(resolve, 2000))
+            
+            // Wait for chain switch to complete
+            console.log('Waiting for chain switch to complete...')
+            await new Promise((resolve) => setTimeout(resolve, 3000))
+
+            // Wait for the chain to actually change
+            console.log('Waiting for chain to actually change...')
+            let attempts = 0
+            while (attempts < 10) {
+              const newChainId = await walletClient!.getChainId()
+              console.log(
+                `Current chain ID: ${newChainId}, Target: ${chain!.id}`
+              )
+              if (newChainId === chain!.id) {
+                console.log('Chain switch confirmed!')
+                break
+              }
+              await new Promise((resolve) => setTimeout(resolve, 1000))
+              attempts++
+            }
+
+            if (attempts >= 10) {
+              throw new Error(
+                `Chain switch timeout - chain did not change to ${chain?.name}`
+              )
+            }
           }
           await revokeOperatorAccess()
         },
@@ -2101,7 +2127,7 @@ export default function BatchNamingForm() {
               if (currLevel !== prevLevel || currImmediateParent !== prevImmediateParent) {
                 showBatchSeparator = true
                 const levelSuffix = currLevel === 1 ? '3LD' : currLevel === 2 ? '4LD' : currLevel === 3 ? '5LD' : `${currLevel + 2}LD`
-                batchLabel = `${levelSuffix} under "${currImmediateParent}"`
+                batchLabel = `names under "${currImmediateParent}"`
               }
             } else if (parentName && index === 0 && entry.label) {
               // Show label for first entry
@@ -2114,7 +2140,7 @@ export default function BatchNamingForm() {
               const currLevel = currParts.length - parentParts.length
               const currImmediateParent = currLevel === 1 ? parentName : currParts.slice(1).join('.')
               const levelSuffix = currLevel === 1 ? '3LD' : currLevel === 2 ? '4LD' : currLevel === 3 ? '5LD' : `${currLevel + 2}LD`
-              batchLabel = `${levelSuffix} under "${currImmediateParent}"`
+              batchLabel = `names under "${currImmediateParent}"`
               showBatchSeparator = true
             }
             
