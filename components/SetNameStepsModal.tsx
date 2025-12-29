@@ -7,7 +7,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { CheckCircle, Loader2, XCircle, Clock } from 'lucide-react'
+import { CheckCircle, Loader2, XCircle, Clock, ChevronDown, ChevronUp } from 'lucide-react'
 import { CONTRACTS, TOPIC0 } from '../utils/constants'
 import { useAccount, useWalletClient } from 'wagmi'
 import { useRouter } from 'next/router'
@@ -36,6 +36,11 @@ export interface Step {
   chainId?: number // Add chainId to track which chain the transaction happens on
 }
 
+export interface BatchEntry {
+  address: string
+  label: string
+}
+
 export interface SetNameStepsModalProps {
   open: boolean
   onClose: (lastTxHash?: string | null) => void
@@ -47,6 +52,8 @@ export interface SetNameStepsModalProps {
   isPrimaryNameSet?: boolean
   isSafeWallet?: boolean
   walletAddress?: string
+  batchEntries?: BatchEntry[]
+  parentName?: string
 }
 
 export default function SetNameStepsModal({
@@ -60,6 +67,8 @@ export default function SetNameStepsModal({
   isPrimaryNameSet,
   isSafeWallet,
   walletAddress,
+  batchEntries,
+  parentName,
 }: SetNameStepsModalProps) {
   const [currentStep, setCurrentStep] = useState(0)
   const [executing, setExecuting] = useState(false)
@@ -79,6 +88,9 @@ export default function SetNameStepsModal({
   const [internalContractAddress, setInternalContractAddress] = useState<
     string | undefined
   >(contractAddress)
+
+  // Add state for expandable batch entries
+  const [isBatchExpanded, setIsBatchExpanded] = useState(false)
 
   const { chain, address } = useAccount()
   const router = useRouter()
@@ -302,16 +314,21 @@ export default function SetNameStepsModal({
   const handleDialogChange = (isOpen: boolean) => {
     if (!isOpen) {
       if (allStepsCompleted && !errorMessage) {
-        // Navigate to the explore page when closing a successful modal
-        const address = internalContractAddress || contractAddress
-        if (address && chain?.id) {
-          console.log(
-            'Redirecting to explore page:',
-            `/explore/${chain.id}/${address}`,
-          )
-          router.push(`/explore/${chain.id}/${address}`)
+        // For batch naming, don't navigate to a single contract page
+        if (batchEntries && batchEntries.length > 0) {
+          onClose(lastTxHash)
+        } else {
+          // Navigate to the explore page when closing a successful modal for single contract
+          const address = internalContractAddress || contractAddress
+          if (address && chain?.id) {
+            console.log(
+              'Redirecting to explore page:',
+              `/explore/${chain.id}/${address}`,
+            )
+            router.push(`/explore/${chain.id}/${address}`)
+          }
+          onClose(lastTxHash)
         }
-        onClose(lastTxHash)
       } else {
         // Return error message or INCOMPLETE status
         const result = errorMessage ? `ERROR: ${errorMessage}` : 'INCOMPLETE'
@@ -488,28 +505,86 @@ export default function SetNameStepsModal({
         {/* Show success content when steps are completed - only for non-Safe wallets */}
         {allStepsCompleted && !errorMessage && !isSafeWallet && (
           <div className="mt-6 space-y-4 border-t border-gray-200 dark:border-gray-700 pt-4">
-            {/* Contract Address */}
-            {(internalContractAddress || contractAddress) && (
-              <div>
-                <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                  Contract Address:
-                </p>
-                <div className="bg-gray-200 dark:bg-gray-800 p-2 rounded-md text-xs text-gray-900 dark:text-gray-300 break-words">
-                  {internalContractAddress || contractAddress}
+            {/* Batch Entries (if multiple contracts) */}
+            {batchEntries && batchEntries.length > 0 ? (
+              <div className="space-y-3">
+                {/* Parent Domain */}
+                {parentName && (
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                      Parent Domain:
+                    </p>
+                    <div className="bg-gray-200 dark:bg-gray-800 p-2 rounded-md text-xs text-gray-900 dark:text-gray-300 break-words">
+                      {parentName}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Expandable Contracts List */}
+                <div>
+                <button
+                  onClick={() => setIsBatchExpanded(!isBatchExpanded)}
+                  className="w-full flex items-center justify-between bg-gray-200 dark:bg-gray-800 p-3 rounded-md hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                      Named Contracts ({batchEntries.filter(e => e.address && e.address !== '0x0000000000000000000000000000000000000000' && e.address !== '0x0').length})
+                    </p>
+                  </div>
+                  {isBatchExpanded ? (
+                    <ChevronUp className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                  ) : (
+                    <ChevronDown className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                  )}
+                </button>
+                
+                {isBatchExpanded && (
+                  <div className="mt-2 max-h-64 overflow-y-auto border border-gray-300 dark:border-gray-700 rounded-md">
+                    {batchEntries
+                      .filter(e => e.address && e.address !== '0x0000000000000000000000000000000000000000' && e.address !== '0x0')
+                      .map((entry, index) => (
+                        <div
+                          key={index}
+                          className="p-3 border-b border-gray-200 dark:border-gray-700 last:border-b-0 hover:bg-gray-100 dark:hover:bg-gray-800"
+                        >
+                          <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                            {entry.label}
+                          </p>
+                          <p className="text-xs text-gray-600 dark:text-gray-400 break-all font-mono">
+                            {entry.address}
+                          </p>
+                        </div>
+                      ))}
+                  </div>
+                )}
                 </div>
               </div>
-            )}
+            ) : (
+              <>
+                {/* Single Contract Address */}
+                {(internalContractAddress || contractAddress) && (
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                      Contract Address:
+                    </p>
+                    <div className="bg-gray-200 dark:bg-gray-800 p-2 rounded-md text-xs text-gray-900 dark:text-gray-300 break-words">
+                      {internalContractAddress || contractAddress}
+                    </div>
+                  </div>
+                )}
 
-            {/* ENS Name */}
-            {ensName && (
-              <div>
-                <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                  ENS Name:
-                </p>
-                <div className="bg-gray-200 dark:bg-gray-800 p-2 rounded-md text-xs text-gray-900 dark:text-gray-300 break-words">
-                  {ensName}
-                </div>
-              </div>
+                {/* Single ENS Name */}
+                {ensName && (
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                      ENS Name:
+                    </p>
+                    <div className="bg-gray-200 dark:bg-gray-800 p-2 rounded-md text-xs text-gray-900 dark:text-gray-300 break-words">
+                      {ensName}
+                    </div>
+                  </div>
+                )}
+              </>
             )}
 
             {/* ENS Resolution Message */}
@@ -520,7 +595,7 @@ export default function SetNameStepsModal({
             )}
 
             {/* Share on X/Twitter and Farcaster */}
-            {ensName && (internalContractAddress || contractAddress) && (
+            {((batchEntries && batchEntries.length > 0 && parentName) || (ensName && (internalContractAddress || contractAddress))) && (
               <>
                 <div className="grid grid-cols-2 gap-3 mb-4">
                   <Button
@@ -529,7 +604,9 @@ export default function SetNameStepsModal({
                   >
                     <a
                       href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(
-                        `I named my contract ${ensName} with @enscribe_, check it out https://app.enscribe.xyz/explore/${chain?.id}/${internalContractAddress || contractAddress}`,
+                        batchEntries && batchEntries.length > 0 && parentName
+                          ? `Named my contracts under ${parentName} using @enscribe_`
+                          : `I named my contract ${ensName} with @enscribe_, check it out https://app.enscribe.xyz/explore/${chain?.id}/${internalContractAddress || contractAddress}`,
                       )}`}
                       target="_blank"
                       rel="noopener noreferrer"
@@ -552,7 +629,9 @@ export default function SetNameStepsModal({
                   >
                     <a
                       href={`https://warpcast.com/~/compose?text=${encodeURIComponent(
-                        `I named my contract ${ensName} with @enscribe, check it out https://app.enscribe.xyz/explore/${chain?.id}/${internalContractAddress || contractAddress}`,
+                        batchEntries && batchEntries.length > 0 && parentName
+                          ? `Named my contracts under ${parentName} using @enscribe`
+                          : `I named my contract ${ensName} with @enscribe, check it out https://app.enscribe.xyz/explore/${chain?.id}/${internalContractAddress || contractAddress}`,
                       )}`}
                       target="_blank"
                       rel="noopener noreferrer"

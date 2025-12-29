@@ -9,7 +9,7 @@ import { CONTRACTS, CHAINS } from '../utils/constants'
 import { isAddress, encodeFunctionData, namehash, createPublicClient, http } from 'viem'
 import { readContract, writeContract, waitForTransactionReceipt } from 'viem/actions'
 import * as chains from 'viem/chains'
-import { X, Copy, Check } from 'lucide-react'
+import { X, Copy, Check, Info } from 'lucide-react'
 import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline'
 import {
   Tooltip,
@@ -285,10 +285,36 @@ export default function BatchNamingForm() {
           // Validate the field
           if (field === 'address') {
             updatedEntry.addressError = validateAddress(value)
+            
+            // Check for duplicate addresses (skip zero addresses and empty)
+            if (value && value !== '0x0000000000000000000000000000000000000000' && value !== '0x0') {
+              const duplicateAddress = batchEntries.find(
+                (e) => e.id !== id && 
+                e.address.toLowerCase() === value.toLowerCase() &&
+                !e.id.startsWith('zero-')
+              )
+              if (duplicateAddress) {
+                updatedEntry.addressError = 'Duplicate address'
+              }
+            }
+            
             // Check if truncation is needed
             setTimeout(() => checkIfAddressNeedsTruncation(id, value), 0)
           } else if (field === 'label') {
             updatedEntry.labelError = validateLabel(value, parentName)
+            
+            // Check for duplicate labels
+            if (value) {
+              const normalizedValue = value.toLowerCase().trim()
+              const duplicateLabel = batchEntries.find(
+                (e) => e.id !== id && 
+                e.label.toLowerCase().trim() === normalizedValue &&
+                !e.id.startsWith('zero-')
+              )
+              if (duplicateLabel) {
+                updatedEntry.labelError = 'Duplicate name'
+              }
+            }
           }
           
           return updatedEntry
@@ -774,14 +800,17 @@ export default function BatchNamingForm() {
 
       const isWrapped = owner === config.NAME_WRAPPER
 
-      const approvalCallData = encodeFunctionData({
-        abi: isWrapped ? nameWrapperABI : ensRegistryABI,
-        functionName: 'setApprovalForAll',
-        args: [config.ENSCRIBE_V2_CONTRACT, true],
-      })
-      callDataArray.push(
-        `${isWrapped ? 'NameWrapper' : 'ENSRegistry'}.setApprovalForAll (grant): ${approvalCallData}`
-      )
+      // Only add approval call data if ENSCRIBE_V2_CONTRACT is available
+      if (config.ENSCRIBE_V2_CONTRACT) {
+        const approvalCallData = encodeFunctionData({
+          abi: isWrapped ? nameWrapperABI : ensRegistryABI,
+          functionName: 'setApprovalForAll',
+          args: [config.ENSCRIBE_V2_CONTRACT, true],
+        })
+        callDataArray.push(
+          `${isWrapped ? 'NameWrapper' : 'ENSRegistry'}.setApprovalForAll (grant): ${approvalCallData}`
+        )
+      }
 
       // 2. Batch naming (multiple batches)
       const coinTypes: bigint[] = []
@@ -875,14 +904,17 @@ export default function BatchNamingForm() {
       }
 
       // 4. Revoke operator access
-      const revokeCallData = encodeFunctionData({
-        abi: isWrapped ? nameWrapperABI : ensRegistryABI,
-        functionName: 'setApprovalForAll',
-        args: [config.ENSCRIBE_V2_CONTRACT, false],
-      })
-      callDataArray.push(
-        `${isWrapped ? 'NameWrapper' : 'ENSRegistry'}.setApprovalForAll (revoke): ${revokeCallData}`
-      )
+      // Only add revoke call data if ENSCRIBE_V2_CONTRACT is available
+      if (config.ENSCRIBE_V2_CONTRACT) {
+        const revokeCallData = encodeFunctionData({
+          abi: isWrapped ? nameWrapperABI : ensRegistryABI,
+          functionName: 'setApprovalForAll',
+          args: [config.ENSCRIBE_V2_CONTRACT, false],
+        })
+        callDataArray.push(
+          `${isWrapped ? 'NameWrapper' : 'ENSRegistry'}.setApprovalForAll (revoke): ${revokeCallData}`
+        )
+      }
 
       setCallDataList(callDataArray)
       setAllCallData(callDataArray.join('\n\n'))
@@ -1191,7 +1223,7 @@ export default function BatchNamingForm() {
     }
   }
 
-  const grantOperatorAccess = async () => {
+  const grantOperatorAccess = async (): Promise<`0x${string}` | undefined> => {
     if (
       !walletClient ||
       !walletAddress ||
@@ -1205,9 +1237,10 @@ export default function BatchNamingForm() {
 
     try {
       const parentNode = getParentNode(parentName)
+      let tx: `0x${string}`
       
       if (chain?.id === CHAINS.BASE || chain?.id === CHAINS.BASE_SEPOLIA) {
-        const tx = await writeContract(walletClient, {
+        tx = await writeContract(walletClient, {
           chain,
           address: config.ENS_REGISTRY as `0x${string}`,
           abi: ensRegistryABI,
@@ -1225,7 +1258,7 @@ export default function BatchNamingForm() {
           args: [parentNode],
         })) as boolean
 
-        const tx = isWrapped
+        tx = isWrapped
           ? await writeContract(walletClient, {
               chain,
               address: config.NAME_WRAPPER as `0x${string}`,
@@ -1247,13 +1280,14 @@ export default function BatchNamingForm() {
       }
 
       console.log('Operator access granted successfully')
+      return tx
     } catch (err) {
       console.error('Error granting operator access:', err)
       throw err
     }
   }
 
-  const revokeOperatorAccess = async () => {
+  const revokeOperatorAccess = async (): Promise<`0x${string}` | undefined> => {
     if (
       !walletClient ||
       !walletAddress ||
@@ -1267,9 +1301,10 @@ export default function BatchNamingForm() {
 
     try {
       const parentNode = getParentNode(parentName)
+      let tx: `0x${string}`
 
       if (chain?.id === CHAINS.BASE || chain?.id === CHAINS.BASE_SEPOLIA) {
-        const tx = await writeContract(walletClient, {
+        tx = await writeContract(walletClient, {
           chain,
           address: config.ENS_REGISTRY as `0x${string}`,
           abi: ensRegistryABI,
@@ -1287,7 +1322,7 @@ export default function BatchNamingForm() {
           args: [parentNode],
         })) as boolean
 
-        const tx = isWrapped
+        tx = isWrapped
           ? await writeContract(walletClient, {
               chain,
               address: config.NAME_WRAPPER as `0x${string}`,
@@ -1309,6 +1344,7 @@ export default function BatchNamingForm() {
       }
 
       console.log('Operator access revoked successfully')
+      return tx
     } catch (err) {
       console.error('Error revoking operator access:', err)
       throw err
@@ -1584,7 +1620,7 @@ export default function BatchNamingForm() {
           title: 'Grant operator access',
           chainId: chain!.id,
           action: async () => {
-            await grantOperatorAccess()
+            return await grantOperatorAccess()
           },
         })
       }
@@ -1639,7 +1675,7 @@ export default function BatchNamingForm() {
         const levelSuffix = batch.level === 1 ? '3LD' : batch.level === 2 ? '4LD' : batch.level === 3 ? '5LD' : `${batch.level + 2}LD`
         
         steps.push({
-          title: `Name ${batch.entries.length} ${levelSuffix} entries under "${batch.parentName}" (${batchRealContracts} contract${batchRealContracts !== 1 ? 's' : ''}${batchParentSubdomains > 0 ? ` + ${batchParentSubdomains} subdomain${batchParentSubdomains !== 1 ? 's' : ''}` : ''})`,
+          title: `Creating ${batch.entries.length} subdomains under "${batch.parentName}" (${batchRealContracts} contract${batchRealContracts !== 1 ? 's' : ''})`,
           chainId: chain!.id,
           action: async () => {
             // Extract just the label part (remove parent from full name)
@@ -1686,6 +1722,7 @@ export default function BatchNamingForm() {
 
             await waitForTransactionReceipt(walletClient!, { hash })
             console.log(`Batch ${index + 1} completed`)
+            return hash
           },
         })
       })
@@ -1730,6 +1767,7 @@ export default function BatchNamingForm() {
                     ],
                   })
                   await waitForTransactionReceipt(walletClient!, { hash: tx })
+                  return tx
                 },
               })
             }
@@ -1759,6 +1797,7 @@ export default function BatchNamingForm() {
                     ],
                   })
                   await waitForTransactionReceipt(walletClient!, { hash: tx })
+                  return tx
                 },
               })
             }
@@ -1967,6 +2006,7 @@ export default function BatchNamingForm() {
                   console.log(
                     `Reverse record set for ${contract.labelOnly} on ${l2Chain.name}`
                   )
+                  return txn
                 },
               })
 
@@ -2023,7 +2063,7 @@ export default function BatchNamingForm() {
               )
             }
           }
-          await revokeOperatorAccess()
+          return await revokeOperatorAccess()
         },
       })
 
@@ -2064,8 +2104,20 @@ export default function BatchNamingForm() {
       >
       {/* Parent Name */}
       
-        <label className="block text-gray-700 dark:text-gray-300">
-          Parent Domain
+        <label className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+          <span>Parent Domain</span>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Info className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                <p className="text-sm">
+                  Batch Naming requires operator access of ENS name to create subnames and set forward resolutions. It can be revoked after naming completes.
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </label>
         <div className="flex items-center gap-2">
           <Input
@@ -2162,7 +2214,7 @@ export default function BatchNamingForm() {
                 {isAutoGenerated && (
                   <div className="flex items-center gap-1 mb-1 px-2 py-1 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded text-xs text-amber-700 dark:text-amber-300">
                     <span className="font-semibold">ℹ️ Auto-created:</span>
-                    <span>This parent subdomain will be created automatically with a zero address</span>
+                    <span>Parent subname with no forward resolution</span>
                   </div>
                 )}
                 <div className={`flex items-start gap-2 ${isAutoGenerated ? 'opacity-75' : ''}`}>
@@ -2233,7 +2285,7 @@ export default function BatchNamingForm() {
                     </p>
                   )}
                 </div>
-                {batchEntries.length > 1 && (
+                {batchEntries.length > 1 && !isAutoGenerated && (
                   <button
                     onClick={() => removeEntry(entry.id)}
                     className="p-2 text-gray-400 hover:text-red-600 dark:hover:text-red-400 rounded mt-0.5"
@@ -2742,15 +2794,20 @@ export default function BatchNamingForm() {
             setSkipL1Naming(false)
             setError('')
             setIsAdvancedOpen(false)
-            setCallDataList([])
             setCopied({})
             setAllCallData('')
             setIsCallDataOpen(false)
+            setCallDataList([])
           }
         }}
         steps={modalSteps}
         title={modalTitle}
         subtitle={modalSubtitle}
+        contractAddress={batchEntries.find(e => e.address && e.address !== '0x0000000000000000000000000000000000000000')?.address}
+        ensName={batchEntries.find(e => e.label)?.label}
+        isPrimaryNameSet={false}
+        batchEntries={batchEntries.filter(e => e.address && e.address !== '0x0000000000000000000000000000000000000000' && e.address !== '0x0' && e.address !== '').map(e => ({ address: e.address, label: e.label }))}
+        parentName={parentName}
       />
     </div>
     </div>
