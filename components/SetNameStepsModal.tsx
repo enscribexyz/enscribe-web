@@ -587,8 +587,8 @@ export default function SetNameStepsModal({
               </>
             )}
 
-            {/* ENS Resolution Message */}
-            {isPrimaryNameSet !== undefined && !isPrimaryNameSet && (
+            {/* ENS Resolution Message - only show for single contract naming, not batch naming */}
+            {isPrimaryNameSet !== undefined && !isPrimaryNameSet && !batchEntries && (
               <div className="text-red-500 dark:text-white font-semibold text-sm mt-4">
                 Only Forward Resolution of ENS name set for the contract address
               </div>
