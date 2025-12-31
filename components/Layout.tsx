@@ -14,9 +14,11 @@ import {
   DocumentIcon,
   MagnifyingGlassIcon,
   UserIcon,
+  QueueListIcon,
 } from '@heroicons/react/24/outline'
 import AddressSearch from './AddressSearch'
 import ChainSelector from './ChainSelector'
+import SearchModal from './SearchModal'
 import { useAccount } from 'wagmi'
 import { useRouter } from 'next/router'
 
@@ -99,6 +101,7 @@ export default function Layout({ children }: LayoutProps) {
     }
   }
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [isSearchModalOpen, setIsSearchModalOpen] = useState(false)
   const { isConnected, chain, connector, address: walletAddress } = useAccount()
   const [selectedChain, setSelectedChain] = useState<number>(1)
   const [manuallyChanged, setManuallyChanged] = useState(false)
@@ -108,6 +111,7 @@ export default function Layout({ children }: LayoutProps) {
 
   const navigation = [
     { name: 'Name Contract', href: '/nameContract', icon: DocumentTextIcon },
+    { name: 'Batch Naming', href: '/batchNaming', icon: QueueListIcon },
     { name: 'Deploy Contract', href: '/deploy', icon: PencilSquareIcon },
     ...(isConnected
       ? [
@@ -248,7 +252,25 @@ export default function Layout({ children }: LayoutProps) {
           {/* Navigation menu */}
           <nav className="px-4 py-6">
             <ul className="space-y-2">
-              {navigation.map((item) => (
+              {navigation.slice(0, 3).map((item) => (
+                <li key={item.name}>
+                  <Link href={item.href} legacyBehavior>
+                    <a className="flex items-center p-3 text-gray-300 hover:bg-gray-800 dark:hover:bg-gray-900 rounded-md transition-colors">
+                      <item.icon className="w-5 h-5 mr-3 text-gray-400" />
+                      {item.name}
+                    </a>
+                  </Link>
+                </li>
+              ))}
+              
+              {/* Divider */}
+              {navigation.length > 3 && (
+                <li className="py-2">
+                  <div className="border-t border-gray-700 dark:border-gray-600"></div>
+                </li>
+              )}
+              
+              {navigation.slice(3).map((item) => (
                 <li key={item.name}>
                   <Link href={item.href} legacyBehavior>
                     <a className="flex items-center p-3 text-gray-300 hover:bg-gray-800 dark:hover:bg-gray-900 rounded-md transition-colors">
@@ -338,7 +360,25 @@ export default function Layout({ children }: LayoutProps) {
         {/* Navigation Links */}
         <nav className="px-4 py-6 flex-grow">
           <ul className="space-y-2">
-            {navigation.map((item) => (
+            {navigation.slice(0, 3).map((item) => (
+              <li key={item.name}>
+                <Link href={item.href} legacyBehavior>
+                  <a className="flex items-center p-3 text-gray-300 hover:bg-gray-800 dark:hover:bg-gray-700 rounded-md transition-colors">
+                    <item.icon className="w-5 h-5 mr-3 text-gray-400" />
+                    {item.name}
+                  </a>
+                </Link>
+              </li>
+            ))}
+            
+            {/* Divider */}
+            {navigation.length > 3 && (
+              <li className="py-2">
+                <div className="border-t border-gray-700 dark:border-gray-600"></div>
+              </li>
+            )}
+            
+            {navigation.slice(3).map((item) => (
               <li key={item.name}>
                 <Link href={item.href} legacyBehavior>
                   <a className="flex items-center p-3 text-gray-300 hover:bg-gray-800 dark:hover:bg-gray-700 rounded-md transition-colors">
@@ -428,12 +468,17 @@ export default function Layout({ children }: LayoutProps) {
             </Link>
           </div>
 
-          {/* Address Search Component */}
+          {/* Address Search Component - Click to open modal */}
           <div className="flex-1 max-w-none sm:max-w-md mr-2">
-            <AddressSearch
-              selectedChain={selectedChain}
-              setManuallyChanged={setManuallyChanged}
-            />
+            <button
+              onClick={() => setIsSearchModalOpen(true)}
+              className="w-full flex items-center space-x-2 px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:border-gray-400 dark:hover:border-gray-500 transition-colors text-left"
+            >
+              <MagnifyingGlassIcon className="w-5 h-5 text-gray-400" />
+              <span className="text-gray-500 dark:text-gray-400 text-sm">
+                Search address or ENS name
+              </span>
+            </button>
           </div>
 
           <div className="hidden sm:block flex-1"></div>
@@ -520,6 +565,14 @@ export default function Layout({ children }: LayoutProps) {
         </main>
         <Toaster />
       </div>
+
+      {/* Search Modal */}
+      <SearchModal
+        isOpen={isSearchModalOpen}
+        onClose={() => setIsSearchModalOpen(false)}
+        selectedChain={selectedChain}
+        setManuallyChanged={setManuallyChanged}
+      />
     </div>
   )
 }

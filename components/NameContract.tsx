@@ -39,7 +39,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import SetNameStepsModal, { Step } from './SetNameStepsModal'
 import { CheckCircleIcon, XCircleIcon, ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline'
-import { Copy, Check } from 'lucide-react'
+import { Copy, Check, Info } from 'lucide-react'
 import { Checkbox } from '@/components/ui/checkbox'
 import { v4 as uuid } from 'uuid'
 import {
@@ -2868,12 +2868,10 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <span className="inline-flex items-center justify-center w-4 h-4 rounded-full border border-gray-400 text-gray-600 dark:text-gray-300 text-xs select-none">
-                            i
-                          </span>
+                        <Info className="w-4 h-4 text-gray-500 dark:text-gray-400" />
                         </TooltipTrigger>
                         <TooltipContent className="max-w-xs">
-                          <p>
+                          <p className="text-sm">
                             Select which L2 chains to set names on. This will add
                             additional steps to switch to each selected chain and
                             set the primary name there as well.
