@@ -2238,7 +2238,7 @@ export default function BatchNamingForm() {
                           checkIfAddressNeedsTruncation(entry.id, entry.address)
                         }
                       }}
-                      className={`w-full px-4 py-2 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-sm ${
+                      className={`w-full px-4 py-2 bg-white text-black dark:text-white dark:bg-gray-700 border-gray-300 dark:border-gray-600  text-sm ${
                         entry.addressError
                           ? 'border-red-500 dark:border-red-500 focus:ring-red-500'
                           : ''
@@ -2268,7 +2268,7 @@ export default function BatchNamingForm() {
                     placeholder={`myawesomeapp.${parentName || 'domain.eth'}`}
                     value={entry.label}
                     onChange={(e) => updateEntry(entry.id, 'label', e.target.value)}
-                    className={`w-full px-4 py-2 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 ${
+                    className={`w-full px-4 py-2 bg-white text-black dark:text-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 ${
                       entry.labelError
                         ? 'border-red-500 dark:border-red-500 focus:ring-red-500'
                         : ''
