@@ -2353,13 +2353,12 @@ export default function BatchNamingForm() {
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <span className="inline-flex items-center justify-center w-4 h-4 rounded-full border border-gray-400 text-gray-600 dark:text-gray-300 text-xs select-none">
-                        i
-                      </span>
+                    <Info className="w-4 h-4 text-gray-500 dark:text-gray-400" />
                     </TooltipTrigger>
                     <TooltipContent className="max-w-xs">
-                      <p>
-                        Select which L2 chains to set coin types for. This will add the corresponding coin types for all contracts.
+                      <p className="text-sm">
+                        Select which L2 chains to set coin types for. This will add the corresponding coin types for all contracts and add
+                            additional steps to switch to each selected chain and set the primary name there as well.
                       </p>
                     </TooltipContent>
                   </Tooltip>
