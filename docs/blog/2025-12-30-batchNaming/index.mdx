@@ -1,0 +1,183 @@
+---
+slug: batch-naming
+title: Batch Naming - Name Multiple Contracts in One Go
+description: Enscribe now supports batch naming, allowing teams to name multiple smart contracts simultaneously under a single parent domain with one streamlined transaction flow.
+authors: [nischal]
+tags: [enscribe, ens]
+keywords: [ENS, smart contract naming, batch naming, smart contracts]
+image: batch-naming.png
+---
+
+import AppUrl from '@site/src/components/AppUrl';
+
+Enscribe has shipped a powerful new feature: **Contract Batch Naming**. Teams can now name multiple smart contracts at once under a single parent domain, dramatically simplifying the contract naming process for projects with multiple deployed contracts.
+
+![Batch naming page](batch-naming.png)
+
+## Why Batch Naming?
+
+Managing multiple smart contracts across different chains has always been a challenge. Whether you're a DAO with governance contracts, a DeFi protocol with multiple vaults, or an infrastructure project with contracts deployed across chains, naming each contract individually is time-consuming and repetitive. It has involves multiple steps like creating subnames, setting forward resolutions, and setting reverse resolutions with each step costing transaction gas fees.
+
+When we were working with [Nouns DAO](https://nouns.wtf) to name their contracts, we realized that the process was not only time-consuming but also error-prone. They had to manually create subnames, set forward resolutions, and set reverse resolutions for each contract with each step costing transaction gas fees. This was their first proposal - [ENS x Nouns, Name our Smart Contracts](https://www.nouns.camp/candidates/ens-x-nouns%2C-name-our-smart-contracts-2117bf88b4cb0186eaa87500a045fc998290e42a?tab=transactions).
+
+Thus we started working on Enscribe V2 contract to support batch naming with multi-chain support. This contract is now live on Ethereum mainnet and Sepolia testnet. You can read more about it in this [blog post](/blog/enscribe-v2). Using this Enscribe V2 contract, you can now name multiple contracts in one transaction with multi-chain support.
+
+We have now added this batch naming feature support to our [Enscribe app](https://app.enscribe.xyz/batchNaming).
+
+## How Batch Naming Works
+
+Batch naming leverages the Enscribe V2 contract's `setNameBatch()` function, which allows setting ENS names for multiple contacts atomically. This involves single transaction for creating subnames under same level parent domain and setting forwards resolutions. For example, if you are naming 10 contracts under `myproject.eth` parent domain, you just  need one tx to create 10 subnames and forwards resolutions for all 10 contracts. 
+Then for setting primary name, you need to execute 1 tx each for every compatoble contract (contract which are ownable/ERC-173 compliant) to set the reverse resolution. Here's what happens under the hood:
+
+### The Technical Flow
+
+1. **Operator Access**: First, Enscribe requests operator approval for your parent ENS domain. This is a one-time permission that allows the Enscribe contract to create subnames under your domain.
+
+2. **Batch Creation**: All contract addresses and their corresponding names are sent in a single transaction to the Enscribe V2 contract. This creates subnames and sets forward resolutions for all contracts at once.
+
+3. **Reverse Resolution (L1)**: For contracts which are ownable/ERC-173 compliant and owned by your wallet, Enscribe sets up reverse resolution on Ethereum mainnet (or testnet), enabling address-to-name lookups.
+
+4. **L2 Primary Names**: If you've selected L2 chains, Enscribe automatically switches to each chain and sets up primary names for the contracts there, ensuring consistent naming across all networks.
+
+5. **Operator Revocation**: Finally, operator access is revoked, returning full control of your ENS domain to you.
+
+All of this happens in one streamlined modal flow, with clear progress indicators for each step.
+
+{/* ![Batch naming transaction flow](transaction-flow.png) */}
+
+### Parent Subdomains Support
+
+A powerful feature of batch naming is automatic parent subdomain creation. If you're naming contracts hierarchically (e.g., `vault1.defi.myproject.eth`, `vault2.defi.myproject.eth`), Enscribe automatically creates the intermediate parent (`defi.myproject.eth`) with no forward resolution, keeping your namespace organized. But note that for each new level of parent subdomain you need a new batch naming transaction.
+Example if you are naming 3 contracts under `myproject.eth` parent domain i.e. app1.myproject.eth, app2.myproject.eth, app3.myproject.eth and you want to name 2 more contract under `defi.myproject.eth` parent domain i.e. vault1.defi.myproject.eth, vault2.defi.myproject.eth, you need to execute 2 separate batch naming transactions. First for `app1.myproject.eth`, `app2.myproject.eth`, `app3.myproject.eth`, `defi.myproject.eth` and then second tx for `vault1.defi.myproject.eth`, `vault2.defi.myproject.eth`.
+
+## Step-by-Step Guide: Batch Naming Your Contracts
+
+Let's walk through naming multiple contracts using the new batch naming feature.
+
+### 1. Navigate to Batch Naming
+
+Head to <AppUrl/> and click on "Batch Naming" from the homepage.
+
+{/* ![Batch naming homepage card](homepage-card.png) */}
+
+### 2. Choose Your Parent Domain
+
+Select the parent ENS domain under which all your contracts will be named. You can use:
+- Your project's ENS domain (e.g., `myproject.eth`)
+- The default Enscribe parent (`deployd.eth`)
+
+{/* ![Parent domain selection](parent-domain.png) */}
+
+:::tip Operator Access
+Batch naming requires operator access to create subnames. An info tooltip explains this next to the Parent Domain field. Don't worry—access is revoked after naming completes or else it can be revoked manually anytime.
+:::
+
+### 3. Add Your Contracts
+
+Enter your contract addresses and their desired names. You can:
+- Add contracts one by one using the "Add Entry" button or use CSV import to upload a CSV file with contract addresses and names.
+- Use hierarchical names with dots (e.g., `vault1.defi`, `vault2.defi`)
+- Mix different types of contracts in the same batch
+
+{/* ![Adding contracts to batch list](add-contracts.png) */}
+
+**Validation Features:**
+- Real-time validation of contract addresses
+- Duplicate address detection
+- Duplicate name detection
+- Invalid label format warnings
+- Auto-generated parent subdomains highlighted
+
+### 4. Advanced Options: L2 Chain Selection
+
+Expand the Advanced Options section to configure L2 primary names.
+
+{/* ![Advanced options with L2 selection](l2-options.png) */}
+
+Click "Choose L2 Chains" to select which Layer 2 networks you want to set up primary names on:
+- Optimism
+- Arbitrum
+- Base
+- Scroll
+- Linea
+
+The system will add the corresponding coin types and create additional transaction steps to switch to each chain and set primary names.
+
+If you only want to set up L2 primary names without L1 forward/reverse resolution, enable "Skip L1 Naming" in the Advanced Options. This is useful when:
+- You only care about L2 naming
+- The contracts only exist on L2 chains
+- You want to reduce transaction costs
+
+### 5. Review and Submit
+
+Once you've added all contracts and configured your options, click "Name Batch". The system will:
+- Validate all entries
+- Check for duplicates
+- Verify contract ownership (for reverse resolution)
+- Calculate the total cost
+
+{/* ![Batch naming review modal](review-modal.png) */}
+
+### 6. Execute Transaction Steps
+
+A modal will guide you through each step of the process:
+
+{/* ![Transaction steps modal](steps-modal.png) */}
+
+**Step Progress:**
+- ✅ Grant operator access
+- ✅ Create subnames and set forward resolution (batched)
+- ✅ Set reverse records (for owned contracts)
+- ✅ Switch to L2 chains and set primary names
+- ✅ Revoke operator access
+
+Each step shows:
+- Clear title and status indicator
+- "View Tx" button to check transaction on block explorer
+- Real-time progress updates
+
+### 7. Success!
+
+Once all steps complete, you'll see a success screen showing:
+
+{/* ![Success screen with all named contracts](success-screen.png) */}
+
+- Your parent domain
+- An expandable list of all named contracts with their addresses
+- Share buttons for X/Twitter and Farcaster
+- POAP claiming button (for mainnet deployments)
+
+The social share text is optimized for batch naming: *"Named my contracts under myproject.eth using @enscribe_"*
+
+## Limitations and Considerations
+
+### Prerequisites
+
+- You must connect from an L1 chain (Ethereum mainnet or Sepolia)
+- You need operator access to the parent domain (granted during the flow)
+- For reverse resolution, you must own the contract (or it must be ownable/claimable)
+
+### Current Limitations
+
+- The default `deployd.eth` parent is not yet compatible with L2 primary names for batch naming
+- Maximum recommended batch size: 50 contracts (gas limits may apply for larger batches)
+- All contracts in a batch must use the same parent domain
+
+### Gas Considerations
+
+Batch naming is more gas-efficient than individual naming, but naming many contracts still requires significant gas. The transaction cost will depend on:
+- Number of contracts in the batch
+- Whether you're setting reverse records
+- Number of L2 chains selected
+- Current gas prices
+
+## Try Batch Naming Today
+
+Ready to name your contracts the fast way? Visit <AppUrl/>, connect your wallet to Ethereum mainnet or Sepolia, navigate to "Batch Naming", and start naming multiple contracts at once.
+
+We'd love to hear about your batch naming experience:
+- Share your use cases and suggestions on [Discord](https://discord.gg/8QUMMdS5GY)
+- Join the conversation on [Telegram](https://t.me/enscribers)
+- Follow us on [X/Twitter](https://x.com/enscribe_)
+
+Happy batch naming! 🚀
