@@ -74,3 +74,62 @@ contract CounterScript is Script {
     }
 }
 ```
+
+An end-to-end example of using Enscribe with Foundry
+
+1. Initialize a new project using `forge init` and cd into it
+```bash
+forge init hello_world
+cd hello_world
+```
+
+2. Install `enscribe` from Github repository using `forge install`
+```bash
+forge install enscribexyz/enscribe
+```
+
+3. Install `openzeppelin` from Github repository using `forge install`
+```bash
+forge install OpenZeppelin/openzeppelin-contracts
+```
+
+4. Create `remapping.txt` and add the following to it to simplify imports:
+```bash
+enscribe/=lib/enscribe/src/
+@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/
+```
+
+5. Make `Counter` implement `Ownable` from OpenZeppelin and call the `Ownable` constructor with the sender's address
+```solidity
+import "@openzeppelin/contracts/access/Ownable.sol";
+contract Counter is Ownable {
+    constructor(uint256 initialCount) Ownable(msg.sender) {
+        number = initialCount     
+    }
+}
+```
+
+6. Set a primary name for the contract address in `Counter.s.sol` using the `enscribe` library
+```solidity
+import {Ens} from "enscribesol/Ens.sol";
+
+contract CounterScript is Script {
+    Counter public counter;
+    
+    function setUp() public {}    
+    
+    function run() public {
+        vm.startBroadcast();
+        counter = new Counter(0);
+        Ens.setName(block.chainid, address(counter), "enscribesol124.abhi.eth");
+        vm.stopBroadcast();
+    }
+}
+```
+
+7. Run the script
+```bash
+forge script script/Counter.s.sol:CounterScript --chain-id 11155111  --rpc-url $SEPOLIA_RPC_URL --broadcast --private-key $PRIVATE_KEY
+```
+
+You can now [view the deployed contract in Enscribe app](https://app.enscribe.xyz/explore/11155111/enscribesol124.abhi.eth)
