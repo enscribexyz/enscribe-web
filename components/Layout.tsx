@@ -15,6 +15,7 @@ import {
   MagnifyingGlassIcon,
   UserIcon,
   QueueListIcon,
+  TagIcon,
 } from '@heroicons/react/24/outline'
 import AddressSearch from './AddressSearch'
 import ChainSelector from './ChainSelector'
@@ -113,6 +114,7 @@ export default function Layout({ children }: LayoutProps) {
     { name: 'Name Contract', href: '/nameContract', icon: DocumentTextIcon },
     { name: 'Batch Naming', href: '/batchNaming', icon: QueueListIcon },
     { name: 'Deploy Contract', href: '/deploy', icon: PencilSquareIcon },
+    { name: 'Name Metadata', href: '/nameMetadata', icon: TagIcon },
     ...(isConnected
       ? [
           {
