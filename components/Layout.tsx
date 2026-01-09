@@ -254,7 +254,7 @@ export default function Layout({ children }: LayoutProps) {
           {/* Navigation menu */}
           <nav className="px-4 py-6">
             <ul className="space-y-2">
-              {navigation.slice(0, 3).map((item) => (
+              {navigation.slice(0, 4).map((item) => (
                 <li key={item.name}>
                   <Link href={item.href} legacyBehavior>
                     <a className="flex items-center p-3 text-gray-300 hover:bg-gray-800 dark:hover:bg-gray-900 rounded-md transition-colors">
@@ -266,13 +266,13 @@ export default function Layout({ children }: LayoutProps) {
               ))}
               
               {/* Divider */}
-              {navigation.length > 3 && (
+              {navigation.length > 4 && (
                 <li className="py-2">
                   <div className="border-t border-gray-700 dark:border-gray-600"></div>
                 </li>
               )}
               
-              {navigation.slice(3).map((item) => (
+              {navigation.slice(4).map((item) => (
                 <li key={item.name}>
                   <Link href={item.href} legacyBehavior>
                     <a className="flex items-center p-3 text-gray-300 hover:bg-gray-800 dark:hover:bg-gray-900 rounded-md transition-colors">
@@ -313,7 +313,7 @@ export default function Layout({ children }: LayoutProps) {
 
       {/* Mobile Sidebar */}
       <div
-        className={`fixed inset-y-0 left-0 z-50 w-66 bg-gray-900 dark:bg-gray-950 text-white transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform lg:hidden flex flex-col h-full`}
+        className={`fixed inset-y-0 left-0 z-50 w-66 bg-gray-900 dark:bg-gray-800 text-white transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform lg:hidden flex flex-col h-full`}
       >
         <div className="px-6 py-4 flex items-center justify-between border-b border-gray-700 dark:border-gray-800">
           <Link href="/" legacyBehavior>
@@ -362,7 +362,7 @@ export default function Layout({ children }: LayoutProps) {
         {/* Navigation Links */}
         <nav className="px-4 py-6 flex-grow">
           <ul className="space-y-2">
-            {navigation.slice(0, 3).map((item) => (
+            {navigation.slice(0, 4).map((item) => (
               <li key={item.name}>
                 <Link href={item.href} legacyBehavior>
                   <a className="flex items-center p-3 text-gray-300 hover:bg-gray-800 dark:hover:bg-gray-700 rounded-md transition-colors">
@@ -374,13 +374,13 @@ export default function Layout({ children }: LayoutProps) {
             ))}
             
             {/* Divider */}
-            {navigation.length > 3 && (
+            {navigation.length > 4 && (
               <li className="py-2">
                 <div className="border-t border-gray-700 dark:border-gray-600"></div>
               </li>
             )}
             
-            {navigation.slice(3).map((item) => (
+            {navigation.slice(4).map((item) => (
               <li key={item.name}>
                 <Link href={item.href} legacyBehavior>
                   <a className="flex items-center p-3 text-gray-300 hover:bg-gray-800 dark:hover:bg-gray-700 rounded-md transition-colors">
@@ -563,7 +563,9 @@ export default function Layout({ children }: LayoutProps) {
         </header>
 
         <main className="flex-1 p-6 bg-white dark:bg-gray-100 transition-colors duration-200">
-          {children}
+          {React.isValidElement(children) 
+            ? React.cloneElement(children as React.ReactElement<any>, { selectedChain })
+            : children}
         </main>
         <Toaster />
       </div>
