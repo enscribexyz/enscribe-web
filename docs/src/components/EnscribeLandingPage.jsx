@@ -247,7 +247,7 @@ export default function EnscribeLandingPage() {
         <section className="py-8 bg-slate-900/50 border-y border-slate-800">
           <div className="container mx-auto px-4">
             <p className="text-center text-slate-400 text-sm font-medium uppercase tracking-wider mb-8">
-              Powering human-readable infrastructure for
+              Trusted by leading projects
             </p>
             <div
                 className="flex flex-wrap justify-center items-center gap-8 md:gap-16 opacity-70 grayscale hover:grayscale-0 transition-all">
