@@ -199,6 +199,58 @@ export default function ContractNamingAuditPage() {
                 </div>
             </section>
 
+            <section
+                className="py-16 border-b border-[color:var(--ifm-toc-border-color)]"
+                aria-labelledby="audit-logos-title"
+            >
+                <div className="max-w-5xl mx-auto px-6">
+                    <h2
+                        id="audit-logos-title"
+                        className="text-center text-sm font-medium tracking-wide uppercase mb-8 text-[color:var(--ifm-color-emphasis-500)]"
+                    >
+                        Trusted by leading projects
+                    </h2>
+
+                    <div className="flex flex-wrap items-center justify-center gap-x-12 gap-y-8">
+                        <a
+                            href="/blog/nouns"
+                            aria-label="Nouns"
+                            className="opacity-80 hover:opacity-100 transition"
+                        >
+                            <img
+                                src="/img/projects/nouns-white.svg"
+                                alt="Nouns"
+                                className="h-8 md:h-10 object-contain project-logo"
+                            />
+                        </a>
+
+                        <a
+                            href="/blog/liquity"
+                            aria-label="Liquity"
+                            className="opacity-80 hover:opacity-100 transition"
+                        >
+                            <img
+                                src="/img/projects/liquity-white.png"
+                                alt="Liquity"
+                                className="h-8 md:h-10 object-contain project-logo"
+                            />
+                        </a>
+
+                        <a
+                            href="https://www.cork.tech/"
+                            aria-label="Cork"
+                            className="opacity-80 hover:opacity-100 transition"
+                        >
+                            <img
+                                src="/img/projects/cork.svg"
+                                alt="Cork"
+                                className="h-8 md:h-10 object-contain project-logo"
+                            />
+                        </a>
+                    </div>
+                </div>
+            </section>
+
             {/* WHAT'S INCLUDED */}
             <section className="py-20 border-b border-[color:var(--ifm-toc-border-color)]">
                 <div className="max-w-4xl mx-auto px-6 space-y-12">
@@ -255,82 +307,82 @@ export default function ContractNamingAuditPage() {
             </section>
 
             {/* TESTIMONIALS */}
-          {/*  <section*/}
-          {/*      className="py-20 border-b border-[color:var(--ifm-toc-border-color)]"*/}
-          {/*      aria-labelledby="audit-testimonials-title"*/}
-          {/*  >*/}
-          {/*      <div className="max-w-4xl mx-auto px-6 space-y-8">*/}
-          {/*          <div className="text-left">*/}
-          {/*              <h2*/}
-          {/*                  id="audit-testimonials-title"*/}
-          {/*                  className="text-2xl md:text-3xl font-semibold mb-2"*/}
-          {/*              >*/}
-          {/*                  What teams are saying*/}
-          {/*              </h2>*/}
-          {/*              <p className="max-w-2xl text-[color:var(--ifm-color-emphasis-600)]">*/}
-          {/*                  Protocol teams use the Enscribe audit to get clearer visibility on their*/}
-          {/*                  contract surface area, reduce operational risk, and roll out ENS naming*/}
-          {/*                  with confidence.*/}
-          {/*              </p>*/}
-          {/*          </div>*/}
+            {/*  <section*/}
+            {/*      className="py-20 border-b border-[color:var(--ifm-toc-border-color)]"*/}
+            {/*      aria-labelledby="audit-testimonials-title"*/}
+            {/*  >*/}
+            {/*      <div className="max-w-4xl mx-auto px-6 space-y-8">*/}
+            {/*          <div className="text-left">*/}
+            {/*              <h2*/}
+            {/*                  id="audit-testimonials-title"*/}
+            {/*                  className="text-2xl md:text-3xl font-semibold mb-2"*/}
+            {/*              >*/}
+            {/*                  What teams are saying*/}
+            {/*              </h2>*/}
+            {/*              <p className="max-w-2xl text-[color:var(--ifm-color-emphasis-600)]">*/}
+            {/*                  Protocol teams use the Enscribe audit to get clearer visibility on their*/}
+            {/*                  contract surface area, reduce operational risk, and roll out ENS naming*/}
+            {/*                  with confidence.*/}
+            {/*              </p>*/}
+            {/*          </div>*/}
 
-          {/*          <div className="grid gap-6 md:grid-cols-2">*/}
-          {/*              /!* Testimonial 1 *!/*/}
-          {/*              <figure*/}
-          {/*                  className="h-full rounded-2xl p-6 flex flex-col justify-between"*/}
-          {/*                  style={{*/}
-          {/*                      backgroundColor: "var(--ifm-card-background-color)",*/}
-          {/*                      border: "1px solid var(--ifm-color-emphasis-200)",*/}
-          {/*                      boxShadow: "0 14px 32px rgba(0,0,0,0.06)",*/}
-          {/*                  }}*/}
-          {/*              >*/}
-          {/*                  <blockquote*/}
-          {/*                      className="text-sm leading-relaxed text-[color:var(--ifm-color-emphasis-700)] mb-4">*/}
-          {/*                      “The audit surfaced contracts and admin paths we’d forgotten about*/}
-          {/*                      and*/}
-          {/*                      gave us a clean ENS naming structure we could ship in a week instead*/}
-          {/*                      of a month.”*/}
-          {/*                  </blockquote>*/}
-          {/*                  <figcaption*/}
-          {/*                      className="text-xs text-[color:var(--ifm-color-emphasis-500)]">*/}
-          {/*<span className="font-semibold text-[color:var(--ifm-color-emphasis-800)]">*/}
-          {/*  Jane Doe*/}
-          {/*</span>*/}
-          {/*                      <span> · Protocol Lead, Example Finance</span>*/}
-          {/*                  </figcaption>*/}
-          {/*              </figure>*/}
+            {/*          <div className="grid gap-6 md:grid-cols-2">*/}
+            {/*              /!* Testimonial 1 *!/*/}
+            {/*              <figure*/}
+            {/*                  className="h-full rounded-2xl p-6 flex flex-col justify-between"*/}
+            {/*                  style={{*/}
+            {/*                      backgroundColor: "var(--ifm-card-background-color)",*/}
+            {/*                      border: "1px solid var(--ifm-color-emphasis-200)",*/}
+            {/*                      boxShadow: "0 14px 32px rgba(0,0,0,0.06)",*/}
+            {/*                  }}*/}
+            {/*              >*/}
+            {/*                  <blockquote*/}
+            {/*                      className="text-sm leading-relaxed text-[color:var(--ifm-color-emphasis-700)] mb-4">*/}
+            {/*                      “The audit surfaced contracts and admin paths we’d forgotten about*/}
+            {/*                      and*/}
+            {/*                      gave us a clean ENS naming structure we could ship in a week instead*/}
+            {/*                      of a month.”*/}
+            {/*                  </blockquote>*/}
+            {/*                  <figcaption*/}
+            {/*                      className="text-xs text-[color:var(--ifm-color-emphasis-500)]">*/}
+            {/*<span className="font-semibold text-[color:var(--ifm-color-emphasis-800)]">*/}
+            {/*  Jane Doe*/}
+            {/*</span>*/}
+            {/*                      <span> · Protocol Lead, Example Finance</span>*/}
+            {/*                  </figcaption>*/}
+            {/*              </figure>*/}
 
-          {/*              /!* Testimonial 2 *!/*/}
-          {/*              <figure*/}
-          {/*                  className="h-full rounded-2xl p-6 flex flex-col justify-between"*/}
-          {/*                  style={{*/}
-          {/*                      backgroundColor: "var(--ifm-card-background-color)",*/}
-          {/*                      border: "1px solid var(--ifm-color-emphasis-200)",*/}
-          {/*                      boxShadow: "0 14px 32px rgba(0,0,0,0.06)",*/}
-          {/*                  }}*/}
-          {/*              >*/}
-          {/*                  <blockquote*/}
-          {/*                      className="text-sm leading-relaxed text-[color:var(--ifm-color-emphasis-700)] mb-4">*/}
-          {/*                      “Having a single, well-documented ENS map for all of our contracts*/}
-          {/*                      made security reviews and integrations dramatically simpler.”*/}
-          {/*                  </blockquote>*/}
-          {/*                  <figcaption*/}
-          {/*                      className="text-xs text-[color:var(--ifm-color-emphasis-500)]">*/}
-          {/*<span className="font-semibold text-[color:var(--ifm-color-emphasis-800)]">*/}
-          {/*  Alex Smith*/}
-          {/*</span>*/}
-          {/*                      <span> · Head of Engineering, Onchain Labs</span>*/}
-          {/*                  </figcaption>*/}
-          {/*              </figure>*/}
-          {/*          </div>*/}
+            {/*              /!* Testimonial 2 *!/*/}
+            {/*              <figure*/}
+            {/*                  className="h-full rounded-2xl p-6 flex flex-col justify-between"*/}
+            {/*                  style={{*/}
+            {/*                      backgroundColor: "var(--ifm-card-background-color)",*/}
+            {/*                      border: "1px solid var(--ifm-color-emphasis-200)",*/}
+            {/*                      boxShadow: "0 14px 32px rgba(0,0,0,0.06)",*/}
+            {/*                  }}*/}
+            {/*              >*/}
+            {/*                  <blockquote*/}
+            {/*                      className="text-sm leading-relaxed text-[color:var(--ifm-color-emphasis-700)] mb-4">*/}
+            {/*                      “Having a single, well-documented ENS map for all of our contracts*/}
+            {/*                      made security reviews and integrations dramatically simpler.”*/}
+            {/*                  </blockquote>*/}
+            {/*                  <figcaption*/}
+            {/*                      className="text-xs text-[color:var(--ifm-color-emphasis-500)]">*/}
+            {/*<span className="font-semibold text-[color:var(--ifm-color-emphasis-800)]">*/}
+            {/*  Alex Smith*/}
+            {/*</span>*/}
+            {/*                      <span> · Head of Engineering, Onchain Labs</span>*/}
+            {/*                  </figcaption>*/}
+            {/*              </figure>*/}
+            {/*          </div>*/}
 
-          {/*          /!* Optional: small note *!/*/}
-          {/*          <p className="text-xs text-[color:var(--ifm-color-emphasis-500)]">*/}
-          {/*              Want to be featured here after your audit? Let us know when we work*/}
-          {/*              together.*/}
-          {/*          </p>*/}
-          {/*      </div>*/}
-          {/*  </section>*/}
+            {/*          /!* Optional: small note *!/*/}
+            {/*          <p className="text-xs text-[color:var(--ifm-color-emphasis-500)]">*/}
+            {/*              Want to be featured here after your audit? Let us know when we work*/}
+            {/*              together.*/}
+            {/*          </p>*/}
+            {/*      </div>*/}
+            {/*  </section>*/}
 
             {/* CONTACT FORM */}
             <section id="contact" className="py-20">

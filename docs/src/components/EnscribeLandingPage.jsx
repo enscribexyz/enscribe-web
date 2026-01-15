@@ -36,7 +36,22 @@ export default function EnscribeLandingPage() {
 
   const [menuOpen, setMenuOpen] = useState(false);
 
+  const PARTNERS = [
+    { name: 'Nouns DAO', logo: 'img/projects/nouns.svg', url: '/blog/nouns' }, // Nouns recently rolled out Enscribe names
+    { name: 'Liquity', logo: 'img/projects/liquity.png', url: '/blog/liquity' }, // Liquity V2 integration
+    { name: 'Cork Protocol', logo: 'img/projects/cork.svg', url: 'https://cork.tech' }, // Cork uses UniV4 hooks
+  ];
+
   const faqs = [
+    {
+      question: "Which protocols are already using Enscribe?",
+      answer: (
+          <>
+            Major ecosystem players like <strong>Nouns DAO</strong> have integrated Enscribe to name their entire contract ecosystem.
+            We also support leading DeFi protocols like <strong>Liquity</strong> and <strong>Cork Protocol</strong> to ensure their users always know exactly which immutable contracts they are interacting with.
+          </>
+      ),
+    },
     {
       question: "Why should I use Enscribe?",
       answer:
@@ -228,6 +243,23 @@ export default function EnscribeLandingPage() {
               className="absolute inset-0 bg-[url('/img/grid.svg')] bg-center [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))]"></div>
         </section>
 
+        {/* Partners Section */}
+        <section className="py-8 bg-slate-900/50 border-y border-slate-800">
+          <div className="container mx-auto px-4">
+            <p className="text-center text-slate-400 text-sm font-medium uppercase tracking-wider mb-8">
+              Powering human-readable infrastructure for
+            </p>
+            <div
+                className="flex flex-wrap justify-center items-center gap-8 md:gap-16 opacity-70 grayscale hover:grayscale-0 transition-all">
+              {PARTNERS.map((partner) => (
+                  <Link key={partner.name} to={partner.url} title={partner.name}>
+                    <img src={partner.logo} alt={partner.name} className="h-8 md:h-10 w-auto"/>
+                  </Link>
+              ))}
+            </div>
+          </div>
+        </section>
+
         {/* Features Section */}
         <section id="features" className="py-12 md:py-16">
           <div className="container mx-auto px-4 md:px-6">
@@ -340,7 +372,7 @@ export default function EnscribeLandingPage() {
                     <div className="text-sm text-slate-400">Complex Contract Address</div>
                     <div className="bg-slate-950 p-3 rounded-md font-mono text-sm overflow-x-auto">
                       <span
-                          className="text-red-400">0x3e71bC0e1729c111dd3E6aaB923886d0A7FeD437</span>
+                          className="text-red-400">0x830BD73E4184ceF73443C15111a1DF14e495C706</span>
                     </div>
                   </div>
                   <div className="flex justify-center">
@@ -351,7 +383,7 @@ export default function EnscribeLandingPage() {
                   <div className="space-y-2">
                     <div className="text-sm text-slate-400">Human-Readable ENS Name</div>
                     <div className="bg-slate-950 p-3 rounded-md font-mono text-sm">
-                      <span className="text-cyan-400">v5.contracts.enscribe.eth</span>
+                      <span className="text-cyan-400">auction.nouns.eth</span>
                     </div>
                   </div>
                   <div className="mt-4 text-center text-sm text-slate-400">

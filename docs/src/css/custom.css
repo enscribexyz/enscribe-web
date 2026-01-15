@@ -303,3 +303,14 @@ a.button:active {
 .animate-input-flash {
   animation: input-flash 450ms ease-out;
 }
+
+/* Default: light mode (no filter) */
+.project-logo {
+  opacity: 0.85;
+}
+
+/* Light mode: invert logos so they pop on dark background */
+html[data-theme="light"] .project-logo {
+  filter: invert(1) brightness(1.1);
+  opacity: 0.9;
+}
