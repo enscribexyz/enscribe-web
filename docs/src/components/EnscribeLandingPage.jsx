@@ -249,11 +249,18 @@ export default function EnscribeLandingPage() {
             <p className="text-center text-slate-400 text-sm font-medium uppercase tracking-wider mb-8">
               Trusted by leading projects
             </p>
-            <div
-                className="flex flex-wrap justify-center items-center gap-8 md:gap-16 opacity-70 grayscale hover:grayscale-0 transition-all">
-              {PARTNERS.map((partner) => (
-                  <Link key={partner.name} to={partner.url} title={partner.name}>
-                    <img src={partner.logo} alt={partner.name} className="h-8 md:h-10 w-auto"/>
+            {/* 1. Remove the hover classes from this parent div */}
+            <div className="flex flex-wrap justify-center items-center gap-12">
+            {PARTNERS.map((partner) => (
+                  <Link
+                      key={partner.name}
+                      to={partner.url}
+                      title={partner.name}
+                      className="opacity-60 grayscale hover:grayscale-0 hover:opacity-100 transition-all duration-300"
+                  >
+                    <span className="text-xl font-bold text-slate-300">
+            <img src={partner.logo} alt={partner.name} className="h-8 md:h-10 w-auto"/>
+          </span>
                   </Link>
               ))}
             </div>

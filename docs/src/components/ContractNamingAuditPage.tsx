@@ -242,7 +242,7 @@ export default function ContractNamingAuditPage() {
                             className="opacity-80 hover:opacity-100 transition"
                         >
                             <img
-                                src="/img/projects/cork.svg"
+                                src="/img/projects/cork-white.svg"
                                 alt="Cork"
                                 className="h-8 md:h-10 object-contain project-logo"
                             />
