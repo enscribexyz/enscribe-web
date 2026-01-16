@@ -5,11 +5,14 @@ import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { CONTRACTS, CHAINS } from '../utils/constants'
 import { namehash, normalize } from 'viem/ens'
-import { ChevronDownIcon, ChevronUpIcon, PlusIcon } from '@heroicons/react/24/outline'
+import { ChevronDownIcon, ChevronUpIcon, PlusIcon, ChevronRightIcon } from '@heroicons/react/24/outline'
 import { Loader2, X } from 'lucide-react'
-import { writeContract, waitForTransactionReceipt } from 'viem/actions'
+import { writeContract, waitForTransactionReceipt, readContract } from 'viem/actions'
+import { createPublicClient, http, getAddress, isAddress } from 'viem'
+import { mainnet, sepolia, base, baseSepolia, linea, lineaSepolia, optimism, optimismSepolia, arbitrum, arbitrumSepolia, scroll, scrollSepolia } from 'viem/chains'
 import publicResolverABI from '../contracts/PublicResolver'
 import { useToast } from '@/hooks/use-toast'
+import Image from 'next/image'
 
 interface TextRecord {
   key: string
@@ -89,6 +92,20 @@ const CONTRACT_METADATA = [
   { key: 'proxy', label: 'Proxy Info', placeholder: 'JSON: {"type":"...", "target":"..."}' },
 ]
 
+// Coin type to chain mapping (ENSIP-11 for L2s, SLIP-44 for L1)
+const COIN_TYPE_MAPPING: Record<string, { name: string; logo: string }> = {
+  '60': { name: 'Ethereum', logo: '/images/ethereum.svg' },
+  '2147492101': { name: 'Base', logo: '/images/base.svg' },
+  '2147483658': { name: 'Optimism', logo: '/images/optimism.svg' },
+  '2158639068': { name: 'Optimism Sepolia', logo: '/images/optimism.svg' },
+  '2147525809': { name: 'Arbitrum', logo: '/images/arbitrum.svg' },
+  '2147905262': { name: 'Arbitrum Sepolia', logo: '/images/arbitrum.svg' },
+  '2147542792': { name: 'Linea', logo: '/images/linea.svg' },
+  '2147542789': { name: 'Linea Sepolia', logo: '/images/linea.svg' },
+  '2148018000': { name: 'Scroll', logo: '/images/scroll.svg' },
+  '2148017999': { name: 'Scroll Sepolia', logo: '/images/scroll.svg' },
+}
+
 interface TextRecordInput {
   key: string
   value: string
@@ -118,10 +135,32 @@ export default function NameMetadata({ selectedChain }: NameMetadataProps) {
   const [settingRecords, setSettingRecords] = useState(false)
   const [customKey, setCustomKey] = useState('')
   const [customValue, setCustomValue] = useState('')
+  const [showAllMetadata, setShowAllMetadata] = useState(false)
+  const [showAccountMetadata, setShowAccountMetadata] = useState(false)
+  const [showContractMetadata, setShowContractMetadata] = useState(false)
 
   // Use wallet chain if connected, otherwise use selected chain from ChainSelector
   const activeChainId = chain?.id || selectedChain || CHAINS.MAINNET
   const config = CONTRACTS[activeChainId]
+
+  // Get viem chain object
+  const getViemChain = (chainId: number) => {
+    switch (chainId) {
+      case CHAINS.MAINNET: return mainnet
+      case CHAINS.SEPOLIA: return sepolia
+      case CHAINS.BASE: return base
+      case CHAINS.BASE_SEPOLIA: return baseSepolia
+      case CHAINS.LINEA: return linea
+      case CHAINS.LINEA_SEPOLIA: return lineaSepolia
+      case CHAINS.OPTIMISM: return optimism
+      case CHAINS.OPTIMISM_SEPOLIA: return optimismSepolia
+      case CHAINS.ARBITRUM: return arbitrum
+      case CHAINS.ARBITRUM_SEPOLIA: return arbitrumSepolia
+      case CHAINS.SCROLL: return scroll
+      case CHAINS.SCROLL_SEPOLIA: return scrollSepolia
+      default: return mainnet
+    }
+  }
 
   // Reset form function
   const resetForm = useCallback(() => {
@@ -202,32 +241,37 @@ export default function NameMetadata({ selectedChain }: NameMetadataProps) {
                   contentHash
                   texts
                   coinTypes
-                  events(orderBy: blockNumber, orderDirection: desc) {
-                    __typename
-                    ... on TextChanged {
-                      id
-                      key
-                      value
-                      blockNumber
-                    }
-                    ... on InterfaceChanged {
-                      id
-                      interfaceID
-                      implementer
-                      blockNumber
-                    }
-                    ... on MulticoinAddrChanged {
-                      id
-                      coinType
-                      addr
-                      blockNumber
-                    }
-                  }
                 }
                 ttl
                 isMigrated
                 createdAt
                 expiryDate
+              }
+              
+              # Get resolver with all its events
+              resolvers(where: { domain: $id }) {
+                id
+                events(first: 1000, orderBy: blockNumber, orderDirection: desc) {
+                  __typename
+                  ... on TextChanged {
+                    id
+                    key
+                    value
+                    blockNumber
+                  }
+                  ... on MulticoinAddrChanged {
+                    id
+                    coinType
+                    addr
+                    blockNumber
+                  }
+                  ... on InterfaceChanged {
+                    id
+                    interfaceID
+                    implementer
+                    blockNumber
+                  }
+                }
               }
             }
           `,
@@ -259,6 +303,48 @@ export default function NameMetadata({ selectedChain }: NameMetadataProps) {
       metadata.createdAt = domain.createdAt
       metadata.expiryDate = domain.expiryDate
 
+      // Process all metadata events across all resolvers
+      const textRecordsMap = new Map<string, string>()
+      const interfacesMap = new Map<string, string>()
+      const coinAddressesMap = new Map<string, string>()
+
+      // Collect all events from all resolvers for this domain
+      const allEvents: any[] = []
+      if (data.data.resolvers) {
+        data.data.resolvers.forEach((resolver: any) => {
+          if (resolver.events) {
+            allEvents.push(...resolver.events)
+          }
+        })
+      }
+
+      // Sort all events by block number descending (most recent first)
+      const sortedEvents = allEvents.sort((a, b) => b.blockNumber - a.blockNumber)
+
+      // Process events
+      sortedEvents.forEach((event: any) => {
+        if (event.__typename === 'TextChanged' && event.key) {
+          if (!textRecordsMap.has(event.key)) {
+            // Only add if value is not null and not empty string
+            if (event.value !== null && event.value !== '') {
+              textRecordsMap.set(event.key, event.value)
+            }
+          }
+        } else if (event.__typename === 'MulticoinAddrChanged') {
+          const coinType = event.coinType.toString()
+          if (!coinAddressesMap.has(coinType)) {
+            // Only add if addr is not null and not empty
+            if (event.addr && event.addr !== '0x') {
+              coinAddressesMap.set(coinType, event.addr)
+            }
+          }
+        } else if (event.__typename === 'InterfaceChanged') {
+          if (!interfacesMap.has(event.interfaceID)) {
+            interfacesMap.set(event.interfaceID, event.implementer)
+          }
+        }
+      })
+
       // Resolver info
       if (domain.resolver) {
         metadata.resolver = domain.resolver.id
@@ -266,75 +352,103 @@ export default function NameMetadata({ selectedChain }: NameMetadataProps) {
         metadata.ethAddress = domain.resolver.addr?.id || null
         metadata.contentHash = domain.resolver.contentHash || null
 
-        // Process text records from events
-        const textRecordsMap = new Map<string, string>()
-        const interfacesMap = new Map<string, string>()
-        const coinAddressesMap = new Map<string, string>()
-
-        if (domain.resolver.events) {
-          // Sort events by block number descending to get latest values
-          const sortedEvents = [...domain.resolver.events].sort(
-            (a, b) => b.blockNumber - a.blockNumber
-          )
-
-          sortedEvents.forEach((event: any) => {
-            if (event.__typename === 'TextChanged' && event.key) {
-              if (!textRecordsMap.has(event.key)) {
-                // Only add if value is not null and not empty string
-                if (event.value !== null && event.value !== '') {
-                  textRecordsMap.set(event.key, event.value)
-                }
-              }
-            } else if (event.__typename === 'InterfaceChanged') {
-              if (!interfacesMap.has(event.interfaceID)) {
-                interfacesMap.set(event.interfaceID, event.implementer)
-              }
-            } else if (event.__typename === 'MulticoinAddrChanged') {
-              const coinType = event.coinType.toString()
-              if (!coinAddressesMap.has(coinType)) {
-                coinAddressesMap.set(coinType, event.addr)
-              }
-            }
-          })
-        }
-
-        // Also check the texts array from resolver for additional keys
+        // Also check the texts array from current resolver for additional keys
         if (domain.resolver.texts && Array.isArray(domain.resolver.texts)) {
-          // The texts array contains keys that have been set
-          // We should query for their values if not already in the map
           for (const textKey of domain.resolver.texts) {
             if (!textRecordsMap.has(textKey)) {
-              // Find the most recent TextChanged event for this key
-              const textEvent = domain.resolver.events?.find(
+              // Find the most recent TextChanged event for this key from all events
+              const textEvent = sortedEvents.find(
                 (e: any) => e.__typename === 'TextChanged' && e.key === textKey
               )
-              if (textEvent?.value !== null && textEvent?.value !== '') {
+              if (textEvent && textEvent.value !== null && textEvent.value !== '') {
                 textRecordsMap.set(textKey, textEvent.value)
               }
             }
           }
         }
 
-        // Convert maps to arrays
-        metadata.textRecords = Array.from(textRecordsMap.entries()).map(([key, value]) => ({
-          key,
-          value,
-        }))
+        // Check coinTypes array from current resolver
+        if (domain.resolver.coinTypes && Array.isArray(domain.resolver.coinTypes)) {
+          for (const coinType of domain.resolver.coinTypes) {
+            const coinTypeStr = coinType.toString()
+            if (!coinAddressesMap.has(coinTypeStr)) {
+              const coinEvent = sortedEvents.find(
+                (e: any) => e.__typename === 'MulticoinAddrChanged' && e.coinType.toString() === coinTypeStr
+              )
+              if (coinEvent && coinEvent.addr && coinEvent.addr !== '0x') {
+                coinAddressesMap.set(coinTypeStr, coinEvent.addr)
+              }
+            }
+          }
+        }
 
-        metadata.interfaces = Array.from(interfacesMap.entries()).map(
-          ([interfaceID, implementer]) => ({
-            interfaceID,
-            implementer,
-          })
-        )
+        // Fetch coin addresses directly from the current resolver contract as final truth
+        // This ensures we have the most up-to-date data
+        if (metadata.resolverAddress && config?.RPC_ENDPOINT) {
+          try {
+            const viemChain = getViemChain(activeChainId)
+            const publicClient = createPublicClient({
+              chain: viemChain,
+              transport: http(config.RPC_ENDPOINT),
+            })
 
-        metadata.coinAddresses = Array.from(coinAddressesMap.entries()).map(
-          ([coinType, addr]) => ({
-            coinType,
-            addr,
-          })
-        )
+            const nameNode = namehash(name)
+            
+            // Query all known coin types
+            const knownCoinTypes = Object.keys(COIN_TYPE_MAPPING)
+            
+            for (const coinType of knownCoinTypes) {
+              try {
+                // The addr function returns bytes, not address
+                const addressBytes = await readContract(publicClient, {
+                  address: metadata.resolverAddress as `0x${string}`,
+                  abi: publicResolverABI,
+                  functionName: 'addr',
+                  args: [nameNode, BigInt(coinType)],
+                }) as `0x${string}`
+
+                // Decode bytes to address for EVM chains
+                // For EVM-compatible chains, the bytes should be 20 bytes (40 hex chars + 0x)
+                if (addressBytes && addressBytes !== '0x' && addressBytes.length >= 42) {
+                  // Extract address from bytes (take last 20 bytes / 40 hex chars)
+                  const addressHex = '0x' + addressBytes.slice(-40) as `0x${string}`
+                  
+                  // Validate it's a valid address
+                  if (isAddress(addressHex) && addressHex !== '0x0000000000000000000000000000000000000000') {
+                    coinAddressesMap.set(coinType, getAddress(addressHex))
+                  }
+                }
+              } catch (err) {
+                // Coin type not set or error reading, skip
+                console.debug(`Coin type ${coinType} not set or error:`, err)
+              }
+            }
+          } catch (err) {
+            console.error('Error fetching coin addresses from resolver:', err)
+            // Fall back to subgraph data if direct contract call fails
+          }
+        }
       }
+
+      // Convert maps to arrays
+      metadata.textRecords = Array.from(textRecordsMap.entries()).map(([key, value]) => ({
+        key,
+        value,
+      }))
+
+      metadata.interfaces = Array.from(interfacesMap.entries()).map(
+        ([interfaceID, implementer]) => ({
+          interfaceID,
+          implementer,
+        })
+      )
+
+      metadata.coinAddresses = Array.from(coinAddressesMap.entries()).map(
+        ([coinType, addr]) => ({
+          coinType,
+          addr,
+        })
+      )
     } catch (err: any) {
       console.error('Error fetching ENS metadata from subgraph:', err)
       metadata.error = err.message || 'Failed to fetch metadata'
@@ -619,8 +733,83 @@ export default function NameMetadata({ selectedChain }: NameMetadataProps) {
     setEditingRecords(existing)
     setCustomKey('')
     setCustomValue('')
+    setShowAllMetadata(false)
+    setShowAccountMetadata(false)
+    setShowContractMetadata(false)
     setIsModalOpen(true)
   }
+
+  // Check if address is a contract
+  const checkIsContract = async (address: string): Promise<boolean> => {
+    if (!address || !config?.SUBGRAPH_API) return false
+    
+    try {
+      // Simple heuristic: if the address has code, it's a contract
+      // We can use the public client for this
+      const response = await fetch(`${config.RPC_ENDPOINT}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          method: 'eth_getCode',
+          params: [address, 'latest'],
+          id: 1
+        })
+      })
+      const data = await response.json()
+      return data.result && data.result !== '0x' && data.result !== '0x0'
+    } catch (err) {
+      console.error('Error checking if contract:', err)
+      return false
+    }
+  }
+
+  // Check if any subname resolves to a contract
+  const hasContractSubnames = async (): Promise<boolean> => {
+    for (const subname of subnameHierarchy) {
+      if (subname.metadata?.ethAddress) {
+        const isContract = await checkIsContract(subname.metadata.ethAddress)
+        if (isContract) return true
+      }
+    }
+    return false
+  }
+
+  // Get recommended metadata keys based on address type
+  const getRecommendedMetadata = async () => {
+    const ethAddress = metadata?.ethAddress
+    
+    if (!ethAddress) {
+      // No address resolution
+      const hasContracts = await hasContractSubnames()
+      if (hasContracts) {
+        // Has contract subnames
+        return ['alias', 'theme', 'header', 'description', 'url', 'category', 'license', 'docs', 'audits']
+      }
+      // No address and no contract subnames
+      return ['alias', 'theme', 'header', 'description', 'url']
+    }
+    
+    // Check if it's a contract
+    const isContract = await checkIsContract(ethAddress)
+    
+    if (isContract) {
+      // Contract address
+      return ['category', 'license', 'docs', 'audits', 'url']
+    } else {
+      // EOA (Externally Owned Account)
+      return ['alias', 'theme', 'avatar', 'header', 'description', 'location', 'url']
+    }
+  }
+
+  const [recommendedKeys, setRecommendedKeys] = useState<string[]>([])
+
+  // Update recommended keys when modal opens
+  useEffect(() => {
+    if (isModalOpen && metadata) {
+      getRecommendedMetadata().then(keys => setRecommendedKeys(keys))
+    }
+  }, [isModalOpen, metadata])
 
   const addMetadataKey = (key: string, label: string) => {
     // Don't add if already exists
@@ -666,8 +855,17 @@ export default function NameMetadata({ selectedChain }: NameMetadataProps) {
     setCustomValue('')
   }
 
-  // Get available pills (not already in editing records)
-  const getAvailableKeys = (metadataList: typeof ACCOUNT_METADATA) => {
+  // Get available keys (not already in editing records)
+  const getAvailableKeys = (keys: string[]) => {
+    const existingKeys = new Set(editingRecords.map(r => r.key))
+    const allMetadata = [...ACCOUNT_METADATA, ...CONTRACT_METADATA]
+    return keys
+      .filter(key => !existingKeys.has(key))
+      .map(key => allMetadata.find(m => m.key === key))
+      .filter(Boolean) as typeof ACCOUNT_METADATA
+  }
+
+  const getAvailableMetadataByCategory = (metadataList: typeof ACCOUNT_METADATA) => {
     const existingKeys = new Set(editingRecords.map(r => r.key))
     return metadataList.filter(item => !existingKeys.has(item.key))
   }
@@ -691,8 +889,11 @@ export default function NameMetadata({ selectedChain }: NameMetadataProps) {
       return
     }
 
-    // Check if user is the owner
-    if (metadata.owner && metadata.owner.toLowerCase() !== walletAddress.toLowerCase()) {
+    // Check if user is the owner (check both wrappedOwner and owner)
+    const isOwner = (metadata.wrappedOwner && metadata.wrappedOwner.toLowerCase() === walletAddress.toLowerCase()) ||
+                    (metadata.owner && metadata.owner.toLowerCase() === walletAddress.toLowerCase())
+    
+    if (!isOwner) {
       toast({
         title: 'Not Authorized',
         description: 'You must be the owner of this ENS name to set text records',
@@ -756,8 +957,11 @@ export default function NameMetadata({ selectedChain }: NameMetadataProps) {
   }
 
   // Check if user is owner or manager of the ENS name
-  const isOwnerOrManager = metadata?.owner && walletAddress && 
-    metadata.owner.toLowerCase() === walletAddress.toLowerCase()
+  // For wrapped names, check wrappedOwner; for regular names, check owner
+  const isOwnerOrManager = walletAddress && metadata && (
+    (metadata.wrappedOwner && metadata.wrappedOwner.toLowerCase() === walletAddress.toLowerCase()) ||
+    (metadata.owner && metadata.owner.toLowerCase() === walletAddress.toLowerCase())
+  )
 
   return (
     <div className="p-6 sm:p-8 max-w-7xl mx-auto">
@@ -935,14 +1139,14 @@ export default function NameMetadata({ selectedChain }: NameMetadataProps) {
               </div>
             )}
 
-            {/* Account Metadata Pills */}
-            <div>
-              <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
-                Account Metadata
-              </h4>
-              <div className="flex flex-wrap gap-2">
-                {getAvailableKeys(ACCOUNT_METADATA).length > 0 ? (
-                  getAvailableKeys(ACCOUNT_METADATA).map((item) => (
+            {/* Recommended Metadata */}
+            {recommendedKeys.length > 0 && getAvailableKeys(recommendedKeys).length > 0 && (
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
+                  Recommended Metadata
+                </h4>
+                <div className="flex flex-wrap gap-2">
+                  {getAvailableKeys(recommendedKeys).map((item) => (
                     <button
                       key={item.key}
                       onClick={() => addMetadataKey(item.key, item.label)}
@@ -950,77 +1154,136 @@ export default function NameMetadata({ selectedChain }: NameMetadataProps) {
                     >
                       + {item.label}
                     </button>
-                  ))
-                ) : (
-                  <p className="text-xs text-gray-500 dark:text-gray-400">All account metadata keys are already added</p>
-                )}
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
-            {/* Contract Metadata Pills */}
+            {/* Show All Metadata Dropdown */}
             <div>
-              <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
-                Contract Metadata
-              </h4>
-              <div className="flex flex-wrap gap-2">
-                {getAvailableKeys(CONTRACT_METADATA).length > 0 ? (
-                  getAvailableKeys(CONTRACT_METADATA).map((item) => (
+              <button
+                onClick={() => setShowAllMetadata(!showAllMetadata)}
+                className="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+              >
+                {showAllMetadata ? (
+                  <ChevronDownIcon className="w-4 h-4" />
+                ) : (
+                  <ChevronRightIcon className="w-4 h-4" />
+                )}
+                Show All Metadata
+              </button>
+
+              {showAllMetadata && (
+                <div className="mt-4 space-y-4 pl-6">
+                  {/* Account Metadata */}
+                  <div>
                     <button
-                      key={item.key}
-                      onClick={() => addMetadataKey(item.key, item.label)}
-                      className="px-3 py-1.5 text-xs font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-full hover:bg-purple-200 dark:hover:bg-purple-900/50 transition-colors border border-purple-300 dark:border-purple-700"
+                      onClick={() => setShowAccountMetadata(!showAccountMetadata)}
+                      className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 mb-2"
                     >
-                      + {item.label}
+                      {showAccountMetadata ? (
+                        <ChevronDownIcon className="w-3.5 h-3.5" />
+                      ) : (
+                        <ChevronRightIcon className="w-3.5 h-3.5" />
+                      )}
+                      Account Metadata
                     </button>
-                  ))
-                ) : (
-                  <p className="text-xs text-gray-500 dark:text-gray-400">All contract metadata keys are already added</p>
-                )}
-              </div>
-            </div>
+                    {showAccountMetadata && (
+                      <div className="flex flex-wrap gap-2 ml-5">
+                        {getAvailableMetadataByCategory(ACCOUNT_METADATA).length > 0 ? (
+                          getAvailableMetadataByCategory(ACCOUNT_METADATA).map((item) => (
+                            <button
+                              key={item.key}
+                              onClick={() => addMetadataKey(item.key, item.label)}
+                              className="px-3 py-1.5 text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors border border-blue-300 dark:border-blue-700"
+                            >
+                              + {item.label}
+                            </button>
+                          ))
+                        ) : (
+                          <p className="text-xs text-gray-500 dark:text-gray-400">All account metadata keys are already added</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
 
-            {/* Custom Key-Value */}
-            <div>
-              <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
-                Custom Metadata
-              </h4>
-              <div className="flex gap-2">
-                <Input
-                  type="text"
-                  value={customKey}
-                  onChange={(e) => setCustomKey(e.target.value)}
-                  placeholder="Key (e.g., discord, website)"
-                  className="flex-1 bg-white dark:bg-gray-800 text-black dark:text-white border-gray-300 dark:border-gray-600"
-                  onKeyPress={(e) => e.key === 'Enter' && addCustomMetadata()}
-                />
-                <Input
-                  type="text"
-                  value={customValue}
-                  onChange={(e) => setCustomValue(e.target.value)}
-                  placeholder="Value"
-                  className="flex-1 bg-white dark:bg-gray-800 text-black dark:text-white border-gray-300 dark:border-gray-600"
-                  onKeyPress={(e) => e.key === 'Enter' && addCustomMetadata()}
-                />
-                <Button
-                  onClick={addCustomMetadata}
-                  variant="outline"
-                  size="sm"
-                  className="whitespace-nowrap"
-                >
-                  <PlusIcon className="w-4 h-4 mr-1" />
-                  Add
-                </Button>
-              </div>
+                  {/* Contract Metadata */}
+                  <div>
+                    <button
+                      onClick={() => setShowContractMetadata(!showContractMetadata)}
+                      className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 mb-2"
+                    >
+                      {showContractMetadata ? (
+                        <ChevronDownIcon className="w-3.5 h-3.5" />
+                      ) : (
+                        <ChevronRightIcon className="w-3.5 h-3.5" />
+                      )}
+                      Contract Metadata
+                    </button>
+                    {showContractMetadata && (
+                      <div className="flex flex-wrap gap-2 ml-5">
+                        {getAvailableMetadataByCategory(CONTRACT_METADATA).length > 0 ? (
+                          getAvailableMetadataByCategory(CONTRACT_METADATA).map((item) => (
+                            <button
+                              key={item.key}
+                              onClick={() => addMetadataKey(item.key, item.label)}
+                              className="px-3 py-1.5 text-xs font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-full hover:bg-purple-200 dark:hover:bg-purple-900/50 transition-colors border border-purple-300 dark:border-purple-700"
+                            >
+                              + {item.label}
+                            </button>
+                          ))
+                        ) : (
+                          <p className="text-xs text-gray-500 dark:text-gray-400">All contract metadata keys are already added</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Custom Metadata */}
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Custom Metadata
+                    </h4>
+                    <div className="flex gap-2 ml-5">
+                      <Input
+                        type="text"
+                        value={customKey}
+                        onChange={(e) => setCustomKey(e.target.value)}
+                        placeholder="Key (e.g., discord, website)"
+                        className="flex-1 bg-white dark:bg-gray-800 text-black dark:text-white border-gray-300 dark:border-gray-600"
+                        onKeyPress={(e) => e.key === 'Enter' && addCustomMetadata()}
+                      />
+                      <Input
+                        type="text"
+                        value={customValue}
+                        onChange={(e) => setCustomValue(e.target.value)}
+                        placeholder="Value"
+                        className="flex-1 bg-white dark:bg-gray-800 text-black dark:text-white border-gray-300 dark:border-gray-600"
+                        onKeyPress={(e) => e.key === 'Enter' && addCustomMetadata()}
+                      />
+                      <Button
+                        onClick={addCustomMetadata}
+                        variant="outline"
+                        size="sm"
+                        className="whitespace-nowrap"
+                      >
+                        <PlusIcon className="w-4 h-4 mr-1" />
+                        Add
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Info Box */}
-            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+            {/* <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
               <p className="text-xs text-blue-800 dark:text-blue-300">
                 <strong>Note:</strong> Setting text records requires you to be the owner of this ENS name and will create on-chain transactions.
               </p>
-              {metadata?.owner && walletAddress && (
+              {metadata && walletAddress && (
                 <p className="text-xs mt-2 text-blue-800 dark:text-blue-300">
-                  {metadata.owner.toLowerCase() === walletAddress.toLowerCase() ? (
+                  {isOwnerOrManager ? (
                     <span className="text-green-600 dark:text-green-400">✓ You are the owner of this name</span>
                   ) : (
                     <span className="text-red-600 dark:text-red-400">✗ You are not the owner of this name</span>
@@ -1032,7 +1295,7 @@ export default function NameMetadata({ selectedChain }: NameMetadataProps) {
                   ⚠ Please connect your wallet to set text records
                 </p>
               )}
-            </div>
+            </div> */}
 
             {/* Action Buttons */}
             <div className="flex gap-3 justify-end">
@@ -1194,14 +1457,32 @@ function MetadataDisplay({ metadata }: MetadataDisplayProps) {
             {metadata.ethAddress && (
               <InfoRow label="ETH Address" value={metadata.ethAddress} mono />
             )}
-            {metadata.coinAddresses.map((coin) => (
-              <InfoRow
-                key={coin.coinType}
-                label={`Coin Type ${coin.coinType}`}
-                value={coin.addr}
-                mono
-              />
-            ))}
+            {metadata.coinAddresses.map((coin) => {
+              const chainInfo = COIN_TYPE_MAPPING[coin.coinType]
+              return (
+                <div key={coin.coinType} className="flex justify-between items-start py-2">
+                  <div className="flex items-center gap-2">
+                    {chainInfo?.logo && (
+                      <div className="flex-shrink-0 w-5 h-5 relative">
+                        <Image
+                          src={chainInfo.logo}
+                          alt={chainInfo.name}
+                          width={20}
+                          height={20}
+                          className="object-contain"
+                        />
+                      </div>
+                    )}
+                    <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                      {chainInfo?.name || `Coin Type ${coin.coinType}`}
+                    </span>
+                  </div>
+                  <span className="text-xs font-mono text-gray-900 dark:text-white break-all ml-4">
+                    {coin.addr}
+                  </span>
+                </div>
+              )
+            })}
           </div>
         </div>
       )}
