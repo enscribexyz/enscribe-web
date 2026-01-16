@@ -17,3 +17,28 @@ safe:
   label: safe
   permalink: safe
   description: Safe Multisig Wallet
+
+redesign:
+  label: redesign
+  permalink: redesign
+  description: UI/UX Redesigns and Updates
+
+ui-ux:
+  label: ui-ux
+  permalink: ui-ux
+  description: User Interface and User Experience
+
+search:
+  label: search
+  permalink: search
+  description: Search Functionality
+
+navigation:
+  label: navigation
+  permalink: navigation
+  description: Navigation and Discoverability
+
+ens-resolution:
+  label: ens-resolution
+  permalink: ens-resolution
+  description: ENS Name Resolution
