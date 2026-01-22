@@ -3,10 +3,28 @@ import { ethers } from 'ethers'
 
 import type { NextApiRequest, NextApiResponse } from 'next'
 
-const fetchAssociatedNamesCount = async (address: string, chainId: number): Promise<number> => {
+const shortenENSName = (name: string, maxLength: number = 13): string => {
+  if (name.length <= maxLength) return name
+  
+  // Extract the suffix (e.g., ".eth")
+  const dotIndex = name.lastIndexOf('.')
+  if (dotIndex === -1) return name
+  
+  const label = name.slice(0, dotIndex)
+  const suffix = name.slice(dotIndex) // includes the dot, e.g., ".eth"
+  
+  const ellipsis = '...'
+  const availableForLabel = maxLength - suffix.length - ellipsis.length
+  
+  if (availableForLabel <= 0) return name
+  
+  return label.slice(0, availableForLabel) + ellipsis + suffix
+}
+
+const fetchAssociatedNamesCount = async (address: string, chainId: number): Promise<{ count: number, name?: string }> => {
     const config = CONTRACTS[chainId]
 
-    if (!address || !config?.SUBGRAPH_API) return 0
+    if (!address || !config?.SUBGRAPH_API) return { count: 0 }
 
     try {
       console.log(`[ENSDetails] Fetching associated ENS names for ${address}`)
@@ -39,13 +57,17 @@ const fetchAssociatedNamesCount = async (address: string, chainId: number): Prom
       const domainsData = await domainsResponse.json()
 
       if (domainsData.data && domainsData.data.domains) {
-        return domainsData.data.domains.length
+        const domains = domainsData.data.domains
+        if (domains.length === 1 && domains[0].name) {
+          return { count: 1, name: shortenENSName(domains[0].name) }
+        }
+        return { count: domains.length }
       } else {
-        return 0
+        return { count: 0 }
       }
     } catch (error) {
       console.error('[ENSDetails] Error fetching associated ENS names:', error)
-      return 0
+      return { count: 0 }
     }
 }
 
@@ -155,11 +177,11 @@ export default async function handler(
   if (primaryENS) {
     return res.status(200).json({ label: 'View Metadata' })
   } else {
-    const associatedNamesCount = await fetchAssociatedNamesCount(address as string, chainIdNum)
-    if (associatedNamesCount > 0) {
-      return res.status(200).json({ label: associatedNamesCount === 1 ? '1 Name' : `${associatedNamesCount} Names`})
+    const { count, name } = await fetchAssociatedNamesCount(address as string, chainIdNum)
+    if (count > 0) {
+      return res.status(200).json({ label: count === 1 ? `${name}` : `⚠️ ${count} Names`})
     } else {
-      return res.status(404).json({ label: 'Set Name' })
+      return res.status(404).json({ label: '❌ Set ENS' })
     }
   }
 }
