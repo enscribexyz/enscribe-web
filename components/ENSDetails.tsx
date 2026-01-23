@@ -128,6 +128,7 @@ export default function ENSDetails({
       })
   }
   const [isLoading, setIsLoading] = useState(true)
+  const [isMetadataLoading, setIsMetadataLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [ensNames, setEnsNames] = useState<ENSDomain[]>([])
   const [primaryName, setPrimaryName] = useState<string | null>(null)
@@ -419,11 +420,39 @@ export default function ENSDetails({
 
     try {
       console.log(`[ENSDetails] Fetching primary ENS name for ${address}`)
+      
+      // Always do reverse lookup to get the ACTUAL primary name
+      // Don't skip this even if queriedENSName exists - we need to check if they match
+      
+      // Check if address is a valid Ethereum address format (0x...)
+      // If it contains '.' it's likely an ENS name, not an address
+      if (address.includes('.')) {
+        console.log(`[ENSDetails] Address looks like ENS name, skipping reverse lookup: ${address}`)
+        setPrimaryName(null)
+        setPrimaryNameExpiryDate(null)
+        return
+      }
+      
+      // Validate it's a proper address format before reverse lookup
+      if (!address.startsWith('0x') || address.length !== 42) {
+        console.log(`[ENSDetails] Invalid address format, skipping reverse lookup: ${address}`)
+        setPrimaryName(null)
+        setPrimaryNameExpiryDate(null)
+        return
+      }
+      
+      // Do reverse lookup (address → ENS name) to get the ACTUAL primary name
       const primaryENS = await getENS(address, customProvider)
 
       if (primaryENS) {
         setPrimaryName(primaryENS)
         console.log(`[ENSDetails] Primary ENS name found: ${primaryENS}`)
+        
+        // Check if queriedENSName matches the actual primary name
+        if (queriedENSName) {
+          const isActualPrimary = queriedENSName.toLowerCase() === primaryENS.toLowerCase()
+          console.log(`[ENSDetails] Queried name "${queriedENSName}" is ${isActualPrimary ? 'THE' : 'NOT THE'} primary name`)
+        }
 
         // Fetch expiry date for the primary name's 2LD
         await fetchPrimaryNameExpiryDate(primaryENS)
@@ -436,7 +465,7 @@ export default function ENSDetails({
       console.error('[ENSDetails] Error fetching primary ENS name:', error)
       setPrimaryName(null)
     }
-  }, [address, customProvider])
+  }, [address, customProvider, queriedENSName])
 
   // Function to fetch expiry date for a primary name's 2LD
   const fetchPrimaryNameExpiryDate = async (primaryENS: string) => {
@@ -711,6 +740,7 @@ export default function ENSDetails({
     config,
     effectiveChainId,
     isContract,
+    queriedENSName,
     fetchPrimaryName,
     fetchAssociatedNames,
     fetchVerificationStatus,
@@ -796,6 +826,8 @@ export default function ENSDetails({
     async (ensName: string) => {
       if (!ensName || !isContract || !effectiveChainId) return
 
+      setIsMetadataLoading(true)
+      
       try {
         const response = await fetch(
           `/api/v1/contractMetadata/${effectiveChainId}/${encodeURIComponent(ensName)}`
@@ -812,6 +844,8 @@ export default function ENSDetails({
       } catch (error) {
         console.error('[ENSDetails] Error fetching text records from API:', error)
         setTextRecords({})
+      } finally {
+        setIsMetadataLoading(false)
       }
     },
     [effectiveChainId, isContract]
@@ -823,7 +857,7 @@ export default function ENSDetails({
     let ensNameToFetch: string | null = null
     
     if (queriedENSName) {
-      // If user queried by ENS name, use that name immediately
+      // If user queried by ENS name, use that name immediately (priority)
       ensNameToFetch = queriedENSName
     } else {
       // If user queried by address, use primary name or forward name
@@ -835,16 +869,29 @@ export default function ENSDetails({
       fetchTextRecordsFromAPI(ensNameToFetch)
     } else {
       setTextRecords({})
+      setIsMetadataLoading(false) // No metadata to load for non-contracts
     }
   }, [queriedENSName, primaryName, selectedForwardName, isContract, fetchTextRecordsFromAPI])
 
-  if (isLoading) {
+  // Show loading until ENS data is loaded AND (for contracts) metadata is loaded
+  const shouldShowLoading = isLoading || (isContract && isMetadataLoading)
+  
+  if (shouldShowLoading) {
     return (
       <Card className="w-full max-w-5xl mx-auto bg-white dark:bg-gray-800 shadow-lg rounded-xl">
         <CardContent className="p-6 space-y-4">
-          <Skeleton className="h-6 w-full" />
-          <Skeleton className="h-6 w-3/4" />
-          <Skeleton className="h-6 w-1/2" />
+          <div className="flex flex-col space-y-3">
+            <Skeleton className="h-8 w-3/4" />
+            <Skeleton className="h-6 w-full" />
+            <Skeleton className="h-6 w-5/6" />
+            <div className="pt-4">
+              <Skeleton className="h-32 w-full" />
+            </div>
+            <div className="flex gap-2">
+              <Skeleton className="h-10 w-24" />
+              <Skeleton className="h-10 w-24" />
+            </div>
+          </div>
         </CardContent>
       </Card>
     )

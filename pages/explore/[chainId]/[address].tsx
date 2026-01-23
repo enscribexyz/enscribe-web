@@ -507,36 +507,29 @@ export default function ExploreAddressPage() {
     validateInput()
   }, [router.isReady, chainId, address, client])
 
-  if (isLoading) {
-    return (
-      <Layout>
-        <div className="flex justify-center items-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 dark:border-blue-400"></div>
-        </div>
-      </Layout>
-    )
-  }
-
   return (
     <Layout>
-      <div className="flex items-center mb-6 w-full max-w-5xl mx-auto">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-          {isValidAddress && isValidChain
-            ? isContract
-              ? 'Contract Details'
-              : 'Account Details'
-            : 'Invalid Chain ID or Address/ENS name'}
-        </h1>
-      </div>
+      {!isLoading && (
+        <div className="flex items-center mb-6 w-full max-w-5xl mx-auto">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+            {isValidAddress && isValidChain
+              ? isContract
+                ? 'Contract Details'
+                : 'Account Details'
+              : 'Invalid Chain ID or Address/ENS name'}
+          </h1>
+        </div>
+      )}
 
-      {error && (
+      {error && !isLoading && (
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-6">
           <div className="text-red-700 dark:text-red-400">{error}</div>
         </div>
       )}
 
       {/* Display a message if the wallet chain differs from the URL chain */}
-      {walletChain &&
+      {!isLoading &&
+        walletChain &&
         chainId &&
         parseInt(chainId as string) !== walletChain.id && (
           <div className="mt-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
@@ -547,7 +540,8 @@ export default function ExploreAddressPage() {
           </div>
         )}
 
-      {isValidAddress && isValidChain && (
+      {/* Always render ENSDetails - it will handle its own loading state */}
+      {(isValidAddress && isValidChain) || isLoading ? (
         <ENSDetails
           address={resolvedAddress || (address as string)}
           contractDeployerAddress={contractDeployerAddress}
@@ -557,7 +551,7 @@ export default function ExploreAddressPage() {
           proxyInfo={proxyInfo}
           queriedENSName={isENSName ? (address as string) : undefined}
         />
-      )}
+      ) : null}
     </Layout>
   )
 }
