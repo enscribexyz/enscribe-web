@@ -1,0 +1,177 @@
+---
+slug: smart-contract-versioning
+title: How to perform onchain versioning of smart contracts
+description: How to perform onchain versioning of smart contracts using Enscribe, Foundry, and Hardhat.
+authors: [abhi]
+tags: [enscribe, ens, foundry, hardhat, versioning, smart contract versioning]
+keywords: [ENS, Enscribe, smart contract versioning, semantic versioning, git tags, deployment scripts, on-chain identity, ENS names, ENS naming, ENS contracts, enscribe library, hardhat plugin, hardhat v3, ENS naming, ENS contracts, enscribe library]
+---
+
+In software engineering, versioning is a core tenet of release management. However, when smart contracts are deployed to Ethereum networks, the deployment artifacts live as 42-character hexadecimal strings, with no onchain versioning information being captured about them.
+
+They may be versioned in the GitHub repositories they were deployed on, or documented in docs, but there is no decentralised location where release information is captured, which seems ironic given they live on permissionless networks.
+
+We want to see this change. It is now possible to easily deploy smart contracts with onchain versioning, and in this post we’re going to outline how you can do it.
+
+
+We will demonstrate how you can bridge the gap between CI/CD pipelines, deployment scripts and onchain identity by programmatically assigning ENS names during deployment using open source tools. 
+
+Most developers use Foundry and Hardhat - two very popular options for smart contracts management. We provide examples showing usages of both these tools.
+
+
+We’ll use Github Actions as an example but the steps/configs described should be fairly straightforward and similar with other CI/CD tools.
+
+## Naming with Foundry
+
+We can use the [Enscribe Foundry library](https://github.com/enscribexyz/enscribe) that is written in Solidity to version your contracts. This is an example script that demonstrates how you can set a name to a contract using an environment variable:
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import {Script, console} from "forge-std/Script.sol";
+import {Counter} from "../src/Counter.sol";
+import {Ens} from "enscribe/Ens.sol";
+
+contract MyContractScript is Script {
+    function run() public {
+        vm.startBroadcast();
+
+        counter = new Counter();
+        Ens.setName(block.chainid, address(counter), 
+string.concat(vm.envString("VERSION"), ".", vm.envString("ENS_PARENT")));
+
+        vm.stopBroadcast();
+    }
+}
+```
+
+Assume we already have a top level domain name registered like  mydomain.eth. You can now run this script directly from the command line to deploy & set a version for your contract:
+
+```bash
+$ export VERSION=v1 ENS_PARENT=app.mydomain.eth
+$ forge script script/Counter.s.sol:CounterScript --rpc-url <BASE RPC URL> --chain-id 8453 --broadcast --private-key <PRIVATE KEY>
+```
+
+You can also run this script from Github Actions like so:
+
+```yaml
+- name: Version Contract
+        env:
+          VERSION: v1
+          ENS_PARENT: app.mydomain.eth
+          RPC_URL: ${{ secrets.RPC_URL }}
+          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+          
+        # Execute forge script command to set the name
+        run: forge script script/Counter.s.sol:CounterScript --rpc-url "$RPC_URL" --chain-id 8453 --broadcast --private-key "$PRIVATE_KEY"
+```
+
+You can name multiple contracts in the same script as well:
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import {Script, console} from "forge-std/Script.sol";
+import {Counter} from "../src/Counter.sol";
+import {HelloWorld} from "../src/HelloWorld.sol";
+import {MyAwesomeApp} from "../src/MyAwesomeApp.sol";
+import {Ens} from "enscribe/Ens.sol";
+
+contract DeployScript is Script {
+    function run() public {
+        vm.startBroadcast();
+
+        counter = new Counter();
+        hello = new HelloWorld();
+        app = new MyAwesomeApp();
+
+        Ens.setName(block.chainid, address(counter), string.concat(vm.envString("VERSION"), ".counter.", vm.envString("ENS_PARENT"));
+        Ens.setName(block.chainid, address(hello), string.concat(vm.envString("VERSION"), ".hello.", vm.envString("ENS_PARENT"));
+        Ens.setName(block.chainid, address(app), string.concat(vm.envString("VERSION"), ".app.", vm.envString("ENS_PARENT"));
+
+        vm.stopBroadcast();
+    }
+}
+```
+
+```yaml
+- name: Version Contracts
+        env:
+          VERSION: v1
+          ENS_PARENT: mydomain.eth
+          RPC_URL: ${{ secrets.RPC_URL }}
+          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+          
+        # Execute forge script command to set the names
+        run: forge script script/DeployScript.s.sol:DeployScript --rpc-url "$RPC_URL" --chain-id 8453 --broadcast --private-key "$PRIVATE_KEY"
+```
+
+## Naming with Hardhat
+
+If Hardhat, instead, is what you use for contracts management, then you can version using Hardhat and the [Hardhat Enscribe plugin](https://github.com/enscribexyz/hardhat-enscribe). 
+
+We can now set an environment variable in your CI/CD pipeline like `$CONTRACT_NAME=v1.app.mydomain.eth` and add a Hardhat Enscribe plugin command to set this name to the contract address to the pipeline: 
+
+```bash
+$ npx hardhat enscribe name $CONTRACT_NAME --contract <contract address>
+```
+
+For e.g., this is an example Github Actions workflow file where you can set this variable and set the name of a contract:
+
+```yaml
+- name: Version Contract
+        env:
+          CONTRACT_NAME: v1.app.mydomain.eth
+          CONTRACT_ADDRESS: ${{ env.DEPLOYED_ADDRESS }}
+          RPC_URL: ${{ secrets.RPC_URL }}
+          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+          
+        # Execute Hardhat plugin command to set the name
+        run: npx hardhat enscribe name "$CONTRACT_NAME" --contract "$CONTRACT_ADDRESS" --network mainnet
+
+```
+
+Your should add the Hardhat Enscribe plugin to your dev dependencies in the package.json file before:
+
+```json
+{
+  "devDependencies": {
+    "hardhat": "^3.0.0",
+    "@enscribe/hardhat-enscribe": "^0.1.5", 
+    ...
+  }
+}
+```
+
+When you trigger a build and release cycle in the pipeline, your contract is now automatically versioned.
+
+We can use a Git based commit hash as a part of the contract version if it is preferred over semantic versioning by extracting it programmatically and exposing it as an environment variable:
+
+```yaml
+- name: Extract and set Git Hash
+        shell: bash
+        run: |
+          # 1. Get the short hash (7 chars)
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          
+          # 2. Save it to the Global Environment for this job
+          echo "GIT_HASH=$SHORT_SHA" >> $GITHUB_ENV
+
+- name: Run Deployment
+        run: npx hardhat enscribe name "$CONTRACT_NAME" --contract "$CONTRACT_ADDRESS" --network mainnet
+        env:
+          CONTRACT_NAME: ${{ env.GIT_HASH }}.app.mydomain.eth
+          CONTRACT_ADDRESS: ${{ env.DEPLOYED_ADDRESS }}
+          RPC_URL: ${{ secrets.RPC_URL }}
+          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+```
+
+## Why Versioning Matters
+
+By adopting onchain versioning, we aren't just making our own lives easier; we are establishing long-overdue transparency for releases. We are moving from a world where users are forced to  trust hexadecimal strings to one where every deployment has a human-readable, verifiable name. The tools to make this happen are now here and ready to integrate into your pipeline.
+
+Ready to upgrade your workflow? Check out the [Foundry Library](https://github.com/enscribexyz/enscribe), [Hardhat Plugin](https://github.com/enscribexyz/hardhat-enscribe) and [TypeScript SDK](https://github.com/enscribexyz/enscribe-ts) or [these examples](https://github.com/enscribexyz/versioning-examples) to start versioning your contracts.
+
+Happy Versioning! 🚀
