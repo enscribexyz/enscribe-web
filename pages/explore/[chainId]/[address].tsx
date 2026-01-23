@@ -555,6 +555,7 @@ export default function ExploreAddressPage() {
           chainId={typeof chainId === 'string' ? parseInt(chainId) : undefined}
           isContract={isContract}
           proxyInfo={proxyInfo}
+          queriedENSName={isENSName ? (address as string) : undefined}
         />
       )}
     </Layout>
