@@ -321,56 +321,50 @@ export default function NameContract() {
   }, [existingContractAddress])
 
   useEffect(() => {
-    const initFromQuery = async () => {
-      if (
-        router.query.contract &&
-        isAddress(router.query.contract as string) &&
-        walletClient
-      ) {
-        console.log(`wallet name: ${walletClient.name}`)
-        const addr = router.query.contract as string
-        
-        // Check for blockscout redirect BEFORE populating the form
-        // Use chainId from URL when present (so redirect matches the linked chain), else wallet chain
-        const urlChainId = router.query.chainId != null
-          ? Number(router.query.chainId)
-          : null
-        const redirectChainId =
-          urlChainId != null && !Number.isNaN(urlChainId) && CONTRACTS[urlChainId]
-            ? urlChainId
-            : chain?.id
-
-        if (router.query.utm === 'blockscout' && redirectChainId) {
-          try {
-            // If primary name exists, redirect immediately
-            const primaryName = await getENS(addr, redirectChainId)
-            if (primaryName && primaryName.length > 0) {
-              router.replace(`/explore/${redirectChainId}/${addr}`)
-              return
-            }
-            // If no primary name, check for forward resolutions (associated names)
-            const { count } = await fetchAssociatedNamesCount(addr, redirectChainId)
-            if (count > 0) {
-              router.replace(`/explore/${redirectChainId}/${addr}`)
-              return
-            }
-          } catch (error) {
-            console.error('Error checking ENS for blockscout redirect:', error)
-            // Continue with normal flow on error
-          }
-        }
-        
-        // Only populate form if we're not redirecting
-        setExistingContractAddress(addr)
-        isAddressValid(addr)
-        await checkIfOwnable(addr)
-        await checkIfReverseClaimable(addr)
+    const run = async () => {
+      if (!router.isReady || !router.query.contract || !isAddress(router.query.contract as string)) {
+        return
       }
+
+      const addr = router.query.contract as string
+
+      // Blockscout redirect: run even when wallet is disconnected (use URL chainId when no wallet)
+      const urlChainId = router.query.chainId != null ? Number(router.query.chainId) : null
+      const redirectChainId =
+        urlChainId != null && !Number.isNaN(urlChainId) && CONTRACTS[urlChainId]
+          ? urlChainId
+          : chain?.id
+
+      if (router.query.utm === 'blockscout' && redirectChainId) {
+        try {
+          const primaryName = await getENS(addr, redirectChainId)
+          if (primaryName && primaryName.length > 0) {
+            router.replace(`/explore/${redirectChainId}/${addr}`)
+            return
+          }
+          const { count } = await fetchAssociatedNamesCount(addr, redirectChainId)
+          if (count > 0) {
+            router.replace(`/explore/${redirectChainId}/${addr}`)
+            return
+          }
+        } catch (error) {
+          console.error('Error checking ENS for blockscout redirect:', error)
+        }
+        // No redirect happened; fall through to form population if wallet is connected
+      }
+
+      // Populate form only when wallet is connected
+      if (!walletClient) return
+
+      console.log(`wallet name: ${walletClient.name}`)
+      setExistingContractAddress(addr)
+      isAddressValid(addr)
+      await checkIfOwnable(addr)
+      await checkIfReverseClaimable(addr)
     }
 
-    // Only run when router is ready
     if (router.isReady) {
-      initFromQuery()
+      run()
     }
   }, [router.query.contract, router.query.chainId, router.query.utm, router.isReady, walletClient, chain?.id])
 
