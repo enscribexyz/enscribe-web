@@ -35,6 +35,7 @@ import {
 } from '@/components/ui/tooltip'
 import { useToast } from '@/hooks/use-toast'
 import { CONTRACTS, CHAINS } from '../utils/constants'
+import { getENS, fetchAssociatedNamesCount } from '../utils/ens'
 import Link from 'next/link'
 import Image from 'next/image'
 import SetNameStepsModal, { Step } from './SetNameStepsModal'
@@ -60,6 +61,7 @@ import { isAddress, keccak256, toBytes, encodeFunctionData, parseAbi, encodePack
 import { createPublicClient, http, toCoinType } from 'viem'
 import enscribeContractABI from '../contracts/Enscribe'
 import ownableContractABI from '@/contracts/Ownable'
+import { useSearchParams } from 'next/navigation'
 
 export default function NameContract() {
   const router = useRouter()
@@ -327,6 +329,38 @@ export default function NameContract() {
       ) {
         console.log(`wallet name: ${walletClient.name}`)
         const addr = router.query.contract as string
+        
+        // Check for blockscout redirect BEFORE populating the form
+        // Use chainId from URL when present (so redirect matches the linked chain), else wallet chain
+        const urlChainId = router.query.chainId != null
+          ? Number(router.query.chainId)
+          : null
+        const redirectChainId =
+          urlChainId != null && !Number.isNaN(urlChainId) && CONTRACTS[urlChainId]
+            ? urlChainId
+            : chain?.id
+
+        if (router.query.utm === 'blockscout' && redirectChainId) {
+          try {
+            // If primary name exists, redirect immediately
+            const primaryName = await getENS(addr, redirectChainId)
+            if (primaryName && primaryName.length > 0) {
+              router.replace(`/explore/${redirectChainId}/${addr}`)
+              return
+            }
+            // If no primary name, check for forward resolutions (associated names)
+            const { count } = await fetchAssociatedNamesCount(addr, redirectChainId)
+            if (count > 0) {
+              router.replace(`/explore/${redirectChainId}/${addr}`)
+              return
+            }
+          } catch (error) {
+            console.error('Error checking ENS for blockscout redirect:', error)
+            // Continue with normal flow on error
+          }
+        }
+        
+        // Only populate form if we're not redirecting
         setExistingContractAddress(addr)
         isAddressValid(addr)
         await checkIfOwnable(addr)
@@ -334,8 +368,11 @@ export default function NameContract() {
       }
     }
 
-    initFromQuery()
-  }, [router.query.contract, walletClient])
+    // Only run when router is ready
+    if (router.isReady) {
+      initFromQuery()
+    }
+  }, [router.query.contract, router.query.chainId, router.query.utm, router.isReady, walletClient, chain?.id])
 
   useEffect(() => {
     if (parentType === 'web3labs' && config?.ENSCRIBE_DOMAIN) {
