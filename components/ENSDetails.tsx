@@ -109,7 +109,7 @@ export default function ENSDetails({
   // State for ENS names sections expansion
   const [associatedNamesExpanded, setAssociatedNamesExpanded] = useState(false)
   const [ownedNamesExpanded, setOwnedNamesExpanded] = useState(false)
-  
+
   // State for text records
   const [textRecords, setTextRecords] = useState<TextRecords>({})
 
@@ -137,6 +137,9 @@ export default function ENSDetails({
   const [primaryNameExpiryDate, setPrimaryNameExpiryDate] = useState<
     number | null
   >(null)
+  const [forwardNameExpiryDate, setForwardNameExpiryDate] = useState<
+    number | null
+  >(null)
   const [selectedForwardName, setSelectedForwardName] = useState<string | null>(
     null,
   )
@@ -144,6 +147,7 @@ export default function ENSDetails({
     useState<VerificationStatus | null>(null)
   const [hasAttestations, setHasAttestations] = useState<boolean>(false)
   const [userOwnedDomains, setUserOwnedDomains] = useState<ENSDomain[]>([])
+  const [sourcifyMetadata, setSourceifyMetadata] = useState<any>(null)
   const { chain, isConnected } = useAccount()
   const walletPublicClient = usePublicClient()
   const [customProvider, setCustomProvider] =
@@ -420,38 +424,45 @@ export default function ENSDetails({
 
     try {
       console.log(`[ENSDetails] Fetching primary ENS name for ${address}`)
-      
+
       // Always do reverse lookup to get the ACTUAL primary name
       // Don't skip this even if queriedENSName exists - we need to check if they match
-      
+
       // Check if address is a valid Ethereum address format (0x...)
       // If it contains '.' it's likely an ENS name, not an address
       if (address.includes('.')) {
-        console.log(`[ENSDetails] Address looks like ENS name, skipping reverse lookup: ${address}`)
+        console.log(
+          `[ENSDetails] Address looks like ENS name, skipping reverse lookup: ${address}`,
+        )
         setPrimaryName(null)
         setPrimaryNameExpiryDate(null)
         return
       }
-      
+
       // Validate it's a proper address format before reverse lookup
       if (!address.startsWith('0x') || address.length !== 42) {
-        console.log(`[ENSDetails] Invalid address format, skipping reverse lookup: ${address}`)
+        console.log(
+          `[ENSDetails] Invalid address format, skipping reverse lookup: ${address}`,
+        )
         setPrimaryName(null)
         setPrimaryNameExpiryDate(null)
         return
       }
-      
+
       // Do reverse lookup (address → ENS name) to get the ACTUAL primary name
       const primaryENS = await getENS(address, customProvider)
 
       if (primaryENS) {
         setPrimaryName(primaryENS)
         console.log(`[ENSDetails] Primary ENS name found: ${primaryENS}`)
-        
+
         // Check if queriedENSName matches the actual primary name
         if (queriedENSName) {
-          const isActualPrimary = queriedENSName.toLowerCase() === primaryENS.toLowerCase()
-          console.log(`[ENSDetails] Queried name "${queriedENSName}" is ${isActualPrimary ? 'THE' : 'NOT THE'} primary name`)
+          const isActualPrimary =
+            queriedENSName.toLowerCase() === primaryENS.toLowerCase()
+          console.log(
+            `[ENSDetails] Queried name "${queriedENSName}" is ${isActualPrimary ? 'THE' : 'NOT THE'} primary name`,
+          )
         }
 
         // Fetch expiry date for the primary name's 2LD
@@ -467,22 +478,23 @@ export default function ENSDetails({
     }
   }, [address, customProvider, queriedENSName])
 
-  // Function to fetch expiry date for a primary name's 2LD
-  const fetchPrimaryNameExpiryDate = async (primaryENS: string) => {
+  // Function to fetch expiry date for any ENS name's 2LD  
+  const fetchNameExpiryDate = async (
+    ensName: string,
+    setExpiryState: (date: number | null) => void,
+  ) => {
     if (!config?.SUBGRAPH_API) return
 
     try {
-      // Extract domain parts from the primary name
-      const nameParts = primaryENS.split('.')
+      // Extract domain parts from the ENS name
+      const nameParts = ensName.split('.')
       if (nameParts.length < 2) return
 
       // For other networks or 2LD names, query the 2LD
       const tld = nameParts[nameParts.length - 1]
       const sld = nameParts[nameParts.length - 2]
       const domainToQuery = `${sld}.${tld}`
-      console.log(
-        `[ENSDetails] Fetching expiry date for 2LD: ${domainToQuery}`,
-      )
+      console.log(`[ENSDetails] Fetching expiry date for 2LD: ${domainToQuery}`)
 
       // Query the subgraph for the domain with its registration data
       const domainResponse = await fetch(config.SUBGRAPH_API, {
@@ -516,22 +528,38 @@ export default function ENSDetails({
         domainData?.data?.domains?.[0]?.registration?.expiryDate
 
       if (expiryDate) {
-        setPrimaryNameExpiryDate(Number(expiryDate))
+        setExpiryState(Number(expiryDate))
         console.log(
           `[ENSDetails] Expiry date for ${domainToQuery}: ${new Date(Number(expiryDate) * 1000).toLocaleDateString()}`,
         )
       } else {
         console.log(`[ENSDetails] No expiry date found for ${domainToQuery}`)
-        setPrimaryNameExpiryDate(null)
+        setExpiryState(null)
       }
     } catch (error) {
       console.error(
-        '[ENSDetails] Error fetching primary name expiry date:',
+        '[ENSDetails] Error fetching name expiry date:',
         error,
       )
-      setPrimaryNameExpiryDate(null)
+      setExpiryState(null)
     }
   }
+
+  // Wrapper for primary name expiry
+  const fetchPrimaryNameExpiryDate = useCallback(
+    async (primaryENS: string) => {
+      await fetchNameExpiryDate(primaryENS, setPrimaryNameExpiryDate)
+    },
+    [],
+  )
+
+  // Wrapper for forward name expiry
+  const fetchForwardNameExpiryDate = useCallback(
+    async (forwardENS: string) => {
+      await fetchNameExpiryDate(forwardENS, setForwardNameExpiryDate)
+    },
+    [],
+  )
 
   // Function to fetch all ENS names resolving to this address
   const fetchAssociatedNames = useCallback(async () => {
@@ -694,6 +722,32 @@ export default function ENSDetails({
     }
   }, [address, effectiveChainId, isContract])
 
+  // Function to fetch Sourcify metadata for verified contracts
+  const fetchSourceifyMetadata = useCallback(async () => {
+    if (!address || !effectiveChainId || !isContract) return
+
+    try {
+      console.log(
+        `[ENSDetails] Fetching Sourcify metadata for contract ${address}`,
+      )
+      const response = await fetch(
+        `https://sourcify.dev/server/v2/contract/${effectiveChainId}/${address}?fields=abi,metadata`
+      )
+      
+      if (response.ok) {
+        const data = await response.json()
+        setSourceifyMetadata(data)
+        console.log('[ENSDetails] Sourcify metadata found:', data)
+      } else {
+        console.log('[ENSDetails] No Sourcify metadata found')
+        setSourceifyMetadata(null)
+      }
+    } catch (error) {
+      console.error('[ENSDetails] Error fetching Sourcify metadata:', error)
+      setSourceifyMetadata(null)
+    }
+  }, [address, effectiveChainId, isContract])
+
   // Main useEffect to trigger data fetching when dependencies change
   useEffect(() => {
     // Always clear error on dependency change
@@ -722,6 +776,7 @@ export default function ENSDetails({
           fetchPrimaryName(),
           fetchAssociatedNames(),
           isContract ? fetchVerificationStatus() : Promise.resolve(),
+          isContract ? fetchSourceifyMetadata() : Promise.resolve(),
           fetchUserOwnedDomains(),
           fetchAttestationData(),
         ])
@@ -744,6 +799,7 @@ export default function ENSDetails({
     fetchPrimaryName,
     fetchAssociatedNames,
     fetchVerificationStatus,
+    fetchSourceifyMetadata,
     fetchUserOwnedDomains,
   ])
 
@@ -827,12 +883,12 @@ export default function ENSDetails({
       if (!ensName || !isContract || !effectiveChainId) return
 
       setIsMetadataLoading(true)
-      
+
       try {
         const response = await fetch(
-          `/api/v1/contractMetadata/${effectiveChainId}/${encodeURIComponent(ensName)}`
+          `/api/v1/contractMetadata/${effectiveChainId}/${encodeURIComponent(ensName)}`,
         )
-        
+
         if (!response.ok) {
           console.error('[ENSDetails] API error:', response.status)
           setTextRecords({})
@@ -842,28 +898,41 @@ export default function ENSDetails({
         const records: TextRecords = await response.json()
         setTextRecords(records)
       } catch (error) {
-        console.error('[ENSDetails] Error fetching text records from API:', error)
+        console.error(
+          '[ENSDetails] Error fetching text records from API:',
+          error,
+        )
         setTextRecords({})
       } finally {
         setIsMetadataLoading(false)
       }
     },
-    [effectiveChainId, isContract]
+    [effectiveChainId, isContract],
   )
 
   // Fetch text records based on queried name or primary name
   useEffect(() => {
     // Determine which ENS name to use for text records
     let ensNameToFetch: string | null = null
-    
+
     if (queriedENSName) {
       // If user queried by ENS name, use that name immediately (priority)
       ensNameToFetch = queriedENSName
+      
+      // Fetch expiry for queried name if it's not the primary name
+      if (!primaryName || queriedENSName.toLowerCase() !== primaryName.toLowerCase()) {
+        fetchForwardNameExpiryDate(queriedENSName)
+      }
     } else {
       // If user queried by address, use primary name or forward name
       ensNameToFetch = primaryName || selectedForwardName
+      
+      // Fetch expiry for selected forward name if it exists and is not the primary name
+      if (selectedForwardName && (!primaryName || selectedForwardName.toLowerCase() !== primaryName.toLowerCase())) {
+        fetchForwardNameExpiryDate(selectedForwardName)
+      }
     }
-    
+
     // Fetch from API if we have an ENS name and it's a contract
     if (ensNameToFetch && isContract) {
       fetchTextRecordsFromAPI(ensNameToFetch)
@@ -871,11 +940,17 @@ export default function ENSDetails({
       setTextRecords({})
       setIsMetadataLoading(false) // No metadata to load for non-contracts
     }
-  }, [queriedENSName, primaryName, selectedForwardName, isContract, fetchTextRecordsFromAPI])
+  }, [
+    queriedENSName,
+    primaryName,
+    selectedForwardName,
+    isContract,
+    fetchTextRecordsFromAPI,
+  ])
 
   // Show loading until ENS data is loaded AND (for contracts) metadata is loaded
   const shouldShowLoading = isLoading || (isContract && isMetadataLoading)
-  
+
   if (shouldShowLoading) {
     return (
       <Card className="w-full max-w-5xl mx-auto bg-white dark:bg-gray-800 shadow-lg rounded-xl">
@@ -911,13 +986,16 @@ export default function ENSDetails({
     <Card className="w-full max-w-5xl mx-auto bg-white dark:bg-gray-800 shadow-lg rounded-xl">
       <CardContent className="p-6">
         <div className="space-y-4">
-          {/* Show queried ENS name if available, otherwise show primary name */}
-          {(queriedENSName || primaryName) && (
+          {/* Show primary name only (with blue tick) */}
+          {primaryName && 
+           (!queriedENSName || queriedENSName.toLowerCase() === primaryName.toLowerCase()) && (
             <div className="space-y-6">
               {/* Full width profile card */}
               {!isContract && (
                 <div className="w-full scale-100 transform origin-top">
-                  <FullWidthProfile addressOrName={queriedENSName || primaryName || ''} />
+                  <FullWidthProfile
+                    addressOrName={primaryName}
+                  />
                 </div>
               )}
 
@@ -930,7 +1008,6 @@ export default function ENSDetails({
                       {isContract &&
                         verificationStatus &&
                         primaryName &&
-                        (!queriedENSName || queriedENSName.toLowerCase() === primaryName.toLowerCase()) &&
                         (verificationStatus.sourcify_verification ===
                           'exact_match' ||
                           verificationStatus.sourcify_verification ===
@@ -959,59 +1036,62 @@ export default function ENSDetails({
                         )}
                     </TooltipProvider>
                     <span className="text-xl text-gray-900 dark:text-white flex items-center gap-1.5 font-bold">
-                      {queriedENSName || primaryName}
-                      {/* Show primary name badge if displaying the primary name (either queried or resolved) */}
-                      {primaryName && (!queriedENSName || queriedENSName.toLowerCase() === primaryName.toLowerCase()) && (
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <span className="ml-1 inline-flex items-center justify-center h-8 w-8 cursor-default">
-                                <svg
-                                  className="h-8 w-8 text-blue-500"
-                                  viewBox="0 0 24 24"
-                                  fill="currentColor"
-                                  xmlns="http://www.w3.org/2000/svg"
-                                  aria-hidden="true"
-                                  shape-rendering="geometricPrecision"
-                                >
-                                  {/* Solid flower-like silhouette using overlapping petals */}
-                                  <g fill="currentColor">
-                                    <circle cx="12" cy="7" r="3" />
-                                    <circle cx="15.5" cy="8.5" r="3" />
-                                    <circle cx="17" cy="12" r="3" />
-                                    <circle cx="15.5" cy="15.5" r="3" />
-                                    <circle cx="12" cy="17" r="3" />
-                                    <circle cx="8.5" cy="15.5" r="3" />
-                                    <circle cx="7" cy="12" r="3" />
-                                    <circle cx="8.5" cy="8.5" r="3" />
-                                    {/* center to ensure no gaps */}
-                                    <circle cx="12" cy="12" r="3.2" />
-                                  </g>
-                                  {/* White check mark */}
-                                  <path
-                                    d="M9.4 12.6l1.2 1.2 3.2-3.2"
-                                    fill="none"
-                                    stroke="white"
-                                    strokeWidth="2"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                  />
-                                </svg>
-                              </span>
-                            </TooltipTrigger>
-                            <TooltipContent side="top" align="center">
-                              <p>Primary ENS Name is set for this contract</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      )}
+                      {primaryName}
+                      {/* Always show primary name badge in this section */}
+                      {primaryName && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="ml-1 inline-flex items-center justify-center h-8 w-8 cursor-default">
+                                  <svg
+                                    className="h-8 w-8 text-blue-500"
+                                    viewBox="0 0 24 24"
+                                    fill="currentColor"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    aria-hidden="true"
+                                    shape-rendering="geometricPrecision"
+                                  >
+                                    {/* Solid flower-like silhouette using overlapping petals */}
+                                    <g fill="currentColor">
+                                      <circle cx="12" cy="7" r="3" />
+                                      <circle cx="15.5" cy="8.5" r="3" />
+                                      <circle cx="17" cy="12" r="3" />
+                                      <circle cx="15.5" cy="15.5" r="3" />
+                                      <circle cx="12" cy="17" r="3" />
+                                      <circle cx="8.5" cy="15.5" r="3" />
+                                      <circle cx="7" cy="12" r="3" />
+                                      <circle cx="8.5" cy="8.5" r="3" />
+                                      {/* center to ensure no gaps */}
+                                      <circle cx="12" cy="12" r="3.2" />
+                                    </g>
+                                    {/* White check mark */}
+                                    <path
+                                      d="M9.4 12.6l1.2 1.2 3.2-3.2"
+                                      fill="none"
+                                      stroke="white"
+                                      strokeWidth="2"
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                    />
+                                  </svg>
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" align="center">
+                                <p>Primary ENS Name is set for this contract</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
                     </span>
                     <Button
                       variant="ghost"
                       size="sm"
                       className="ml-0"
                       onClick={() =>
-                        copyToClipboard(queriedENSName || primaryName || '', 'primary-name')
+                        copyToClipboard(
+                          primaryName || '',
+                          'primary-name',
+                        )
                       }
                     >
                       {copied['primary-name'] ? (
@@ -1021,8 +1101,8 @@ export default function ENSDetails({
                       )}
                     </Button>
                   </div>
-                  {/* Expiry badge always at end of row - show if displaying primary name */}
-                  {primaryNameExpiryDate && primaryName && (!queriedENSName || queriedENSName.toLowerCase() === primaryName.toLowerCase()) &&
+                  {/* Expiry badge always at end of row */}
+                  {primaryNameExpiryDate && primaryName &&
                     (() => {
                       const nameParts = primaryName.split('.')
                       const tld = nameParts[nameParts.length - 1]
@@ -1107,258 +1187,564 @@ export default function ENSDetails({
             </div>
           )}
 
-          {/* Forward Resolution Name Display (when no primary name but has queried name or forward name) */}
-          {!primaryName && isContract && (queriedENSName || selectedForwardName) && (
-            <div className="mt-4">
-              <div className="flex items-center gap-2">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span className="text-lg text-gray-900 dark:text-white font-bold flex items-center gap-2">
-                        {queriedENSName || selectedForwardName}
-                        {!queriedENSName && <TriangleAlert className="h-5 w-5 text-yellow-500" />}
-                      </span>
-                    </TooltipTrigger>
-                    <TooltipContent side="top" align="center">
-                      <p>
-                        {queriedENSName 
-                          ? 'Viewing metadata for this ENS name'
-                          : 'Warning, name only forward resolves to this address, no reverse record is set'}
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="ml-0"
-                  onClick={() =>
-                    copyToClipboard(queriedENSName || selectedForwardName || '', 'forward-name')
-                  }
-                >
-                  {copied['forward-name'] ? (
-                    <Check className="h-4 w-4 text-green-500" />
-                  ) : (
-                    <Copy className="h-4 w-4" />
-                  )}
-                </Button>
+          {/* Forward Resolution Name Display (show queried name if not primary, or selected forward name) */}
+          {isContract &&
+            ((queriedENSName && (!primaryName || queriedENSName.toLowerCase() !== primaryName.toLowerCase())) ||
+             (selectedForwardName && (!primaryName || selectedForwardName.toLowerCase() !== primaryName?.toLowerCase()))) && (
+              <div className="space-y-6">
+                {/* Details section - SAME structure as primary name */}
+                <div className="space-y-2">
+                  {/* Heading + Expiry badge in a single row */}
+                  <div className="flex flex-wrap justify-between items-center gap-1">
+                    <div className="flex items-center gap-1.5">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="text-xl text-gray-900 dark:text-white flex items-center gap-1.5 font-bold">
+                              {queriedENSName || selectedForwardName}
+                              <TriangleAlert className="h-5 w-5 text-yellow-500" />
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" align="center">
+                            <p>
+                              {queriedENSName
+                                ? 'This ENS name resolves to this address but is not set as the primary name'
+                                : 'Warning: name only forward resolves to this address, no reverse record is set'}
+                            </p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="ml-0"
+                        onClick={() =>
+                          copyToClipboard(
+                            queriedENSName || selectedForwardName || '',
+                            'forward-name',
+                          )
+                        }
+                      >
+                        {copied['forward-name'] ? (
+                          <Check className="h-4 w-4 text-green-500" />
+                        ) : (
+                          <Copy className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
+                    {/* Expiry badge always at end of row */}
+                    {forwardNameExpiryDate && (queriedENSName || selectedForwardName) &&
+                      (() => {
+                        const forwardName = queriedENSName || selectedForwardName || ''
+                        const nameParts = forwardName.split('.')
+                        const tld = nameParts[nameParts.length - 1]
+                        const sld = nameParts[nameParts.length - 2]
+
+                        const domainToShow = `${sld}.${tld}`
+                        const now = new Date()
+                        const expiryDate = new Date(forwardNameExpiryDate * 1000)
+                        const threeMonthsFromNow = new Date()
+                        threeMonthsFromNow.setMonth(now.getMonth() + 3)
+
+                        const isExpired = expiryDate < now
+                        const isWithinThreeMonths =
+                          !isExpired && expiryDate < threeMonthsFromNow
+                        const ninetyDaysInMs = 90 * 24 * 60 * 60 * 1000
+                        const isInGracePeriod =
+                          isExpired &&
+                          now.getTime() - expiryDate.getTime() < ninetyDaysInMs
+
+                        let statusIcon
+                        let statusText
+                        let bgColorClass = 'bg-green-50 dark:bg-green-900/20'
+                        let textColorClass = 'text-green-600 dark:text-green-400'
+
+                        if (isExpired && isInGracePeriod) {
+                          statusIcon = (
+                            <XCircle
+                              className="inline-block mr-1 text-red-600 dark:text-red-400"
+                              size={16}
+                            />
+                          )
+                          statusText = `expired on ${expiryDate.toLocaleDateString()}`
+                          bgColorClass = 'bg-red-50 dark:bg-red-900/20'
+                          textColorClass = 'text-red-600 dark:text-red-400'
+                        } else if (isWithinThreeMonths) {
+                          statusIcon = (
+                            <AlertCircle
+                              className="inline-block mr-1 text-yellow-600 dark:text-yellow-400"
+                              size={16}
+                            />
+                          )
+                          statusText = `expires on ${expiryDate.toLocaleDateString()}`
+                          bgColorClass = 'bg-yellow-50 dark:bg-yellow-900/20'
+                          textColorClass = 'text-yellow-600 dark:text-yellow-400'
+                        } else {
+                          statusIcon = (
+                            <CheckCircle
+                              className="inline-block mr-1 text-green-600 dark:text-green-400"
+                              size={16}
+                            />
+                          )
+                          statusText = `valid until ${expiryDate.toLocaleDateString()}`
+                          bgColorClass = 'bg-green-50 dark:bg-green-900/20'
+                          textColorClass = 'text-green-600 dark:text-green-400'
+                        }
+
+                        const showDomainSeparately = domainToShow !== forwardName
+
+                        return (
+                          <div className="flex items-center">
+                            {showDomainSeparately && (
+                              <span className="text-gray-800 dark:text-gray-400 px-2 py-1 rounded-md bg-gray-100 dark:bg-gray-800 text-sm mr-2">
+                                {domainToShow}
+                              </span>
+                            )}
+                            <span
+                              className={`inline-flex items-center px-3 py-1 rounded-md text-sm font-medium ${bgColorClass} ${textColorClass}`}
+                            >
+                              {statusIcon}
+                              <span className="whitespace-nowrap">
+                                {statusText}
+                              </span>
+                            </span>
+                          </div>
+                        )
+                      })()}
+                  </div>
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
           {/* Text Records Display for Contracts */}
-          {isContract && (queriedENSName || primaryName || selectedForwardName) && Object.keys(textRecords).length > 0 && (
-            <div className="mt-6 space-y-6">
-              {/* Name/Alias, Description, URL with Avatar */}
-              {(textRecords.name || textRecords.alias || textRecords.description || textRecords.url) && (
-                <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
-                  <div className="flex gap-6">
-                    {/* Avatar Section (Left) */}
-                    {textRecords.avatar && (
-                      <div className="flex-shrink-0">
-                        <img
-                          src={textRecords.avatar}
-                          alt="Avatar"
-                          className="w-24 h-24 rounded-lg object-cover"
-                          onError={(e) => {
-                            e.currentTarget.style.display = 'none'
-                          }}
-                        />
+          {isContract &&
+            (queriedENSName || primaryName || selectedForwardName) &&
+            Object.keys(textRecords).length > 0 && (
+              <div className="mt-6 space-y-6">
+                {/* Name/Alias, Description, URL with Avatar */}
+                {(textRecords.name || textRecords.alias || textRecords.description || textRecords.url || textRecords.avatar) && (
+                  <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
+                    <div className="flex gap-6">
+                      {/* Avatar Section (Left) */}
+                      {textRecords.avatar && (
+                        <div className="flex-shrink-0">
+                          <img
+                            src={textRecords.avatar}
+                            alt="Avatar"
+                            className="w-24 h-24 rounded-lg object-cover"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none'
+                            }}
+                          />
+                        </div>
+                      )}
+
+                      {/* Text Content (Right) */}
+                      <div className="flex-1 space-y-3">
+                        {/* Display Name/Alias */}
+                        {(textRecords.name || textRecords.alias) && (
+                          <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                            {textRecords.name || textRecords.alias}
+                          </h3>
+                        )}
+
+                        {/* Description */}
+                        {textRecords.description && (
+                          <p className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed">
+                            {textRecords.description}
+                          </p>
+                        )}
+
+                        {/* URL */}
+                        {textRecords.url && (
+                          <a
+                            href={
+                              textRecords.url.startsWith('http')
+                                ? textRecords.url
+                                : `https://${textRecords.url}`
+                            }
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                          >
+                            {textRecords.url}
+                            <ExternalLink className="ml-1 h-3 w-3" />
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Technical Details and Security Audits Grid */}
+                {(textRecords.category ||
+                  textRecords.license ||
+                  textRecords.docs ||
+                  textRecords.audits) && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                    {/* Technical Details (Left) */}
+                    {(textRecords.category ||
+                      textRecords.license ||
+                      textRecords.docs) && (
+                      <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
+                        <h4 className="text-base font-semibold text-gray-900 dark:text-white mb-4">
+                          Technical Details
+                        </h4>
+                        <div className="space-y-3">
+                          {textRecords.category && (
+                            <div className="flex items-center justify-between gap-3">
+                              <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                                Category
+                              </span>
+                              <span className="inline-block px-3 py-1 text-sm rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300">
+                                {textRecords.category}
+                              </span>
+                            </div>
+                          )}
+
+                          {textRecords.license && (
+                            <div className="flex items-center justify-between gap-3">
+                              <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                                License
+                              </span>
+                              <span className="inline-block px-3 py-1 text-sm rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300">
+                                {textRecords.license}
+                              </span>
+                            </div>
+                          )}
+
+                          {textRecords.docs && (
+                            <div className="flex items-center justify-between gap-3">
+                              <span className="text-xs font-medium text-gray-500 dark:text-gray-400 shrink-0">
+                                Docs
+                              </span>
+                              <a
+                                href={
+                                  textRecords.docs.startsWith('http')
+                                    ? textRecords.docs
+                                    : `https://${textRecords.docs}`
+                                }
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center text-sm text-blue-600 dark:text-blue-400 hover:underline break-all text-right"
+                              >
+                                {textRecords.docs}
+                                <ExternalLink className="ml-1 h-3 w-3 flex-shrink-0" />
+                              </a>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     )}
 
-                    {/* Text Content (Right) */}
-                    <div className="flex-1 space-y-3">
-                      {/* Display Name/Alias */}
-                      {(textRecords.name || textRecords.alias) && (
-                        <h3 className="text-xl font-bold text-gray-900 dark:text-white">
-                          {textRecords.name || textRecords.alias}
-                        </h3>
-                      )}
-
-                      {/* Description */}
-                      {textRecords.description && (
-                        <p className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed">
-                          {textRecords.description}
-                        </p>
-                      )}
-
-                      {/* URL */}
-                      {textRecords.url && (
-                        <a
-                          href={textRecords.url.startsWith('http') ? textRecords.url : `https://${textRecords.url}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center text-sm text-blue-600 dark:text-blue-400 hover:underline"
-                        >
-                          {textRecords.url}
-                          <ExternalLink className="ml-1 h-3 w-3" />
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Technical Details and Security Audits Grid */}
-              {(textRecords.category || textRecords.license || textRecords.docs || textRecords.audits) && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Technical Details (Left) */}
-                  {(textRecords.category || textRecords.license || textRecords.docs) && (
-                    <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
-                      <h4 className="text-base font-semibold text-gray-900 dark:text-white mb-4">
-                        Technical Details
-                      </h4>
-                      <div className="space-y-4">
-                        {textRecords.category && (
-                          <div>
-                            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                              Category
-                            </p>
-                            <span className="inline-block px-3 py-1 text-sm rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300">
-                              {textRecords.category}
-                            </span>
-                          </div>
-                        )}
-
-                        {textRecords.license && (
-                          <div>
-                            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                              License
-                            </p>
-                            <span className="inline-block px-3 py-1 text-sm rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300">
-                              {textRecords.license}
-                            </span>
-                          </div>
-                        )}
-
-                        {textRecords.docs && (
-                          <div>
-                            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">
-                              Docs
-                            </p>
-                            <a
-                              href={textRecords.docs.startsWith('http') ? textRecords.docs : `https://${textRecords.docs}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center text-sm text-blue-600 dark:text-blue-400 hover:underline break-all"
-                            >
-                              {textRecords.docs}
-                              <ExternalLink className="ml-1 h-3 w-3 flex-shrink-0" />
-                            </a>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Security Audits (Right) */}
-                  {textRecords.audits && (
-                    <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
-                      <h4 className="text-base font-semibold text-gray-900 dark:text-white mb-4">
-                        Security Audits
-                      </h4>
-                      <div className="space-y-3">
-                        {(() => {
-                          try {
-                            // Try to parse as JSON array
-                            const audits = JSON.parse(textRecords.audits)
-                            if (Array.isArray(audits)) {
-                              return audits.map((audit: any, index: number) => {
-                                // Handle string URLs
-                                if (typeof audit === 'string') {
-                                  return (
-                                    <div key={index} className="flex items-start gap-2">
-                                      <ShieldCheck className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
-                                      <a
-                                        href={audit.startsWith('http') ? audit : `https://${audit}`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="text-sm text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1"
-                                      >
-                                        {audit.split('/').pop() || `Audit ${index + 1}`}
-                                        <ExternalLink className="h-3 w-3" />
-                                      </a>
-                                    </div>
-                                  )
-                                }
-                                
-                                // Handle object with auditor property
-                                if (audit.auditor) {
-                                  return (
-                                    <div key={index} className="flex items-start gap-2">
-                                      <ShieldCheck className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
-                                      <div className="flex-1">
-                                        <p className="text-sm font-medium text-gray-900 dark:text-white">
-                                          {audit.auditor}
-                                        </p>
-                                        {audit.url && (
+                    {/* Security Audits (Right) */}
+                    {textRecords.audits && (
+                      <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
+                        <h4 className="text-base font-semibold text-gray-900 dark:text-white mb-4">
+                          Security Audits
+                        </h4>
+                        <div className="space-y-3">
+                          {(() => {
+                            try {
+                              // Try to parse as JSON array
+                              const audits = JSON.parse(textRecords.audits)
+                              if (Array.isArray(audits)) {
+                                return audits
+                                  .map((audit: any, index: number) => {
+                                    // Handle string URLs
+                                    if (typeof audit === 'string') {
+                                      return (
+                                        <div
+                                          key={index}
+                                          className="flex items-start gap-2"
+                                        >
+                                          <ShieldCheck className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
                                           <a
-                                            href={audit.url.startsWith('http') ? audit.url : `https://${audit.url}`}
+                                            href={
+                                              audit.startsWith('http')
+                                                ? audit
+                                                : `https://${audit}`
+                                            }
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className="text-xs text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1"
+                                            className="text-sm text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1"
                                           >
-                                            View Report
+                                            {audit.split('/').pop() ||
+                                              `Audit ${index + 1}`}
                                             <ExternalLink className="h-3 w-3" />
                                           </a>
-                                        )}
+                                        </div>
+                                      )
+                                    }
+
+                                    // Handle object with auditor property
+                                    if (audit.auditor) {
+                                      return (
+                                        <div
+                                          key={index}
+                                          className="flex items-center gap-3"
+                                        >
+                                          <ShieldCheck className="h-5 w-5 text-green-500 flex-shrink-0" />
+                                          <div className="flex-1">
+                                            <span className="text-sm font-medium text-gray-900 dark:text-white">
+                                              {audit.auditor}
+                                            </span>
+                                            {audit.url && (
+                                              <>
+                                                <span className="mx-2 text-gray-400">•</span>
+                                                <a
+                                                  href={
+                                                    audit.url.startsWith('http')
+                                                      ? audit.url
+                                                      : `https://${audit.url}`
+                                                  }
+                                                  target="_blank"
+                                                  rel="noopener noreferrer"
+                                                  className="text-xs text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1"
+                                                >
+                                                  View Report
+                                                  <ExternalLink className="h-3 w-3" />
+                                                </a>
+                                              </>
+                                            )}
+                                          </div>
+                                        </div>
+                                      )
+                                    }
+
+                                    // Handle object with key-value pairs (e.g., {"Cantina": "url"})
+                                    const entries = Object.entries(audit)
+                                    return entries.map(
+                                      (
+                                        [auditorName, url]: [string, any],
+                                        entryIndex,
+                                      ) => (
+                                        <div
+                                          key={`${index}-${entryIndex}`}
+                                          className="flex items-center gap-3"
+                                        >
+                                          <ShieldCheck className="h-5 w-5 text-green-500 flex-shrink-0" />
+                                          <div className="flex-1">
+                                            <span className="text-sm font-medium text-gray-900 dark:text-white">
+                                              {auditorName}
+                                            </span>
+                                            <span className="mx-2 text-gray-400">•</span>
+                                            <a
+                                              href={
+                                                typeof url === 'string' &&
+                                                url.startsWith('http')
+                                                  ? url
+                                                  : `https://${url}`
+                                              }
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="text-xs text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1"
+                                            >
+                                              View Report
+                                              <ExternalLink className="h-3 w-3" />
+                                            </a>
+                                          </div>
+                                        </div>
+                                      ),
+                                    )
+                                  })
+                                  .flat()
+                              }
+                            } catch (e) {
+                              // Not JSON, treat as comma-separated or single URL
+                              const auditUrls = textRecords.audits
+                                .split(',')
+                                .map((url) => url.trim())
+                              return auditUrls.map((url, index) => (
+                                <div
+                                  key={index}
+                                  className="flex items-start gap-2"
+                                >
+                                  <ShieldCheck className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
+                                  <a
+                                    href={
+                                      url.startsWith('http')
+                                        ? url
+                                        : `https://${url}`
+                                    }
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-sm text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1"
+                                  >
+                                    {url.split('/').pop() ||
+                                      `Audit ${index + 1}`}
+                                    <ExternalLink className="h-3 w-3" />
+                                  </a>
+                                </div>
+                              ))
+                            }
+                            return null
+                          })()}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Compiled Metadata - Full Width Below Grid */}
+                {sourcifyMetadata && (
+                  <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
+                    <h4 className="text-base font-semibold text-gray-900 dark:text-white mb-4">
+                      Compiled Metadata
+                    </h4>
+                    <div className="space-y-3">
+                      {/* Solidity Version */}
+                      {sourcifyMetadata.metadata?.compiler?.version && (
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                            Solidity
+                          </span>
+                          <span className="inline-block px-3 py-1 text-sm rounded-full bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 font-mono">
+                            {sourcifyMetadata.metadata.compiler.version}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Contract ABI */}
+                      {sourcifyMetadata.abi && sourcifyMetadata.abi.length > 0 && (
+                        <div>
+                          <details className="group cursor-pointer">
+                            <summary className="text-xs font-medium text-gray-500 dark:text-gray-400 flex items-center justify-between py-1">
+                              <span>Contract ABI</span>
+                              <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
+                            </summary>
+                            <div className="mt-2 h-64 overflow-y-auto bg-gray-50 dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+                                  {/* Functions */}
+                                  {sourcifyMetadata.abi.filter((item: any) => item.type === 'function').length > 0 && (
+                                    <div>
+                                      <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">Functions</p>
+                                      <div className="space-y-1">
+                                        {sourcifyMetadata.abi
+                                          .filter((item: any) => item.type === 'function')
+                                          .map((func: any, index: number) => (
+                                            <div key={index} className="text-xs font-mono text-gray-700 dark:text-gray-300 break-all">
+                                              <span className="text-green-600 dark:text-green-400">{func.name}</span>
+                                              <span className="text-gray-500">(</span>
+                                              {func.inputs?.map((input: any, i: number) => (
+                                                <span key={i}>
+                                                  <span className="text-blue-600 dark:text-blue-400">{input.type}</span>
+                                                  {input.name && <span className="text-gray-600 dark:text-gray-400"> {input.name}</span>}
+                                                  {i < func.inputs.length - 1 && <span className="text-gray-500">, </span>}
+                                                </span>
+                                              ))}
+                                              <span className="text-gray-500">)</span>
+                                              {func.stateMutability && func.stateMutability !== 'nonpayable' && (
+                                                <span className="text-yellow-600 dark:text-yellow-400 ml-2">{func.stateMutability}</span>
+                                              )}
+                                              {func.outputs && func.outputs.length > 0 && (
+                                                <span className="text-gray-500">
+                                                  {' returns ('}
+                                                  {func.outputs.map((output: any, i: number) => (
+                                                    <span key={i}>
+                                                      <span className="text-blue-600 dark:text-blue-400">{output.type}</span>
+                                                      {i < func.outputs.length - 1 && ', '}
+                                                    </span>
+                                                  ))}
+                                                  {')'}
+                                                </span>
+                                              )}
+                                            </div>
+                                          ))}
                                       </div>
                                     </div>
-                                  )
-                                }
-                                
-                                // Handle object with key-value pairs (e.g., {"Cantina": "url"})
-                                const entries = Object.entries(audit)
-                                return entries.map(([auditorName, url]: [string, any], entryIndex) => (
-                                  <div key={`${index}-${entryIndex}`} className="flex items-start gap-2">
-                                    <ShieldCheck className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
-                                    <div className="flex-1">
-                                      <p className="text-sm font-medium text-gray-900 dark:text-white">
-                                        {auditorName}
-                                      </p>
-                                      <a
-                                        href={typeof url === 'string' && url.startsWith('http') ? url : `https://${url}`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="text-xs text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1"
-                                      >
-                                        View Report
-                                        <ExternalLink className="h-3 w-3" />
-                                      </a>
-                                    </div>
-                                  </div>
-                                ))
-                              }).flat()
-                            }
-                          } catch (e) {
-                            // Not JSON, treat as comma-separated or single URL
-                            const auditUrls = textRecords.audits.split(',').map(url => url.trim())
-                            return auditUrls.map((url, index) => (
-                              <div key={index} className="flex items-start gap-2">
-                                <ShieldCheck className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
-                                <a
-                                  href={url.startsWith('http') ? url : `https://${url}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-sm text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1"
-                                >
-                                  {url.split('/').pop() || `Audit ${index + 1}`}
-                                  <ExternalLink className="h-3 w-3" />
-                                </a>
-                              </div>
-                            ))
-                          }
-                          return null
-                        })()}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
+                                  )}
 
+                                  {/* Events */}
+                                  {sourcifyMetadata.abi.filter((item: any) => item.type === 'event').length > 0 && (
+                                    <div>
+                                      <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">Events</p>
+                                      <div className="space-y-1">
+                                        {sourcifyMetadata.abi
+                                          .filter((item: any) => item.type === 'event')
+                                          .map((event: any, index: number) => (
+                                            <div key={index} className="text-xs font-mono break-all">
+                                              <span className="text-yellow-600 dark:text-yellow-400">{event.name}</span>
+                                              <span className="text-gray-500">(</span>
+                                              {event.inputs?.map((input: any, i: number) => (
+                                                <span key={i} className="text-gray-600 dark:text-gray-400">
+                                                  <span className="text-blue-600 dark:text-blue-400">{input.type}</span>
+                                                  {input.indexed && <span className="text-purple-600 dark:text-purple-400"> indexed</span>}
+                                                  {input.name && <span> {input.name}</span>}
+                                                  {i < event.inputs.length - 1 && <span className="text-gray-500">, </span>}
+                                                </span>
+                                              ))}
+                                              <span className="text-gray-500">)</span>
+                                            </div>
+                                          ))}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* Errors */}
+                                  {sourcifyMetadata.abi.filter((item: any) => item.type === 'error').length > 0 && (
+                                    <div>
+                                      <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">Errors</p>
+                                      <div className="space-y-1">
+                                        {sourcifyMetadata.abi
+                                          .filter((item: any) => item.type === 'error')
+                                          .map((error: any, index: number) => (
+                                            <div key={index} className="text-xs font-mono text-red-600 dark:text-red-400 break-all">
+                                              {error.name}
+                                              <span className="text-gray-500">(</span>
+                                              {error.inputs?.map((input: any, i: number) => (
+                                                <span key={i} className="text-gray-600 dark:text-gray-400">
+                                                  <span className="text-blue-600 dark:text-blue-400">{input.type}</span>
+                                                  {input.name && <span> {input.name}</span>}
+                                                  {i < error.inputs.length - 1 && <span className="text-gray-500">, </span>}
+                                                </span>
+                                              ))}
+                                              <span className="text-gray-500">)</span>
+                                            </div>
+                                          ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              </details>
+                            </div>
+                          )}
+
+                          {/* Source Files */}
+                          {sourcifyMetadata.metadata?.sources && Object.keys(sourcifyMetadata.metadata.sources).length > 0 && (
+                            <div>
+                              <details className="group cursor-pointer">
+                                <summary className="text-xs font-medium text-gray-500 dark:text-gray-400 flex items-center justify-between py-1">
+                                  <span>Source Files</span>
+                                  <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
+                                </summary>
+                                <div className="mt-2 h-48 overflow-y-auto space-y-2 bg-gray-50 dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+                                  {Object.entries(sourcifyMetadata.metadata.sources).map(([fileName, fileData]: [string, any], index) => (
+                                    <div key={index} className="flex items-center justify-between text-xs bg-white dark:bg-gray-900 p-2 rounded">
+                                      <span className="text-gray-700 dark:text-gray-300 font-mono truncate">{fileName}</span>
+                                      {fileData.urls && fileData.urls[0] && (
+                                        <a
+                                          href={fileData.urls[0]}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1 ml-2 flex-shrink-0"
+                                        >
+                                          ipfs://
+                                          <ExternalLink className="h-3 w-3" />
+                                        </a>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              </details>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                )}
+              </div>
+            )}
+
+          {/* Contract Address Section */}
           <div>
             <div className="flex items-center">
               <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">

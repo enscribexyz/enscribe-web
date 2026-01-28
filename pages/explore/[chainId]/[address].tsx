@@ -211,7 +211,10 @@ export default function ExploreAddressPage() {
           coinType: toCoinType(chainIdNumber),
         }
         console.log('[address] Using mainnet client for ENS resolution')
-      } else if (chainIdNumber === CHAINS.BASE || chainIdNumber === CHAINS.BASE_SEPOLIA) {
+      } else if (
+        chainIdNumber === CHAINS.BASE ||
+        chainIdNumber === CHAINS.BASE_SEPOLIA
+      ) {
         const config = CONTRACTS[chainIdNumber]
         console.log('config.RPC_ENDPOINT: ', config.RPC_ENDPOINT)
         const baseClient = createPublicClient({
@@ -227,18 +230,18 @@ export default function ExploreAddressPage() {
 
         const publicResolverAbi = parseAbi([
           'function addr(bytes32 node, uint256 coinType) view returns (bytes)',
-        ]);
+        ])
         const node = namehash(normalizedName)
         console.log('publicResolverAbi: ', publicResolverAbi)
         console.log('namehash(cleanedQuery): ', node)
         console.log('toCoinType(selectedChain): ', toCoinType(chainIdNumber))
         console.log('config.PUBLIC_RESOLVER: ', config.PUBLIC_RESOLVER)
-        const address = await readContract(baseClient, {
+        const address = (await readContract(baseClient, {
           address: config.PUBLIC_RESOLVER as `0x${string}`,
           abi: publicResolverAbi,
           functionName: 'addr',
           args: [node, toCoinType(chainIdNumber)],
-        }) as `0x${string}`
+        })) as `0x${string}`
         console.log('address: ', address)
         resolvedAddress = address
         return resolvedAddress
@@ -462,7 +465,9 @@ export default function ExploreAddressPage() {
                 targetAddress,
                 Number(chainId),
               )
-              console.log(`fetching contract deployer details: "${creatorAddress}"`)
+              console.log(
+                `fetching contract deployer details: "${creatorAddress}"`,
+              )
               setContractDeployerAddress(creatorAddress)
 
               if (creatorAddress !== null) {
