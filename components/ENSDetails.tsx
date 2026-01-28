@@ -148,6 +148,11 @@ export default function ENSDetails({
   const [hasAttestations, setHasAttestations] = useState<boolean>(false)
   const [userOwnedDomains, setUserOwnedDomains] = useState<ENSDomain[]>([])
   const [sourcifyMetadata, setSourceifyMetadata] = useState<any>(null)
+  const [ensNameOwner, setEnsNameOwner] = useState<string | null>(null)
+  const [ensNameManager, setEnsNameManager] = useState<string | null>(null)
+  const [tldOwner, setTldOwner] = useState<string | null>(null)
+  const [tldManager, setTldManager] = useState<string | null>(null)
+  const [otherDetailsExpanded, setOtherDetailsExpanded] = useState(false)
   const { chain, isConnected } = useAccount()
   const walletPublicClient = usePublicClient()
   const [customProvider, setCustomProvider] =
@@ -561,6 +566,67 @@ export default function ENSDetails({
     [],
   )
 
+  // Function to fetch owner and manager from ENS subgraph
+  const fetchOwnerAndManager = useCallback(async (ensName: string) => {
+    if (!config?.SUBGRAPH_API) {
+      console.log(`[ENSDetails] No subgraph API configured`)
+      return { owner: null, manager: null }
+    }
+
+    try {
+      console.log(`[ENSDetails] Fetching owner/manager for: ${ensName}`)
+      
+      const query = `
+        {
+          domains(where: {name: "${ensName}"}) {
+            name
+            owner {
+              id
+            }
+            registrant {
+              id
+            }
+            wrappedOwner {
+              id
+            }
+          }
+        }
+      `
+
+      const response = await fetch(config.SUBGRAPH_API, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${process.env.NEXT_PUBLIC_GRAPH_API_KEY || ''}`,
+        },
+        body: JSON.stringify({ query }),
+      })
+
+      const data = await response.json()
+      console.log(`[ENSDetails] Subgraph response for ${ensName}:`, data)
+      
+      if (data.data?.domains && data.data.domains.length > 0) {
+        const domain = data.data.domains[0]
+        console.log(`[ENSDetails] Domain data:`, domain)
+        
+        // Manager is the 'owner' field in subgraph (confusing naming)
+        const manager = domain.owner?.id || null
+        
+        // Owner is wrappedOwner if set (wrapped name), else registrant
+        const owner = domain.wrappedOwner?.id || domain.registrant?.id || null
+        
+        console.log(`[ENSDetails] Resolved for ${ensName} - Owner: ${owner}, Manager: ${manager}`)
+        return { owner, manager }
+      }
+      
+      console.log(`[ENSDetails] No domain found for ${ensName}`)
+      return { owner: null, manager: null }
+    } catch (error) {
+      console.error(`[ENSDetails] Error fetching owner/manager for ${ensName}:`, error)
+      return { owner: null, manager: null }
+    }
+  }, [config])
+
   // Function to fetch all ENS names resolving to this address
   const fetchAssociatedNames = useCallback(async () => {
     if (!address || !config?.SUBGRAPH_API) return
@@ -948,6 +1014,44 @@ export default function ENSDetails({
     fetchTextRecordsFromAPI,
   ])
 
+  // Fetch owner and manager for current ENS name and 2LD
+  useEffect(() => {
+    const fetchOwnerManagerData = async () => {
+      const currentName = queriedENSName || primaryName || selectedForwardName
+      
+      console.log(`[ENSDetails] useEffect - currentName: ${currentName}, isContract: ${isContract}`)
+      
+      if (!currentName || !isContract) {
+        console.log(`[ENSDetails] Skipping owner/manager fetch - no name or not contract`)
+        return
+      }
+
+      console.log(`[ENSDetails] Fetching owner/manager data for: ${currentName}`)
+
+      // Fetch owner/manager for current ENS name
+      const { owner, manager } = await fetchOwnerAndManager(currentName)
+      console.log(`[ENSDetails] Setting name owner/manager - Owner: ${owner}, Manager: ${manager}`)
+      setEnsNameOwner(owner)
+      setEnsNameManager(manager)
+
+      // Extract and fetch owner/manager for 2LD
+      const parts = currentName.split('.')
+      if (parts.length >= 2) {
+        const tld = parts[parts.length - 1]
+        const sld = parts[parts.length - 2]
+        const tldName = `${sld}.${tld}`
+        
+        console.log(`[ENSDetails] Fetching 2LD owner/manager for: ${tldName}`)
+        const { owner: tldOwnerData, manager: tldManagerData } = await fetchOwnerAndManager(tldName)
+        console.log(`[ENSDetails] Setting 2LD owner/manager - Owner: ${tldOwnerData}, Manager: ${tldManagerData}`)
+        setTldOwner(tldOwnerData)
+        setTldManager(tldManagerData)
+      }
+    }
+
+    fetchOwnerManagerData()
+  }, [queriedENSName, primaryName, selectedForwardName, isContract, fetchOwnerAndManager])
+
   // Show loading until ENS data is loaded AND (for contracts) metadata is loaded
   const shouldShowLoading = isLoading || (isContract && isMetadataLoading)
 
@@ -1101,8 +1205,21 @@ export default function ENSDetails({
                       )}
                     </Button>
                   </div>
-                  {/* Expiry badge always at end of row */}
-                  {primaryNameExpiryDate && primaryName &&
+                  <div className="flex items-center gap-2">
+                    {/* Get All Metadata Button */}
+                    {isContract && (
+                      <Link href="/nameMetadata">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          className="border-blue-600 text-blue-600 hover:bg-blue-50 dark:border-blue-400 dark:text-blue-400 dark:hover:bg-blue-900/20"
+                        >
+                          Get All Metadata
+                        </Button>
+                      </Link>
+                    )}
+                    {/* Expiry badge */}
+                    {primaryNameExpiryDate && primaryName &&
                     (() => {
                       const nameParts = primaryName.split('.')
                       const tld = nameParts[nameParts.length - 1]
@@ -1179,6 +1296,7 @@ export default function ENSDetails({
                         </div>
                       )
                     })()}
+                  </div>
                 </div>
 
                 {/* ENS Name + copy + link below */}
@@ -1232,8 +1350,19 @@ export default function ENSDetails({
                         )}
                       </Button>
                     </div>
-                    {/* Expiry badge always at end of row */}
-                    {forwardNameExpiryDate && (queriedENSName || selectedForwardName) &&
+                    <div className="flex items-center gap-2">
+                      {/* Get All Metadata Button */}
+                      <Link href="/nameMetadata">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          className="border-blue-600 text-blue-600 hover:bg-blue-50 dark:border-blue-400 dark:text-blue-400 dark:hover:bg-blue-900/20"
+                        >
+                          Get All Metadata
+                        </Button>
+                      </Link>
+                      {/* Expiry badge */}
+                      {forwardNameExpiryDate && (queriedENSName || selectedForwardName) &&
                       (() => {
                         const forwardName = queriedENSName || selectedForwardName || ''
                         const nameParts = forwardName.split('.')
@@ -1311,10 +1440,64 @@ export default function ENSDetails({
                           </div>
                         )
                       })()}
+                    </div>
                   </div>
                 </div>
               </div>
             )}
+
+          {/* Contract Address Section - Moved here after ENS name */}
+          <div>
+            <div className="flex items-center">
+              <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                {isContract ? 'Contract Address' : 'Account Address'}
+              </h3>
+              {isContract && proxyInfo?.isProxy && (
+                <span className="ml-2 px-2 py-0.5 text-xs font-medium rounded-full bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-300">
+                  Proxy
+                </span>
+              )}
+            </div>
+            <div className="flex items-center mt-1">
+              <p className="text-gray-900 dark:text-white font-mono text-sm break-all">
+                {address}
+              </p>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="ml-2"
+                onClick={() => copyToClipboard(address, 'address')}
+              >
+                {copied['address'] ? (
+                  <Check className="h-4 w-4 text-green-500" />
+                ) : (
+                  <Copy className="h-4 w-4" />
+                )}
+              </Button>
+              <Button variant="ghost" size="sm" className="ml-1" asChild>
+                {isContract && !primaryName ? (
+                  <Link
+                    href={`/nameContract?contract=${address}`}
+                    className="relative overflow-hidden bg-gradient-to-r from-purple-500 via-pink-500 to-red-500 hover:shadow-xl hover:shadow-pink-500/50 focus:ring-4 focus:ring-pink-500/50 group transition-all duration-300 hover:-translate-y-1 px-2 py-2 font-medium rounded-md cursor-pointer"
+                  >
+                    <span className="relative z-10 px-1.5 py-1 text-sm md:text-base font-bold text-white dark:text-white">
+                      ✨Name It!
+                    </span>
+                    <span className="absolute inset-0 h-full w-full bg-gradient-to-r from-purple-600/0 via-white/70 to-purple-600/0 opacity-0 group-hover:opacity-100 group-hover:animate-shine pointer-events-none blur-sm"></span>
+                    <span className="absolute -inset-1 rounded-md bg-gradient-to-r from-purple-600 via-pink-500 to-red-500 opacity-0 group-hover:opacity-70 group-hover:blur-md transition-all duration-300 pointer-events-none"></span>
+                  </Link>
+                ) : (
+                  <a
+                    href={`${etherscanUrl}address/${address}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                  </a>
+                )}
+              </Button>
+            </div>
+          </div>
 
           {/* Text Records Display for Contracts */}
           {isContract &&
@@ -1744,97 +1927,182 @@ export default function ENSDetails({
               </div>
             )}
 
-          {/* Contract Address Section */}
-          <div>
-            <div className="flex items-center">
-              <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                {isContract ? 'Contract Address' : 'Account Address'}
+          {/* Organization and management details - 2 Cards */}
+          {isContract && (queriedENSName || primaryName || selectedForwardName) && (
+            <div className="mt-6">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                Organization and management details
               </h3>
-              {isContract && proxyInfo?.isProxy && (
-                <span className="ml-2 px-2 py-0.5 text-xs font-medium rounded-full bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-300">
-                  Proxy
-                </span>
-              )}
-            </div>
-            <div className="flex items-center mt-1">
-              <p className="text-gray-900 dark:text-white font-mono text-sm break-all">
-                {address}
-              </p>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="ml-2"
-                onClick={() => copyToClipboard(address, 'address')}
-              >
-                {copied['address'] ? (
-                  <Check className="h-4 w-4 text-green-500" />
-                ) : (
-                  <Copy className="h-4 w-4" />
-                )}
-              </Button>
-              <Button variant="ghost" size="sm" className="ml-1" asChild>
-                {isContract && !primaryName ? (
-                  <Link
-                    href={`/nameContract?contract=${address}`}
-                    className="relative overflow-hidden bg-gradient-to-r from-purple-500 via-pink-500 to-red-500 hover:shadow-xl hover:shadow-pink-500/50 focus:ring-4 focus:ring-pink-500/50 group transition-all duration-300 hover:-translate-y-1 px-2 py-2 font-medium rounded-md cursor-pointer"
-                  >
-                    <span className="relative z-10 px-1.5 py-1 text-sm md:text-base font-bold text-white dark:text-white">
-                      ✨Name It!
-                    </span>
-                    <span className="absolute inset-0 h-full w-full bg-gradient-to-r from-purple-600/0 via-white/70 to-purple-600/0 opacity-0 group-hover:opacity-100 group-hover:animate-shine pointer-events-none blur-sm"></span>
-                    <span className="absolute -inset-1 rounded-md bg-gradient-to-r from-purple-600 via-pink-500 to-red-500 opacity-0 group-hover:opacity-70 group-hover:blur-md transition-all duration-300 pointer-events-none"></span>
-                  </Link>
-                ) : (
-                  <a
-                    href={`${etherscanUrl}address/${address}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <ExternalLink className="h-4 w-4" />
-                  </a>
-                )}
-              </Button>
-            </div>
-
-            {isContract && contractDeployerAddress && (
-              <div>
-                <div className="flex items-center mt-2">
-                  <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                    Contract Deployer
-                  </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Card 1: Owner, Manager, Parent */}
+                <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                  <div className="space-y-3 text-xs">
+                    <div>
+                      <span className="text-gray-500 dark:text-gray-400">Owner:</span>
+                      {ensNameOwner ? (
+                        <Link
+                          href={`/explore/${effectiveChainId}/${ensNameOwner}`}
+                          className="text-blue-600 dark:text-blue-400 hover:underline font-mono text-xs break-all block mt-1"
+                        >
+                          {ensNameOwner}
+                        </Link>
+                      ) : (
+                        <p className="text-gray-500 dark:text-gray-400 mt-1">Loading...</p>
+                      )}
+                    </div>
+                    <div>
+                      <span className="text-gray-500 dark:text-gray-400">Manager:</span>
+                      {ensNameManager ? (
+                        <Link
+                          href={`/explore/${effectiveChainId}/${ensNameManager}`}
+                          className="text-blue-600 dark:text-blue-400 hover:underline font-mono text-xs break-all block mt-1"
+                        >
+                          {ensNameManager}
+                        </Link>
+                      ) : (
+                        <p className="text-gray-500 dark:text-gray-400 mt-1">Loading...</p>
+                      )}
+                    </div>
+                    <div>
+                      <span className="text-gray-500 dark:text-gray-400">Parent:</span>
+                      <div className="mt-1">
+                        {(() => {
+                          const currentName = queriedENSName || primaryName || selectedForwardName || ''
+                          const parts = currentName.split('.')
+                          if (parts.length > 2) {
+                            const parentName = parts.slice(1).join('.')
+                            return (
+                              <Link
+                                href={`/explore/${effectiveChainId}/${parentName}`}
+                                className="text-blue-600 dark:text-blue-400 hover:underline font-mono"
+                              >
+                                {parentName}
+                              </Link>
+                            )
+                          }
+                          return <span className="text-gray-500">No parent (top-level domain)</span>
+                        })()}
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex items-center mt-1">
-                  <Link
-                    href={`${window.location.protocol}//${window.location.host}/explore/${chainId}/${contractDeployerAddress}`}
-                    className={
-                      'text-blue-600 underline font-mono text-sm break-all'
-                    }
-                  >
-                    {contractDeployerPrimaryName !== null &&
-                      contractDeployerPrimaryName}
-                    {contractDeployerPrimaryName === null &&
-                      contractDeployerAddress}
-                  </Link>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="ml-2"
-                    onClick={() =>
-                      copyToClipboard(
-                        contractDeployerAddress,
-                        'contractDeployerAddress',
-                      )
-                    }
-                  >
-                    {copied['contractDeployerAddress'] ? (
-                      <Check className="h-4 w-4 text-green-500" />
-                    ) : (
-                      <Copy className="h-4 w-4" />
-                    )}
-                  </Button>
+
+                {/* Card 2: Organization (2LD), Org Owner, Org Manager */}
+                <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                  <div className="space-y-3 text-xs">
+                    <div>
+                      <span className="text-gray-500 dark:text-gray-400">Organization:</span>
+                      <div className="mt-1">
+                        {(() => {
+                          const currentName = queriedENSName || primaryName || selectedForwardName || ''
+                          const parts = currentName.split('.')
+                          if (parts.length >= 2) {
+                            const tld = parts[parts.length - 1]
+                            const sld = parts[parts.length - 2]
+                            const tldName = `${sld}.${tld}`
+                            return (
+                              <Link
+                                href={`/explore/${effectiveChainId}/${tldName}`}
+                                className="text-blue-600 dark:text-blue-400 hover:underline font-mono text-sm font-semibold"
+                              >
+                                {tldName}
+                              </Link>
+                            )
+                          }
+                          return <span className="text-gray-500">N/A</span>
+                        })()}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-gray-500 dark:text-gray-400">Org Owner:</span>
+                      {tldOwner ? (
+                        <Link
+                          href={`/explore/${effectiveChainId}/${tldOwner}`}
+                          className="text-blue-600 dark:text-blue-400 hover:underline font-mono text-xs break-all block mt-1"
+                        >
+                          {tldOwner}
+                        </Link>
+                      ) : (
+                        <p className="text-gray-500 dark:text-gray-400 mt-1">Loading...</p>
+                      )}
+                    </div>
+                    <div>
+                      <span className="text-gray-500 dark:text-gray-400">Org Manager:</span>
+                      {tldManager ? (
+                        <Link
+                          href={`/explore/${effectiveChainId}/${tldManager}`}
+                          className="text-blue-600 dark:text-blue-400 hover:underline font-mono text-xs break-all block mt-1"
+                        >
+                          {tldManager}
+                        </Link>
+                      ) : (
+                        <p className="text-gray-500 dark:text-gray-400 mt-1">Loading...</p>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
-            )}
+            </div>
+          )}
+
+          {/* Other Details - Expandable Section */}
+          <div className="mt-6">
+            <div
+              className="flex items-center justify-between cursor-pointer bg-gray-50 dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800"
+              onClick={() => setOtherDetailsExpanded(!otherDetailsExpanded)}
+            >
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Other Details
+              </h3>
+              {otherDetailsExpanded ? (
+                <ChevronUp className="h-5 w-5" />
+              ) : (
+                <ChevronDown className="h-5 w-5" />
+              )}
+            </div>
+
+            {otherDetailsExpanded && (
+              <div className="mt-4 space-y-6">
+                {/* Contract Deployer */}
+                {isContract && contractDeployerAddress && (
+                  <div>
+                    <div className="flex items-center mt-2">
+                      <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                        Contract Deployer
+                      </h3>
+                    </div>
+                    <div className="flex items-center mt-1">
+                      <Link
+                        href={`${window.location.protocol}//${window.location.host}/explore/${chainId}/${contractDeployerAddress}`}
+                        className={
+                          'text-blue-600 underline font-mono text-sm break-all'
+                        }
+                      >
+                        {contractDeployerPrimaryName !== null &&
+                          contractDeployerPrimaryName}
+                        {contractDeployerPrimaryName === null &&
+                          contractDeployerAddress}
+                      </Link>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="ml-2"
+                        onClick={() =>
+                          copyToClipboard(
+                            contractDeployerAddress,
+                            'contractDeployerAddress',
+                          )
+                        }
+                      >
+                        {copied['contractDeployerAddress'] ? (
+                          <Check className="h-4 w-4 text-green-500" />
+                        ) : (
+                          <Copy className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                )}
 
             {isContract &&
               proxyInfo?.isProxy &&
@@ -1917,11 +2185,10 @@ export default function ENSDetails({
                     </div>
                   )}
                 </div>
-              )}
-          </div>
+                )}
 
-          {/* Contract Verification Status */}
-          {isContract && verificationStatus && (
+                {/* Contract Verification Status */}
+                {isContract && verificationStatus && (
             <div>
               <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">
                 Contract Verification
@@ -2555,6 +2822,9 @@ export default function ENSDetails({
                 <p className="text-sm text-gray-500 dark:text-gray-400 py-2">
                   No Owned ENS names found for this address
                 </p>
+              </div>
+            )}
+          </div>
               </div>
             )}
           </div>
