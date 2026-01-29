@@ -1768,164 +1768,166 @@ export default function ENSDetails({
                     )}
                   </div>
                 )}
+              </div>
+            )}
 
-                {/* Compiled Metadata - Full Width Below Grid */}
-                {sourcifyMetadata && (
-                  <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
-                    <h4 className="text-base font-semibold text-gray-900 dark:text-white mb-4">
-                      Compiled Metadata
-                    </h4>
-                    <div className="space-y-3">
-                      {/* Solidity Version */}
-                      {sourcifyMetadata.metadata?.compiler?.version && (
-                        <div className="flex items-center justify-between gap-3">
-                          <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
-                            Solidity
-                          </span>
-                          <span className="inline-block px-3 py-1 text-sm rounded-full bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 font-mono">
-                            {sourcifyMetadata.metadata.compiler.version}
-                          </span>
-                        </div>
-                      )}
+          {/* Compiled Metadata - Independent Section (Shows for Sourcify-verified contracts) */}
+          {isContract && sourcifyMetadata && (
+            <div className="mt-6">
+              <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
+                <h4 className="text-base font-semibold text-gray-900 dark:text-white mb-4">
+                  Compiled Metadata
+                </h4>
+                <div className="space-y-3">
+                  {/* Solidity Version */}
+                  {sourcifyMetadata.metadata?.compiler?.version && (
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                        Solidity
+                      </span>
+                      <span className="inline-block px-3 py-1 text-sm rounded-full bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 font-mono">
+                        {sourcifyMetadata.metadata.compiler.version}
+                      </span>
+                    </div>
+                  )}
 
-                      {/* Contract ABI */}
-                      {sourcifyMetadata.abi && sourcifyMetadata.abi.length > 0 && (
-                        <div>
-                          <details className="group cursor-pointer">
-                            <summary className="text-xs font-medium text-gray-500 dark:text-gray-400 flex items-center justify-between py-1">
-                              <span>Contract ABI</span>
-                              <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
-                            </summary>
-                            <div className="mt-2 h-64 overflow-y-auto bg-gray-50 dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
-                                  {/* Functions */}
-                                  {sourcifyMetadata.abi.filter((item: any) => item.type === 'function').length > 0 && (
-                                    <div>
-                                      <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">Functions</p>
-                                      <div className="space-y-1">
-                                        {sourcifyMetadata.abi
-                                          .filter((item: any) => item.type === 'function')
-                                          .map((func: any, index: number) => (
-                                            <div key={index} className="text-xs font-mono text-gray-700 dark:text-gray-300 break-all">
-                                              <span className="text-green-600 dark:text-green-400">{func.name}</span>
-                                              <span className="text-gray-500">(</span>
-                                              {func.inputs?.map((input: any, i: number) => (
-                                                <span key={i}>
-                                                  <span className="text-blue-600 dark:text-blue-400">{input.type}</span>
-                                                  {input.name && <span className="text-gray-600 dark:text-gray-400"> {input.name}</span>}
-                                                  {i < func.inputs.length - 1 && <span className="text-gray-500">, </span>}
-                                                </span>
-                                              ))}
-                                              <span className="text-gray-500">)</span>
-                                              {func.stateMutability && func.stateMutability !== 'nonpayable' && (
-                                                <span className="text-yellow-600 dark:text-yellow-400 ml-2">{func.stateMutability}</span>
-                                              )}
-                                              {func.outputs && func.outputs.length > 0 && (
-                                                <span className="text-gray-500">
-                                                  {' returns ('}
-                                                  {func.outputs.map((output: any, i: number) => (
-                                                    <span key={i}>
-                                                      <span className="text-blue-600 dark:text-blue-400">{output.type}</span>
-                                                      {i < func.outputs.length - 1 && ', '}
-                                                    </span>
-                                                  ))}
-                                                  {')'}
-                                                </span>
-                                              )}
-                                            </div>
-                                          ))}
-                                      </div>
-                                    </div>
-                                  )}
-
-                                  {/* Events */}
-                                  {sourcifyMetadata.abi.filter((item: any) => item.type === 'event').length > 0 && (
-                                    <div>
-                                      <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">Events</p>
-                                      <div className="space-y-1">
-                                        {sourcifyMetadata.abi
-                                          .filter((item: any) => item.type === 'event')
-                                          .map((event: any, index: number) => (
-                                            <div key={index} className="text-xs font-mono break-all">
-                                              <span className="text-yellow-600 dark:text-yellow-400">{event.name}</span>
-                                              <span className="text-gray-500">(</span>
-                                              {event.inputs?.map((input: any, i: number) => (
-                                                <span key={i} className="text-gray-600 dark:text-gray-400">
-                                                  <span className="text-blue-600 dark:text-blue-400">{input.type}</span>
-                                                  {input.indexed && <span className="text-purple-600 dark:text-purple-400"> indexed</span>}
-                                                  {input.name && <span> {input.name}</span>}
-                                                  {i < event.inputs.length - 1 && <span className="text-gray-500">, </span>}
-                                                </span>
-                                              ))}
-                                              <span className="text-gray-500">)</span>
-                                            </div>
-                                          ))}
-                                      </div>
-                                    </div>
-                                  )}
-
-                                  {/* Errors */}
-                                  {sourcifyMetadata.abi.filter((item: any) => item.type === 'error').length > 0 && (
-                                    <div>
-                                      <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">Errors</p>
-                                      <div className="space-y-1">
-                                        {sourcifyMetadata.abi
-                                          .filter((item: any) => item.type === 'error')
-                                          .map((error: any, index: number) => (
-                                            <div key={index} className="text-xs font-mono text-red-600 dark:text-red-400 break-all">
-                                              {error.name}
-                                              <span className="text-gray-500">(</span>
-                                              {error.inputs?.map((input: any, i: number) => (
-                                                <span key={i} className="text-gray-600 dark:text-gray-400">
-                                                  <span className="text-blue-600 dark:text-blue-400">{input.type}</span>
-                                                  {input.name && <span> {input.name}</span>}
-                                                  {i < error.inputs.length - 1 && <span className="text-gray-500">, </span>}
-                                                </span>
-                                              ))}
-                                              <span className="text-gray-500">)</span>
-                                            </div>
-                                          ))}
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                              </details>
-                            </div>
-                          )}
-
-                          {/* Source Files */}
-                          {sourcifyMetadata.metadata?.sources && Object.keys(sourcifyMetadata.metadata.sources).length > 0 && (
+                  {/* Contract ABI */}
+                  {sourcifyMetadata.abi && sourcifyMetadata.abi.length > 0 && (
+                    <div>
+                      <details className="group cursor-pointer">
+                        <summary className="text-xs font-medium text-gray-500 dark:text-gray-400 flex items-center justify-between py-1">
+                          <span>Contract ABI</span>
+                          <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
+                        </summary>
+                        <div className="mt-2 h-64 overflow-y-auto bg-gray-50 dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+                          {/* Functions */}
+                          {sourcifyMetadata.abi.filter((item: any) => item.type === 'function').length > 0 && (
                             <div>
-                              <details className="group cursor-pointer">
-                                <summary className="text-xs font-medium text-gray-500 dark:text-gray-400 flex items-center justify-between py-1">
-                                  <span>Source Files</span>
-                                  <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
-                                </summary>
-                                <div className="mt-2 h-48 overflow-y-auto space-y-2 bg-gray-50 dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
-                                  {Object.entries(sourcifyMetadata.metadata.sources).map(([fileName, fileData]: [string, any], index) => (
-                                    <div key={index} className="flex items-center justify-between text-xs bg-white dark:bg-gray-900 p-2 rounded">
-                                      <span className="text-gray-700 dark:text-gray-300 font-mono truncate">{fileName}</span>
-                                      {fileData.urls && fileData.urls[0] && (
-                                        <a
-                                          href={fileData.urls[0]}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1 ml-2 flex-shrink-0"
-                                        >
-                                          ipfs://
-                                          <ExternalLink className="h-3 w-3" />
-                                        </a>
+                              <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">Functions</p>
+                              <div className="space-y-1">
+                                {sourcifyMetadata.abi
+                                  .filter((item: any) => item.type === 'function')
+                                  .map((func: any, index: number) => (
+                                    <div key={index} className="text-xs font-mono text-gray-700 dark:text-gray-300 break-all">
+                                      <span className="text-green-600 dark:text-green-400">{func.name}</span>
+                                      <span className="text-gray-500">(</span>
+                                      {func.inputs?.map((input: any, i: number) => (
+                                        <span key={i}>
+                                          <span className="text-blue-600 dark:text-blue-400">{input.type}</span>
+                                          {input.name && <span className="text-gray-600 dark:text-gray-400"> {input.name}</span>}
+                                          {i < func.inputs.length - 1 && <span className="text-gray-500">, </span>}
+                                        </span>
+                                      ))}
+                                      <span className="text-gray-500">)</span>
+                                      {func.stateMutability && func.stateMutability !== 'nonpayable' && (
+                                        <span className="text-yellow-600 dark:text-yellow-400 ml-2">{func.stateMutability}</span>
+                                      )}
+                                      {func.outputs && func.outputs.length > 0 && (
+                                        <span className="text-gray-500">
+                                          {' returns ('}
+                                          {func.outputs.map((output: any, i: number) => (
+                                            <span key={i}>
+                                              <span className="text-blue-600 dark:text-blue-400">{output.type}</span>
+                                              {i < func.outputs.length - 1 && ', '}
+                                            </span>
+                                          ))}
+                                          {')'}
+                                        </span>
                                       )}
                                     </div>
                                   ))}
-                                </div>
-                              </details>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Events */}
+                          {sourcifyMetadata.abi.filter((item: any) => item.type === 'event').length > 0 && (
+                            <div>
+                              <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">Events</p>
+                              <div className="space-y-1">
+                                {sourcifyMetadata.abi
+                                  .filter((item: any) => item.type === 'event')
+                                  .map((event: any, index: number) => (
+                                    <div key={index} className="text-xs font-mono break-all">
+                                      <span className="text-yellow-600 dark:text-yellow-400">{event.name}</span>
+                                      <span className="text-gray-500">(</span>
+                                      {event.inputs?.map((input: any, i: number) => (
+                                        <span key={i} className="text-gray-600 dark:text-gray-400">
+                                          <span className="text-blue-600 dark:text-blue-400">{input.type}</span>
+                                          {input.indexed && <span className="text-purple-600 dark:text-purple-400"> indexed</span>}
+                                          {input.name && <span> {input.name}</span>}
+                                          {i < event.inputs.length - 1 && <span className="text-gray-500">, </span>}
+                                        </span>
+                                      ))}
+                                      <span className="text-gray-500">)</span>
+                                    </div>
+                                  ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Errors */}
+                          {sourcifyMetadata.abi.filter((item: any) => item.type === 'error').length > 0 && (
+                            <div>
+                              <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">Errors</p>
+                              <div className="space-y-1">
+                                {sourcifyMetadata.abi
+                                  .filter((item: any) => item.type === 'error')
+                                  .map((error: any, index: number) => (
+                                    <div key={index} className="text-xs font-mono text-red-600 dark:text-red-400 break-all">
+                                      {error.name}
+                                      <span className="text-gray-500">(</span>
+                                      {error.inputs?.map((input: any, i: number) => (
+                                        <span key={i} className="text-gray-600 dark:text-gray-400">
+                                          <span className="text-blue-600 dark:text-blue-400">{input.type}</span>
+                                          {input.name && <span> {input.name}</span>}
+                                          {i < error.inputs.length - 1 && <span className="text-gray-500">, </span>}
+                                        </span>
+                                      ))}
+                                      <span className="text-gray-500">)</span>
+                                    </div>
+                                  ))}
+                              </div>
                             </div>
                           )}
                         </div>
-                      </div>
-                )}
+                      </details>
+                    </div>
+                  )}
+
+                  {/* Source Files */}
+                  {sourcifyMetadata.metadata?.sources && Object.keys(sourcifyMetadata.metadata.sources).length > 0 && (
+                    <div>
+                      <details className="group cursor-pointer">
+                        <summary className="text-xs font-medium text-gray-500 dark:text-gray-400 flex items-center justify-between py-1">
+                          <span>Source Files</span>
+                          <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
+                        </summary>
+                        <div className="mt-2 h-48 overflow-y-auto space-y-2 bg-gray-50 dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+                          {Object.entries(sourcifyMetadata.metadata.sources).map(([fileName, fileData]: [string, any], index) => (
+                            <div key={index} className="flex items-center justify-between text-xs bg-white dark:bg-gray-900 p-2 rounded">
+                              <span className="text-gray-700 dark:text-gray-300 font-mono truncate">{fileName}</span>
+                              {fileData.urls && fileData.urls[0] && (
+                                <a
+                                  href={fileData.urls[0]}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1 ml-2 flex-shrink-0"
+                                >
+                                  ipfs://
+                                  <ExternalLink className="h-3 w-3" />
+                                </a>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </details>
+                    </div>
+                  )}
+                </div>
               </div>
-            )}
+            </div>
+          )}
 
           {/* Organization and management details - 2 Cards */}
           {isContract && (queriedENSName || primaryName || selectedForwardName) && (
