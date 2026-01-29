@@ -153,6 +153,17 @@ export default function ENSDetails({
   const [tldOwner, setTldOwner] = useState<string | null>(null)
   const [tldManager, setTldManager] = useState<string | null>(null)
   const [otherDetailsExpanded, setOtherDetailsExpanded] = useState(false)
+  const [ensNameOwnerResolved, setEnsNameOwnerResolved] = useState<
+    string | null
+  >(null)
+  const [ensNameManagerResolved, setEnsNameManagerResolved] = useState<
+    string | null
+  >(null)
+  const [tldOwnerResolved, setTldOwnerResolved] = useState<string | null>(null)
+  const [tldManagerResolved, setTldManagerResolved] = useState<string | null>(
+    null,
+  )
+  const [deployerResolved, setDeployerResolved] = useState<string | null>(null)
   const { chain, isConnected } = useAccount()
   const walletPublicClient = usePublicClient()
   const [customProvider, setCustomProvider] =
@@ -483,7 +494,7 @@ export default function ENSDetails({
     }
   }, [address, customProvider, queriedENSName])
 
-  // Function to fetch expiry date for any ENS name's 2LD  
+  // Function to fetch expiry date for any ENS name's 2LD
   const fetchNameExpiryDate = async (
     ensName: string,
     setExpiryState: (date: number | null) => void,
@@ -542,41 +553,33 @@ export default function ENSDetails({
         setExpiryState(null)
       }
     } catch (error) {
-      console.error(
-        '[ENSDetails] Error fetching name expiry date:',
-        error,
-      )
+      console.error('[ENSDetails] Error fetching name expiry date:', error)
       setExpiryState(null)
     }
   }
 
   // Wrapper for primary name expiry
-  const fetchPrimaryNameExpiryDate = useCallback(
-    async (primaryENS: string) => {
-      await fetchNameExpiryDate(primaryENS, setPrimaryNameExpiryDate)
-    },
-    [],
-  )
+  const fetchPrimaryNameExpiryDate = useCallback(async (primaryENS: string) => {
+    await fetchNameExpiryDate(primaryENS, setPrimaryNameExpiryDate)
+  }, [])
 
   // Wrapper for forward name expiry
-  const fetchForwardNameExpiryDate = useCallback(
-    async (forwardENS: string) => {
-      await fetchNameExpiryDate(forwardENS, setForwardNameExpiryDate)
-    },
-    [],
-  )
+  const fetchForwardNameExpiryDate = useCallback(async (forwardENS: string) => {
+    await fetchNameExpiryDate(forwardENS, setForwardNameExpiryDate)
+  }, [])
 
   // Function to fetch owner and manager from ENS subgraph
-  const fetchOwnerAndManager = useCallback(async (ensName: string) => {
-    if (!config?.SUBGRAPH_API) {
-      console.log(`[ENSDetails] No subgraph API configured`)
-      return { owner: null, manager: null }
-    }
+  const fetchOwnerAndManager = useCallback(
+    async (ensName: string) => {
+      if (!config?.SUBGRAPH_API) {
+        console.log(`[ENSDetails] No subgraph API configured`)
+        return { owner: null, manager: null }
+      }
 
-    try {
-      console.log(`[ENSDetails] Fetching owner/manager for: ${ensName}`)
-      
-      const query = `
+      try {
+        console.log(`[ENSDetails] Fetching owner/manager for: ${ensName}`)
+
+        const query = `
         {
           domains(where: {name: "${ensName}"}) {
             name
@@ -593,39 +596,46 @@ export default function ENSDetails({
         }
       `
 
-      const response = await fetch(config.SUBGRAPH_API, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${process.env.NEXT_PUBLIC_GRAPH_API_KEY || ''}`,
-        },
-        body: JSON.stringify({ query }),
-      })
+        const response = await fetch(config.SUBGRAPH_API, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${process.env.NEXT_PUBLIC_GRAPH_API_KEY || ''}`,
+          },
+          body: JSON.stringify({ query }),
+        })
 
-      const data = await response.json()
-      console.log(`[ENSDetails] Subgraph response for ${ensName}:`, data)
-      
-      if (data.data?.domains && data.data.domains.length > 0) {
-        const domain = data.data.domains[0]
-        console.log(`[ENSDetails] Domain data:`, domain)
-        
-        // Manager is the 'owner' field in subgraph (confusing naming)
-        const manager = domain.owner?.id || null
-        
-        // Owner is wrappedOwner if set (wrapped name), else registrant
-        const owner = domain.wrappedOwner?.id || domain.registrant?.id || null
-        
-        console.log(`[ENSDetails] Resolved for ${ensName} - Owner: ${owner}, Manager: ${manager}`)
-        return { owner, manager }
+        const data = await response.json()
+        console.log(`[ENSDetails] Subgraph response for ${ensName}:`, data)
+
+        if (data.data?.domains && data.data.domains.length > 0) {
+          const domain = data.data.domains[0]
+          console.log(`[ENSDetails] Domain data:`, domain)
+
+          // Manager is the 'owner' field in subgraph (confusing naming)
+          const manager = domain.owner?.id || null
+
+          // Owner is wrappedOwner if set (wrapped name), else registrant
+          const owner = domain.wrappedOwner?.id || domain.registrant?.id || null
+
+          console.log(
+            `[ENSDetails] Resolved for ${ensName} - Owner: ${owner}, Manager: ${manager}`,
+          )
+          return { owner, manager }
+        }
+
+        console.log(`[ENSDetails] No domain found for ${ensName}`)
+        return { owner: null, manager: null }
+      } catch (error) {
+        console.error(
+          `[ENSDetails] Error fetching owner/manager for ${ensName}:`,
+          error,
+        )
+        return { owner: null, manager: null }
       }
-      
-      console.log(`[ENSDetails] No domain found for ${ensName}`)
-      return { owner: null, manager: null }
-    } catch (error) {
-      console.error(`[ENSDetails] Error fetching owner/manager for ${ensName}:`, error)
-      return { owner: null, manager: null }
-    }
-  }, [config])
+    },
+    [config],
+  )
 
   // Function to fetch all ENS names resolving to this address
   const fetchAssociatedNames = useCallback(async () => {
@@ -797,9 +807,9 @@ export default function ENSDetails({
         `[ENSDetails] Fetching Sourcify metadata for contract ${address}`,
       )
       const response = await fetch(
-        `https://sourcify.dev/server/v2/contract/${effectiveChainId}/${address}?fields=abi,metadata`
+        `https://sourcify.dev/server/v2/contract/${effectiveChainId}/${address}?fields=abi,metadata`,
       )
-      
+
       if (response.ok) {
         const data = await response.json()
         setSourceifyMetadata(data)
@@ -984,17 +994,24 @@ export default function ENSDetails({
     if (queriedENSName) {
       // If user queried by ENS name, use that name immediately (priority)
       ensNameToFetch = queriedENSName
-      
+
       // Fetch expiry for queried name if it's not the primary name
-      if (!primaryName || queriedENSName.toLowerCase() !== primaryName.toLowerCase()) {
+      if (
+        !primaryName ||
+        queriedENSName.toLowerCase() !== primaryName.toLowerCase()
+      ) {
         fetchForwardNameExpiryDate(queriedENSName)
       }
     } else {
       // If user queried by address, use primary name or forward name
       ensNameToFetch = primaryName || selectedForwardName
-      
+
       // Fetch expiry for selected forward name if it exists and is not the primary name
-      if (selectedForwardName && (!primaryName || selectedForwardName.toLowerCase() !== primaryName.toLowerCase())) {
+      if (
+        selectedForwardName &&
+        (!primaryName ||
+          selectedForwardName.toLowerCase() !== primaryName.toLowerCase())
+      ) {
         fetchForwardNameExpiryDate(selectedForwardName)
       }
     }
@@ -1018,21 +1035,51 @@ export default function ENSDetails({
   useEffect(() => {
     const fetchOwnerManagerData = async () => {
       const currentName = queriedENSName || primaryName || selectedForwardName
-      
-      console.log(`[ENSDetails] useEffect - currentName: ${currentName}, isContract: ${isContract}`)
-      
-      if (!currentName || !isContract) {
-        console.log(`[ENSDetails] Skipping owner/manager fetch - no name or not contract`)
+
+      console.log(
+        `[ENSDetails] useEffect - currentName: ${currentName}, isContract: ${isContract}`,
+      )
+
+      if (!currentName || !isContract || !customProvider) {
+        console.log(
+          `[ENSDetails] Skipping owner/manager fetch - no name, not contract, or no provider`,
+        )
         return
       }
 
-      console.log(`[ENSDetails] Fetching owner/manager data for: ${currentName}`)
+      console.log(
+        `[ENSDetails] Fetching owner/manager data for: ${currentName}`,
+      )
 
       // Fetch owner/manager for current ENS name
       const { owner, manager } = await fetchOwnerAndManager(currentName)
-      console.log(`[ENSDetails] Setting name owner/manager - Owner: ${owner}, Manager: ${manager}`)
+      console.log(
+        `[ENSDetails] Setting name owner/manager - Owner: ${owner}, Manager: ${manager}`,
+      )
       setEnsNameOwner(owner)
       setEnsNameManager(manager)
+
+      // Resolve owner to ENS name
+      if (owner) {
+        try {
+          const ownerENS = await getENS(owner, customProvider)
+          setEnsNameOwnerResolved(ownerENS || null)
+        } catch (err) {
+          console.log(`[ENSDetails] Could not resolve owner ENS name`)
+          setEnsNameOwnerResolved(null)
+        }
+      }
+
+      // Resolve manager to ENS name
+      if (manager) {
+        try {
+          const managerENS = await getENS(manager, customProvider)
+          setEnsNameManagerResolved(managerENS || null)
+        } catch (err) {
+          console.log(`[ENSDetails] Could not resolve manager ENS name`)
+          setEnsNameManagerResolved(null)
+        }
+      }
 
       // Extract and fetch owner/manager for 2LD
       const parts = currentName.split('.')
@@ -1040,17 +1087,64 @@ export default function ENSDetails({
         const tld = parts[parts.length - 1]
         const sld = parts[parts.length - 2]
         const tldName = `${sld}.${tld}`
-        
+
         console.log(`[ENSDetails] Fetching 2LD owner/manager for: ${tldName}`)
-        const { owner: tldOwnerData, manager: tldManagerData } = await fetchOwnerAndManager(tldName)
-        console.log(`[ENSDetails] Setting 2LD owner/manager - Owner: ${tldOwnerData}, Manager: ${tldManagerData}`)
+        const { owner: tldOwnerData, manager: tldManagerData } =
+          await fetchOwnerAndManager(tldName)
+        console.log(
+          `[ENSDetails] Setting 2LD owner/manager - Owner: ${tldOwnerData}, Manager: ${tldManagerData}`,
+        )
         setTldOwner(tldOwnerData)
         setTldManager(tldManagerData)
+
+        // Resolve 2LD owner to ENS name
+        if (tldOwnerData) {
+          try {
+            const tldOwnerENS = await getENS(tldOwnerData, customProvider)
+            setTldOwnerResolved(tldOwnerENS || null)
+          } catch (err) {
+            console.log(`[ENSDetails] Could not resolve 2LD owner ENS name`)
+            setTldOwnerResolved(null)
+          }
+        }
+
+        // Resolve 2LD manager to ENS name
+        if (tldManagerData) {
+          try {
+            const tldManagerENS = await getENS(tldManagerData, customProvider)
+            setTldManagerResolved(tldManagerENS || null)
+          } catch (err) {
+            console.log(`[ENSDetails] Could not resolve 2LD manager ENS name`)
+            setTldManagerResolved(null)
+          }
+        }
+      }
+
+      // Resolve contract deployer to ENS name
+      if (contractDeployerAddress) {
+        try {
+          const deployerENS = await getENS(
+            contractDeployerAddress,
+            customProvider,
+          )
+          setDeployerResolved(deployerENS || null)
+        } catch (err) {
+          console.log(`[ENSDetails] Could not resolve deployer ENS name`)
+          setDeployerResolved(null)
+        }
       }
     }
 
     fetchOwnerManagerData()
-  }, [queriedENSName, primaryName, selectedForwardName, isContract, fetchOwnerAndManager])
+  }, [
+    queriedENSName,
+    primaryName,
+    selectedForwardName,
+    isContract,
+    fetchOwnerAndManager,
+    customProvider,
+    contractDeployerAddress,
+  ])
 
   // Show loading until ENS data is loaded AND (for contracts) metadata is loaded
   const shouldShowLoading = isLoading || (isContract && isMetadataLoading)
@@ -1091,58 +1185,58 @@ export default function ENSDetails({
       <CardContent className="p-6">
         <div className="space-y-4">
           {/* Show primary name only (with blue tick) */}
-          {primaryName && 
-           (!queriedENSName || queriedENSName.toLowerCase() === primaryName.toLowerCase()) && (
-            <div className="space-y-6">
-              {/* Full width profile card */}
-              {!isContract && (
-                <div className="w-full scale-100 transform origin-top">
-                  <FullWidthProfile
-                    addressOrName={primaryName}
-                  />
-                </div>
-              )}
+          {primaryName &&
+            (!queriedENSName ||
+              queriedENSName.toLowerCase() === primaryName.toLowerCase()) && (
+              <div className="space-y-6">
+                {/* Full width profile card */}
+                {!isContract && (
+                  <div className="w-full scale-100 transform origin-top">
+                    <FullWidthProfile addressOrName={primaryName} />
+                  </div>
+                )}
 
-              {/* Details section */}
-              <div className="space-y-2">
-                {/* Heading + Expiry badge in a single row */}
-                <div className="flex flex-wrap justify-between items-center gap-1">
-                  <div className="flex items-center gap-1.5">
-                    <TooltipProvider>
-                      {isContract &&
-                        verificationStatus &&
-                        primaryName &&
-                        (verificationStatus.sourcify_verification ===
-                          'exact_match' ||
-                          verificationStatus.sourcify_verification ===
-                            'match' ||
-                          verificationStatus.etherscan_verification ===
-                            'verified' ||
-                          verificationStatus.blockscout_verification ===
+                {/* Details section */}
+                <div className="space-y-2">
+                  {/* Heading + Expiry badge in a single row */}
+                  <div className="flex flex-wrap justify-between items-center gap-1">
+                    <div className="flex items-center gap-1.5">
+                      <TooltipProvider>
+                        {isContract &&
+                          verificationStatus &&
+                          primaryName &&
+                          (verificationStatus.sourcify_verification ===
                             'exact_match' ||
-                          verificationStatus.blockscout_verification ===
-                            'match') &&
-                        (verificationStatus.diligence_audit ||
-                          verificationStatus.openZepplin_audit ||
-                          verificationStatus.cyfrin_audit) && (
-                          <div className="relative group">
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <ShieldCheck className="w-5 h-5 text-green-500 cursor-pointer" />
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>
-                                  Trusted - Named, Verified and Audited Contract
-                                </p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </div>
-                        )}
-                    </TooltipProvider>
-                    <span className="text-xl text-gray-900 dark:text-white flex items-center gap-1.5 font-bold">
-                      {primaryName}
-                      {/* Always show primary name badge in this section */}
-                      {primaryName && (
+                            verificationStatus.sourcify_verification ===
+                              'match' ||
+                            verificationStatus.etherscan_verification ===
+                              'verified' ||
+                            verificationStatus.blockscout_verification ===
+                              'exact_match' ||
+                            verificationStatus.blockscout_verification ===
+                              'match') &&
+                          (verificationStatus.diligence_audit ||
+                            verificationStatus.openZepplin_audit ||
+                            verificationStatus.cyfrin_audit) && (
+                            <div className="relative group">
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <ShieldCheck className="w-5 h-5 text-green-500 cursor-pointer" />
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>
+                                    Trusted - Named, Verified and Audited
+                                    Contract
+                                  </p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </div>
+                          )}
+                      </TooltipProvider>
+                      <span className="text-xl text-gray-900 dark:text-white flex items-center gap-1.5 font-bold">
+                        {primaryName}
+                        {/* Always show primary name badge in this section */}
+                        {primaryName && (
                           <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>
@@ -1186,129 +1280,139 @@ export default function ENSDetails({
                             </Tooltip>
                           </TooltipProvider>
                         )}
-                    </span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="ml-0"
-                      onClick={() =>
-                        copyToClipboard(
-                          primaryName || '',
-                          'primary-name',
-                        )
-                      }
-                    >
-                      {copied['primary-name'] ? (
-                        <Check className="h-4 w-4 text-green-500" />
-                      ) : (
-                        <Copy className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {/* Get All Metadata Button */}
-                    {isContract && (
-                      <Link href="/nameMetadata">
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          className="border-blue-600 text-blue-600 hover:bg-blue-50 dark:border-blue-400 dark:text-blue-400 dark:hover:bg-blue-900/20"
-                        >
-                          Get All Metadata
-                        </Button>
-                      </Link>
-                    )}
-                    {/* Expiry badge */}
-                    {primaryNameExpiryDate && primaryName &&
-                    (() => {
-                      const nameParts = primaryName.split('.')
-                      const tld = nameParts[nameParts.length - 1]
-                      const sld = nameParts[nameParts.length - 2]
-
-                      const domainToShow = `${sld}.${tld}`
-                      const now = new Date()
-                      const expiryDate = new Date(primaryNameExpiryDate * 1000)
-                      const threeMonthsFromNow = new Date()
-                      threeMonthsFromNow.setMonth(now.getMonth() + 3)
-
-                      const isExpired = expiryDate < now
-                      const isWithinThreeMonths =
-                        !isExpired && expiryDate < threeMonthsFromNow
-                      const ninetyDaysInMs = 90 * 24 * 60 * 60 * 1000
-                      const isInGracePeriod =
-                        isExpired &&
-                        now.getTime() - expiryDate.getTime() < ninetyDaysInMs
-
-                      let statusIcon
-                      let statusText
-                      let bgColorClass = 'bg-green-50 dark:bg-green-900/20'
-                      let textColorClass = 'text-green-600 dark:text-green-400'
-
-                      if (isExpired && isInGracePeriod) {
-                        statusIcon = (
-                          <XCircle
-                            className="inline-block mr-1 text-red-600 dark:text-red-400"
-                            size={16}
-                          />
-                        )
-                        statusText = `expired on ${expiryDate.toLocaleDateString()}`
-                        bgColorClass = 'bg-red-50 dark:bg-red-900/20'
-                        textColorClass = 'text-red-600 dark:text-red-400'
-                      } else if (isWithinThreeMonths) {
-                        statusIcon = (
-                          <AlertCircle
-                            className="inline-block mr-1 text-yellow-600 dark:text-yellow-400"
-                            size={16}
-                          />
-                        )
-                        statusText = `expires on ${expiryDate.toLocaleDateString()}`
-                        bgColorClass = 'bg-yellow-50 dark:bg-yellow-900/20'
-                        textColorClass = 'text-yellow-600 dark:text-yellow-400'
-                      } else {
-                        statusIcon = (
-                          <CheckCircle
-                            className="inline-block mr-1 text-green-600 dark:text-green-400"
-                            size={16}
-                          />
-                        )
-                        statusText = `valid until ${expiryDate.toLocaleDateString()}`
-                        bgColorClass = 'bg-green-50 dark:bg-green-900/20'
-                        textColorClass = 'text-green-600 dark:text-green-400'
-                      }
-
-                      const showDomainSeparately = domainToShow !== primaryName
-
-                      return (
-                        <div className="flex items-center">
-                          {showDomainSeparately && (
-                            <span className="text-gray-800 dark:text-gray-400 px-2 py-1 rounded-md bg-gray-100 dark:bg-gray-800 text-sm mr-2">
-                              {domainToShow}
-                            </span>
-                          )}
-                          <span
-                            className={`inline-flex items-center px-3 py-1 rounded-md text-sm font-medium ${bgColorClass} ${textColorClass}`}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="ml-0"
+                        onClick={() =>
+                          copyToClipboard(primaryName || '', 'primary-name')
+                        }
+                      >
+                        {copied['primary-name'] ? (
+                          <Check className="h-4 w-4 text-green-500" />
+                        ) : (
+                          <Copy className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {/* Get All Metadata Button */}
+                      {isContract && (
+                        <Link href="/nameMetadata">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="border-blue-600 text-blue-600 hover:bg-blue-50 dark:border-blue-400 dark:text-blue-400 dark:hover:bg-blue-900/20"
                           >
-                            {statusIcon}
-                            <span className="whitespace-nowrap">
-                              {statusText}
-                            </span>
-                          </span>
-                        </div>
-                      )
-                    })()}
-                  </div>
-                </div>
+                            View Metadata
+                          </Button>
+                        </Link>
+                      )}
+                      {/* Expiry badge */}
+                      {primaryNameExpiryDate &&
+                        primaryName &&
+                        (() => {
+                          const nameParts = primaryName.split('.')
+                          const tld = nameParts[nameParts.length - 1]
+                          const sld = nameParts[nameParts.length - 2]
 
-                {/* ENS Name + copy + link below */}
-                {/* Removed separate row to align with expiry badge */}
+                          const domainToShow = `${sld}.${tld}`
+                          const now = new Date()
+                          const expiryDate = new Date(
+                            primaryNameExpiryDate * 1000,
+                          )
+                          const threeMonthsFromNow = new Date()
+                          threeMonthsFromNow.setMonth(now.getMonth() + 3)
+
+                          const isExpired = expiryDate < now
+                          const isWithinThreeMonths =
+                            !isExpired && expiryDate < threeMonthsFromNow
+                          const ninetyDaysInMs = 90 * 24 * 60 * 60 * 1000
+                          const isInGracePeriod =
+                            isExpired &&
+                            now.getTime() - expiryDate.getTime() <
+                              ninetyDaysInMs
+
+                          let statusIcon
+                          let statusText
+                          let bgColorClass = 'bg-green-50 dark:bg-green-900/20'
+                          let textColorClass =
+                            'text-green-600 dark:text-green-400'
+
+                          if (isExpired && isInGracePeriod) {
+                            statusIcon = (
+                              <XCircle
+                                className="inline-block mr-1 text-red-600 dark:text-red-400"
+                                size={16}
+                              />
+                            )
+                            statusText = `expired on ${expiryDate.toLocaleDateString()}`
+                            bgColorClass = 'bg-red-50 dark:bg-red-900/20'
+                            textColorClass = 'text-red-600 dark:text-red-400'
+                          } else if (isWithinThreeMonths) {
+                            statusIcon = (
+                              <AlertCircle
+                                className="inline-block mr-1 text-yellow-600 dark:text-yellow-400"
+                                size={16}
+                              />
+                            )
+                            statusText = `expires on ${expiryDate.toLocaleDateString()}`
+                            bgColorClass = 'bg-yellow-50 dark:bg-yellow-900/20'
+                            textColorClass =
+                              'text-yellow-600 dark:text-yellow-400'
+                          } else {
+                            statusIcon = (
+                              <CheckCircle
+                                className="inline-block mr-1 text-green-600 dark:text-green-400"
+                                size={16}
+                              />
+                            )
+                            statusText = `valid until ${expiryDate.toLocaleDateString()}`
+                            bgColorClass = 'bg-green-50 dark:bg-green-900/20'
+                            textColorClass =
+                              'text-green-600 dark:text-green-400'
+                          }
+
+                          const showDomainSeparately =
+                            domainToShow !== primaryName
+
+                          return (
+                            <div className="flex items-center">
+                              {showDomainSeparately && (
+                                <span className="text-gray-800 dark:text-gray-400 px-2 py-1 rounded-md bg-gray-100 dark:bg-gray-800 text-sm mr-2">
+                                  {domainToShow}
+                                </span>
+                              )}
+                              <span
+                                className={`inline-flex items-center px-3 py-1 rounded-md text-sm font-medium ${bgColorClass} ${textColorClass}`}
+                              >
+                                {statusIcon}
+                                <span className="whitespace-nowrap">
+                                  {statusText}
+                                </span>
+                              </span>
+                            </div>
+                          )
+                        })()}
+                    </div>
+                  </div>
+
+                  {/* ENS Name + copy + link below */}
+                  {/* Removed separate row to align with expiry badge */}
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
           {/* Forward Resolution Name Display (show queried name if not primary, or selected forward name) */}
           {isContract &&
-            ((queriedENSName && (!primaryName || queriedENSName.toLowerCase() !== primaryName.toLowerCase())) ||
-             (selectedForwardName && (!primaryName || selectedForwardName.toLowerCase() !== primaryName?.toLowerCase()))) && (
+            ((queriedENSName &&
+              (!primaryName ||
+                queriedENSName.toLowerCase() !== primaryName.toLowerCase())) ||
+              (selectedForwardName &&
+                (!primaryName ||
+                  selectedForwardName.toLowerCase() !==
+                    primaryName?.toLowerCase()))) && (
               <div className="space-y-6">
                 {/* Details section - SAME structure as primary name */}
                 <div className="space-y-2">
@@ -1353,93 +1457,102 @@ export default function ENSDetails({
                     <div className="flex items-center gap-2">
                       {/* Get All Metadata Button */}
                       <Link href="/nameMetadata">
-                        <Button 
-                          variant="outline" 
+                        <Button
+                          variant="outline"
                           size="sm"
                           className="border-blue-600 text-blue-600 hover:bg-blue-50 dark:border-blue-400 dark:text-blue-400 dark:hover:bg-blue-900/20"
                         >
-                          Get All Metadata
+                          View Metadata
                         </Button>
                       </Link>
                       {/* Expiry badge */}
-                      {forwardNameExpiryDate && (queriedENSName || selectedForwardName) &&
-                      (() => {
-                        const forwardName = queriedENSName || selectedForwardName || ''
-                        const nameParts = forwardName.split('.')
-                        const tld = nameParts[nameParts.length - 1]
-                        const sld = nameParts[nameParts.length - 2]
+                      {forwardNameExpiryDate &&
+                        (queriedENSName || selectedForwardName) &&
+                        (() => {
+                          const forwardName =
+                            queriedENSName || selectedForwardName || ''
+                          const nameParts = forwardName.split('.')
+                          const tld = nameParts[nameParts.length - 1]
+                          const sld = nameParts[nameParts.length - 2]
 
-                        const domainToShow = `${sld}.${tld}`
-                        const now = new Date()
-                        const expiryDate = new Date(forwardNameExpiryDate * 1000)
-                        const threeMonthsFromNow = new Date()
-                        threeMonthsFromNow.setMonth(now.getMonth() + 3)
-
-                        const isExpired = expiryDate < now
-                        const isWithinThreeMonths =
-                          !isExpired && expiryDate < threeMonthsFromNow
-                        const ninetyDaysInMs = 90 * 24 * 60 * 60 * 1000
-                        const isInGracePeriod =
-                          isExpired &&
-                          now.getTime() - expiryDate.getTime() < ninetyDaysInMs
-
-                        let statusIcon
-                        let statusText
-                        let bgColorClass = 'bg-green-50 dark:bg-green-900/20'
-                        let textColorClass = 'text-green-600 dark:text-green-400'
-
-                        if (isExpired && isInGracePeriod) {
-                          statusIcon = (
-                            <XCircle
-                              className="inline-block mr-1 text-red-600 dark:text-red-400"
-                              size={16}
-                            />
+                          const domainToShow = `${sld}.${tld}`
+                          const now = new Date()
+                          const expiryDate = new Date(
+                            forwardNameExpiryDate * 1000,
                           )
-                          statusText = `expired on ${expiryDate.toLocaleDateString()}`
-                          bgColorClass = 'bg-red-50 dark:bg-red-900/20'
-                          textColorClass = 'text-red-600 dark:text-red-400'
-                        } else if (isWithinThreeMonths) {
-                          statusIcon = (
-                            <AlertCircle
-                              className="inline-block mr-1 text-yellow-600 dark:text-yellow-400"
-                              size={16}
-                            />
-                          )
-                          statusText = `expires on ${expiryDate.toLocaleDateString()}`
-                          bgColorClass = 'bg-yellow-50 dark:bg-yellow-900/20'
-                          textColorClass = 'text-yellow-600 dark:text-yellow-400'
-                        } else {
-                          statusIcon = (
-                            <CheckCircle
-                              className="inline-block mr-1 text-green-600 dark:text-green-400"
-                              size={16}
-                            />
-                          )
-                          statusText = `valid until ${expiryDate.toLocaleDateString()}`
-                          bgColorClass = 'bg-green-50 dark:bg-green-900/20'
-                          textColorClass = 'text-green-600 dark:text-green-400'
-                        }
+                          const threeMonthsFromNow = new Date()
+                          threeMonthsFromNow.setMonth(now.getMonth() + 3)
 
-                        const showDomainSeparately = domainToShow !== forwardName
+                          const isExpired = expiryDate < now
+                          const isWithinThreeMonths =
+                            !isExpired && expiryDate < threeMonthsFromNow
+                          const ninetyDaysInMs = 90 * 24 * 60 * 60 * 1000
+                          const isInGracePeriod =
+                            isExpired &&
+                            now.getTime() - expiryDate.getTime() <
+                              ninetyDaysInMs
 
-                        return (
-                          <div className="flex items-center">
-                            {showDomainSeparately && (
-                              <span className="text-gray-800 dark:text-gray-400 px-2 py-1 rounded-md bg-gray-100 dark:bg-gray-800 text-sm mr-2">
-                                {domainToShow}
+                          let statusIcon
+                          let statusText
+                          let bgColorClass = 'bg-green-50 dark:bg-green-900/20'
+                          let textColorClass =
+                            'text-green-600 dark:text-green-400'
+
+                          if (isExpired && isInGracePeriod) {
+                            statusIcon = (
+                              <XCircle
+                                className="inline-block mr-1 text-red-600 dark:text-red-400"
+                                size={16}
+                              />
+                            )
+                            statusText = `expired on ${expiryDate.toLocaleDateString()}`
+                            bgColorClass = 'bg-red-50 dark:bg-red-900/20'
+                            textColorClass = 'text-red-600 dark:text-red-400'
+                          } else if (isWithinThreeMonths) {
+                            statusIcon = (
+                              <AlertCircle
+                                className="inline-block mr-1 text-yellow-600 dark:text-yellow-400"
+                                size={16}
+                              />
+                            )
+                            statusText = `expires on ${expiryDate.toLocaleDateString()}`
+                            bgColorClass = 'bg-yellow-50 dark:bg-yellow-900/20'
+                            textColorClass =
+                              'text-yellow-600 dark:text-yellow-400'
+                          } else {
+                            statusIcon = (
+                              <CheckCircle
+                                className="inline-block mr-1 text-green-600 dark:text-green-400"
+                                size={16}
+                              />
+                            )
+                            statusText = `valid until ${expiryDate.toLocaleDateString()}`
+                            bgColorClass = 'bg-green-50 dark:bg-green-900/20'
+                            textColorClass =
+                              'text-green-600 dark:text-green-400'
+                          }
+
+                          const showDomainSeparately =
+                            domainToShow !== forwardName
+
+                          return (
+                            <div className="flex items-center">
+                              {showDomainSeparately && (
+                                <span className="text-gray-800 dark:text-gray-400 px-2 py-1 rounded-md bg-gray-100 dark:bg-gray-800 text-sm mr-2">
+                                  {domainToShow}
+                                </span>
+                              )}
+                              <span
+                                className={`inline-flex items-center px-3 py-1 rounded-md text-sm font-medium ${bgColorClass} ${textColorClass}`}
+                              >
+                                {statusIcon}
+                                <span className="whitespace-nowrap">
+                                  {statusText}
+                                </span>
                               </span>
-                            )}
-                            <span
-                              className={`inline-flex items-center px-3 py-1 rounded-md text-sm font-medium ${bgColorClass} ${textColorClass}`}
-                            >
-                              {statusIcon}
-                              <span className="whitespace-nowrap">
-                                {statusText}
-                              </span>
-                            </span>
-                          </div>
-                        )
-                      })()}
+                            </div>
+                          )
+                        })()}
                     </div>
                   </div>
                 </div>
@@ -1505,7 +1618,11 @@ export default function ENSDetails({
             Object.keys(textRecords).length > 0 && (
               <div className="mt-6 space-y-6">
                 {/* Name/Alias, Description, URL with Avatar */}
-                {(textRecords.name || textRecords.alias || textRecords.description || textRecords.url || textRecords.avatar) && (
+                {(textRecords.name ||
+                  textRecords.alias ||
+                  textRecords.description ||
+                  textRecords.url ||
+                  textRecords.avatar) && (
                   <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
                     <div className="flex gap-6">
                       {/* Avatar Section (Left) */}
@@ -1674,7 +1791,9 @@ export default function ENSDetails({
                                             </span>
                                             {audit.url && (
                                               <>
-                                                <span className="mx-2 text-gray-400">•</span>
+                                                <span className="mx-2 text-gray-400">
+                                                  •
+                                                </span>
                                                 <a
                                                   href={
                                                     audit.url.startsWith('http')
@@ -1711,7 +1830,9 @@ export default function ENSDetails({
                                             <span className="text-sm font-medium text-gray-900 dark:text-white">
                                               {auditorName}
                                             </span>
-                                            <span className="mx-2 text-gray-400">•</span>
+                                            <span className="mx-2 text-gray-400">
+                                              •
+                                            </span>
                                             <a
                                               href={
                                                 typeof url === 'string' &&
@@ -1801,39 +1922,74 @@ export default function ENSDetails({
                         </summary>
                         <div className="mt-2 h-64 overflow-y-auto bg-gray-50 dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
                           {/* Functions */}
-                          {sourcifyMetadata.abi.filter((item: any) => item.type === 'function').length > 0 && (
+                          {sourcifyMetadata.abi.filter(
+                            (item: any) => item.type === 'function',
+                          ).length > 0 && (
                             <div>
-                              <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">Functions</p>
+                              <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                                Functions
+                              </p>
                               <div className="space-y-1">
                                 {sourcifyMetadata.abi
-                                  .filter((item: any) => item.type === 'function')
+                                  .filter(
+                                    (item: any) => item.type === 'function',
+                                  )
                                   .map((func: any, index: number) => (
-                                    <div key={index} className="text-xs font-mono text-gray-700 dark:text-gray-300 break-all">
-                                      <span className="text-green-600 dark:text-green-400">{func.name}</span>
+                                    <div
+                                      key={index}
+                                      className="text-xs font-mono text-gray-700 dark:text-gray-300 break-all"
+                                    >
+                                      <span className="text-green-600 dark:text-green-400">
+                                        {func.name}
+                                      </span>
                                       <span className="text-gray-500">(</span>
-                                      {func.inputs?.map((input: any, i: number) => (
-                                        <span key={i}>
-                                          <span className="text-blue-600 dark:text-blue-400">{input.type}</span>
-                                          {input.name && <span className="text-gray-600 dark:text-gray-400"> {input.name}</span>}
-                                          {i < func.inputs.length - 1 && <span className="text-gray-500">, </span>}
-                                        </span>
-                                      ))}
-                                      <span className="text-gray-500">)</span>
-                                      {func.stateMutability && func.stateMutability !== 'nonpayable' && (
-                                        <span className="text-yellow-600 dark:text-yellow-400 ml-2">{func.stateMutability}</span>
-                                      )}
-                                      {func.outputs && func.outputs.length > 0 && (
-                                        <span className="text-gray-500">
-                                          {' returns ('}
-                                          {func.outputs.map((output: any, i: number) => (
-                                            <span key={i}>
-                                              <span className="text-blue-600 dark:text-blue-400">{output.type}</span>
-                                              {i < func.outputs.length - 1 && ', '}
+                                      {func.inputs?.map(
+                                        (input: any, i: number) => (
+                                          <span key={i}>
+                                            <span className="text-blue-600 dark:text-blue-400">
+                                              {input.type}
                                             </span>
-                                          ))}
-                                          {')'}
-                                        </span>
+                                            {input.name && (
+                                              <span className="text-gray-600 dark:text-gray-400">
+                                                {' '}
+                                                {input.name}
+                                              </span>
+                                            )}
+                                            {i < func.inputs.length - 1 && (
+                                              <span className="text-gray-500">
+                                                ,{' '}
+                                              </span>
+                                            )}
+                                          </span>
+                                        ),
                                       )}
+                                      <span className="text-gray-500">)</span>
+                                      {func.stateMutability &&
+                                        func.stateMutability !==
+                                          'nonpayable' && (
+                                          <span className="text-yellow-600 dark:text-yellow-400 ml-2">
+                                            {func.stateMutability}
+                                          </span>
+                                        )}
+                                      {func.outputs &&
+                                        func.outputs.length > 0 && (
+                                          <span className="text-gray-500">
+                                            {' returns ('}
+                                            {func.outputs.map(
+                                              (output: any, i: number) => (
+                                                <span key={i}>
+                                                  <span className="text-blue-600 dark:text-blue-400">
+                                                    {output.type}
+                                                  </span>
+                                                  {i <
+                                                    func.outputs.length - 1 &&
+                                                    ', '}
+                                                </span>
+                                              ),
+                                            )}
+                                            {')'}
+                                          </span>
+                                        )}
                                     </div>
                                   ))}
                               </div>
@@ -1841,24 +1997,51 @@ export default function ENSDetails({
                           )}
 
                           {/* Events */}
-                          {sourcifyMetadata.abi.filter((item: any) => item.type === 'event').length > 0 && (
+                          {sourcifyMetadata.abi.filter(
+                            (item: any) => item.type === 'event',
+                          ).length > 0 && (
                             <div>
-                              <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">Events</p>
+                              <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                                Events
+                              </p>
                               <div className="space-y-1">
                                 {sourcifyMetadata.abi
                                   .filter((item: any) => item.type === 'event')
                                   .map((event: any, index: number) => (
-                                    <div key={index} className="text-xs font-mono break-all">
-                                      <span className="text-yellow-600 dark:text-yellow-400">{event.name}</span>
+                                    <div
+                                      key={index}
+                                      className="text-xs font-mono break-all"
+                                    >
+                                      <span className="text-yellow-600 dark:text-yellow-400">
+                                        {event.name}
+                                      </span>
                                       <span className="text-gray-500">(</span>
-                                      {event.inputs?.map((input: any, i: number) => (
-                                        <span key={i} className="text-gray-600 dark:text-gray-400">
-                                          <span className="text-blue-600 dark:text-blue-400">{input.type}</span>
-                                          {input.indexed && <span className="text-purple-600 dark:text-purple-400"> indexed</span>}
-                                          {input.name && <span> {input.name}</span>}
-                                          {i < event.inputs.length - 1 && <span className="text-gray-500">, </span>}
-                                        </span>
-                                      ))}
+                                      {event.inputs?.map(
+                                        (input: any, i: number) => (
+                                          <span
+                                            key={i}
+                                            className="text-gray-600 dark:text-gray-400"
+                                          >
+                                            <span className="text-blue-600 dark:text-blue-400">
+                                              {input.type}
+                                            </span>
+                                            {input.indexed && (
+                                              <span className="text-purple-600 dark:text-purple-400">
+                                                {' '}
+                                                indexed
+                                              </span>
+                                            )}
+                                            {input.name && (
+                                              <span> {input.name}</span>
+                                            )}
+                                            {i < event.inputs.length - 1 && (
+                                              <span className="text-gray-500">
+                                                ,{' '}
+                                              </span>
+                                            )}
+                                          </span>
+                                        ),
+                                      )}
                                       <span className="text-gray-500">)</span>
                                     </div>
                                   ))}
@@ -1867,23 +2050,43 @@ export default function ENSDetails({
                           )}
 
                           {/* Errors */}
-                          {sourcifyMetadata.abi.filter((item: any) => item.type === 'error').length > 0 && (
+                          {sourcifyMetadata.abi.filter(
+                            (item: any) => item.type === 'error',
+                          ).length > 0 && (
                             <div>
-                              <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">Errors</p>
+                              <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                                Errors
+                              </p>
                               <div className="space-y-1">
                                 {sourcifyMetadata.abi
                                   .filter((item: any) => item.type === 'error')
                                   .map((error: any, index: number) => (
-                                    <div key={index} className="text-xs font-mono text-red-600 dark:text-red-400 break-all">
+                                    <div
+                                      key={index}
+                                      className="text-xs font-mono text-red-600 dark:text-red-400 break-all"
+                                    >
                                       {error.name}
                                       <span className="text-gray-500">(</span>
-                                      {error.inputs?.map((input: any, i: number) => (
-                                        <span key={i} className="text-gray-600 dark:text-gray-400">
-                                          <span className="text-blue-600 dark:text-blue-400">{input.type}</span>
-                                          {input.name && <span> {input.name}</span>}
-                                          {i < error.inputs.length - 1 && <span className="text-gray-500">, </span>}
-                                        </span>
-                                      ))}
+                                      {error.inputs?.map(
+                                        (input: any, i: number) => (
+                                          <span
+                                            key={i}
+                                            className="text-gray-600 dark:text-gray-400"
+                                          >
+                                            <span className="text-blue-600 dark:text-blue-400">
+                                              {input.type}
+                                            </span>
+                                            {input.name && (
+                                              <span> {input.name}</span>
+                                            )}
+                                            {i < error.inputs.length - 1 && (
+                                              <span className="text-gray-500">
+                                                ,{' '}
+                                              </span>
+                                            )}
+                                          </span>
+                                        ),
+                                      )}
                                       <span className="text-gray-500">)</span>
                                     </div>
                                   ))}
@@ -1896,939 +2099,1029 @@ export default function ENSDetails({
                   )}
 
                   {/* Source Files */}
-                  {sourcifyMetadata.metadata?.sources && Object.keys(sourcifyMetadata.metadata.sources).length > 0 && (
-                    <div>
-                      <details className="group cursor-pointer">
-                        <summary className="text-xs font-medium text-gray-500 dark:text-gray-400 flex items-center justify-between py-1">
-                          <span>Source Files</span>
-                          <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
-                        </summary>
-                        <div className="mt-2 h-48 overflow-y-auto space-y-2 bg-gray-50 dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
-                          {Object.entries(sourcifyMetadata.metadata.sources).map(([fileName, fileData]: [string, any], index) => (
-                            <div key={index} className="flex items-center justify-between text-xs bg-white dark:bg-gray-900 p-2 rounded">
-                              <span className="text-gray-700 dark:text-gray-300 font-mono truncate">{fileName}</span>
-                              {fileData.urls && fileData.urls[0] && (
-                                <a
-                                  href={fileData.urls[0]}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1 ml-2 flex-shrink-0"
+                  {sourcifyMetadata.metadata?.sources &&
+                    Object.keys(sourcifyMetadata.metadata.sources).length >
+                      0 && (
+                      <div>
+                        <details className="group cursor-pointer">
+                          <summary className="text-xs font-medium text-gray-500 dark:text-gray-400 flex items-center justify-between py-1">
+                            <span>Source Files</span>
+                            <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
+                          </summary>
+                          <div className="mt-2 h-48 overflow-y-auto space-y-2 bg-gray-50 dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+                            {Object.entries(
+                              sourcifyMetadata.metadata.sources,
+                            ).map(
+                              ([fileName, fileData]: [string, any], index) => (
+                                <div
+                                  key={index}
+                                  className="flex items-center justify-between text-xs bg-white dark:bg-gray-900 p-2 rounded"
                                 >
-                                  ipfs://
-                                  <ExternalLink className="h-3 w-3" />
-                                </a>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </details>
-                    </div>
-                  )}
+                                  <span className="text-gray-700 dark:text-gray-300 font-mono truncate">
+                                    {fileName}
+                                  </span>
+                                  {fileData.urls && fileData.urls[0] && (
+                                    <a
+                                      href={fileData.urls[0]}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1 ml-2 flex-shrink-0"
+                                    >
+                                      ipfs://
+                                      <ExternalLink className="h-3 w-3" />
+                                    </a>
+                                  )}
+                                </div>
+                              ),
+                            )}
+                          </div>
+                        </details>
+                      </div>
+                    )}
                 </div>
               </div>
             </div>
           )}
 
           {/* Organization and management details - 2 Cards */}
-          {isContract && (queriedENSName || primaryName || selectedForwardName) && (
-            <div className="mt-6">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                Organization and management details
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Card 1: Owner, Manager, Parent */}
-                <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-                  <div className="space-y-3 text-xs">
-                    <div>
-                      <span className="text-gray-500 dark:text-gray-400">Owner:</span>
-                      {ensNameOwner ? (
-                        <Link
-                          href={`/explore/${effectiveChainId}/${ensNameOwner}`}
-                          className="text-blue-600 dark:text-blue-400 hover:underline font-mono text-xs break-all block mt-1"
-                        >
-                          {ensNameOwner}
-                        </Link>
-                      ) : (
-                        <p className="text-gray-500 dark:text-gray-400 mt-1">Loading...</p>
-                      )}
-                    </div>
-                    <div>
-                      <span className="text-gray-500 dark:text-gray-400">Manager:</span>
-                      {ensNameManager ? (
-                        <Link
-                          href={`/explore/${effectiveChainId}/${ensNameManager}`}
-                          className="text-blue-600 dark:text-blue-400 hover:underline font-mono text-xs break-all block mt-1"
-                        >
-                          {ensNameManager}
-                        </Link>
-                      ) : (
-                        <p className="text-gray-500 dark:text-gray-400 mt-1">Loading...</p>
-                      )}
-                    </div>
-                    <div>
-                      <span className="text-gray-500 dark:text-gray-400">Parent:</span>
-                      <div className="mt-1">
-                        {(() => {
-                          const currentName = queriedENSName || primaryName || selectedForwardName || ''
-                          const parts = currentName.split('.')
-                          if (parts.length > 2) {
-                            const parentName = parts.slice(1).join('.')
-                            return (
-                              <Link
-                                href={`/explore/${effectiveChainId}/${parentName}`}
-                                className="text-blue-600 dark:text-blue-400 hover:underline font-mono"
-                              >
-                                {parentName}
-                              </Link>
-                            )
-                          }
-                          return <span className="text-gray-500">No parent (top-level domain)</span>
-                        })()}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Card 2: Organization (2LD), Org Owner, Org Manager */}
-                <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-                  <div className="space-y-3 text-xs">
-                    <div>
-                      <span className="text-gray-500 dark:text-gray-400">Organization:</span>
-                      <div className="mt-1">
-                        {(() => {
-                          const currentName = queriedENSName || primaryName || selectedForwardName || ''
-                          const parts = currentName.split('.')
-                          if (parts.length >= 2) {
-                            const tld = parts[parts.length - 1]
-                            const sld = parts[parts.length - 2]
-                            const tldName = `${sld}.${tld}`
-                            return (
-                              <Link
-                                href={`/explore/${effectiveChainId}/${tldName}`}
-                                className="text-blue-600 dark:text-blue-400 hover:underline font-mono text-sm font-semibold"
-                              >
-                                {tldName}
-                              </Link>
-                            )
-                          }
-                          return <span className="text-gray-500">N/A</span>
-                        })()}
-                      </div>
-                    </div>
-                    <div>
-                      <span className="text-gray-500 dark:text-gray-400">Org Owner:</span>
-                      {tldOwner ? (
-                        <Link
-                          href={`/explore/${effectiveChainId}/${tldOwner}`}
-                          className="text-blue-600 dark:text-blue-400 hover:underline font-mono text-xs break-all block mt-1"
-                        >
-                          {tldOwner}
-                        </Link>
-                      ) : (
-                        <p className="text-gray-500 dark:text-gray-400 mt-1">Loading...</p>
-                      )}
-                    </div>
-                    <div>
-                      <span className="text-gray-500 dark:text-gray-400">Org Manager:</span>
-                      {tldManager ? (
-                        <Link
-                          href={`/explore/${effectiveChainId}/${tldManager}`}
-                          className="text-blue-600 dark:text-blue-400 hover:underline font-mono text-xs break-all block mt-1"
-                        >
-                          {tldManager}
-                        </Link>
-                      ) : (
-                        <p className="text-gray-500 dark:text-gray-400 mt-1">Loading...</p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Other Details - Expandable Section */}
-          <div className="mt-6">
-            <div
-              className="flex items-center justify-between cursor-pointer bg-gray-50 dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800"
-              onClick={() => setOtherDetailsExpanded(!otherDetailsExpanded)}
-            >
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                Other Details
-              </h3>
-              {otherDetailsExpanded ? (
-                <ChevronUp className="h-5 w-5" />
-              ) : (
-                <ChevronDown className="h-5 w-5" />
-              )}
-            </div>
-
-            {otherDetailsExpanded && (
-              <div className="mt-4 space-y-6">
-                {/* Contract Deployer */}
-                {isContract && contractDeployerAddress && (
-                  <div>
-                    <div className="flex items-center mt-2">
-                      <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                        Contract Deployer
-                      </h3>
-                    </div>
-                    <div className="flex items-center mt-1">
-                      <Link
-                        href={`${window.location.protocol}//${window.location.host}/explore/${chainId}/${contractDeployerAddress}`}
-                        className={
-                          'text-blue-600 underline font-mono text-sm break-all'
-                        }
-                      >
-                        {contractDeployerPrimaryName !== null &&
-                          contractDeployerPrimaryName}
-                        {contractDeployerPrimaryName === null &&
-                          contractDeployerAddress}
-                      </Link>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="ml-2"
-                        onClick={() =>
-                          copyToClipboard(
-                            contractDeployerAddress,
-                            'contractDeployerAddress',
-                          )
-                        }
-                      >
-                        {copied['contractDeployerAddress'] ? (
-                          <Check className="h-4 w-4 text-green-500" />
-                        ) : (
-                          <Copy className="h-4 w-4" />
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-                )}
-
-            {isContract &&
-              proxyInfo?.isProxy &&
-              proxyInfo.implementationAddress &&
-              !isNestedView && (
-                <div className="mt-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                      Implementation Address
-                    </span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() =>
-                        setImplementationExpanded(!implementationExpanded)
-                      }
-                      className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400"
-                    >
-                      {implementationExpanded ? 'Hide Details' : 'Show Details'}
-                      {implementationExpanded ? (
-                        <ChevronUp className="h-4 w-4" />
-                      ) : (
-                        <ChevronDown className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </div>
-
-                  <div className="flex items-center mt-1">
-                    <code className="text-sm font-mono break-all text-yellow-600 dark:text-yellow-400 hover:text-yellow-800 cursor-pointer">
-                      <Link
-                        href={`/explore/${effectiveChainId}/${proxyInfo.implementationAddress}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        {proxyInfo.implementationAddress}
-                      </Link>
-                    </code>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="ml-2"
-                      onClick={() =>
-                        proxyInfo.implementationAddress &&
-                        copyToClipboard(
-                          proxyInfo.implementationAddress,
-                          'implementation',
-                        )
-                      }
-                    >
-                      {copied['implementation'] ? (
-                        <Check className="h-4 w-4 text-green-500" />
-                      ) : (
-                        <Copy className="h-4 w-4" />
-                      )}
-                    </Button>
-                    <Button variant="ghost" size="sm" className="ml-1" asChild>
-                      <a
-                        href={`${etherscanUrl}address/${proxyInfo.implementationAddress}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        <ExternalLink className="h-4 w-4" />
-                      </a>
-                    </Button>
-                  </div>
-
-                  {implementationExpanded && (
-                    <div className="mt-4 border-l-2 border-blue-300 dark:border-blue-700 pl-4 py-1">
-                      <div className="mb-2 text-sm font-medium text-blue-600 dark:text-blue-400">
-                        Implementation Contract Details
-                      </div>
-                      <ENSDetails
-                        address={proxyInfo.implementationAddress}
-                        contractDeployerAddress={null}
-                        contractDeployerName={null}
-                        chainId={effectiveChainId}
-                        isContract={true}
-                        isNestedView={true}
-                      />
-                    </div>
-                  )}
-                </div>
-                )}
-
-                {/* Contract Verification Status */}
-                {isContract && verificationStatus && (
-            <div>
-              <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                Contract Verification
-              </h3>
-              <div className="flex flex-wrap gap-2 mt-2">
-                {(verificationStatus.sourcify_verification === 'exact_match' ||
-                  verificationStatus.sourcify_verification === 'match') && (
-                  <div className="flex items-center gap-2">
-                    <Button
-                      asChild
-                      size="sm"
-                      variant="outline"
-                      className="border border-green-800 text-green-800 hover:bg-emerald-100 dark:border-green-400 dark:text-green-400 dark:bg-black dark:hover:bg-green-900/20 text-xs px-2 py-1 h-auto flex items-center gap-1"
-                    >
-                      <Link
-                        href={`${SOURCIFY_URL}${effectiveChainId}/${address.toLowerCase()}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="cursor-pointer"
-                      >
-                        <img
-                          src="/sourcify.svg"
-                          alt="Sourcify"
-                          className="w-4 h-4"
-                        />
-                        Verified
-                      </Link>
-                    </Button>
-                  </div>
-                )}
-                {verificationStatus.etherscan_verification === 'verified' && (
-                  <div className="flex items-center gap-2">
-                    <Button
-                      asChild
-                      size="sm"
-                      variant="outline"
-                      className="border border-green-800 text-green-800 hover:bg-emerald-100 dark:border-green-400 dark:text-green-400 dark:bg-black dark:hover:bg-green-900/20 text-xs px-2 py-1 h-auto flex items-center gap-1"
-                    >
-                      <Link
-                        href={`${etherscanUrl}address/${address}#code`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        <img
-                          src="/etherscan.svg"
-                          alt="Etherscan"
-                          className="w-4 h-4"
-                        />
-                        Verified
-                      </Link>
-                    </Button>
-                  </div>
-                )}
-                {(verificationStatus.blockscout_verification ===
-                  'exact_match' ||
-                  verificationStatus.blockscout_verification === 'match') && (
-                  <div className="flex items-center gap-2">
-                    <Button
-                      asChild
-                      size="sm"
-                      variant="outline"
-                      className="border border-green-800 text-green-800 hover:bg-emerald-100 dark:border-green-400 dark:text-green-400 dark:bg-black dark:hover:bg-green-900/20 text-xs px-2 py-1 h-auto flex items-center gap-1"
-                    >
-                      <Link
-                        href={`${config?.BLOCKSCOUT_URL}address/${address.toLowerCase()}?tab=contract`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="cursor-pointer"
-                      >
-                        <img
-                          src="/blockscout.svg"
-                          alt="Blockscout"
-                          className="w-4 h-4"
-                        />
-                        Verified
-                      </Link>
-                    </Button>
-                  </div>
-                )}
-                {verificationStatus.sourcify_verification === 'unverified' && (
-                  <div className="flex items-center gap-2">
-                    <Button
-                      asChild
-                      size="sm"
-                      variant="outline"
-                      className="hover:bg-gray-200 dark:hover:bg-gray-700 dark:text-gray-300 dark:bg-black text-xs px-2 py-1 h-auto flex items-center gap-1"
-                    >
-                      <Link
-                        href={`https://sourcify.dev/#/verifier`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        <img
-                          src="/sourcify.svg"
-                          alt="Sourcify"
-                          className="w-4 h-4"
-                        />
-                        Verify
-                      </Link>
-                    </Button>
-                  </div>
-                )}
-                {verificationStatus.etherscan_verification === 'unverified' && (
-                  <div className="flex items-center gap-2">
-                    <Button
-                      asChild
-                      size="sm"
-                      variant="outline"
-                      className="hover:bg-gray-200 dark:hover:bg-gray-700 dark:text-gray-300 dark:bg-black text-xs px-2 py-1 h-auto flex items-center gap-1"
-                    >
-                      <Link
-                        href={`${etherscanUrl}address/${address}#code`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        <img
-                          src="/etherscan.svg"
-                          alt="Etherscan"
-                          className="w-4 h-4"
-                        />
-                        Verify
-                      </Link>
-                    </Button>
-                  </div>
-                )}
-                {verificationStatus.blockscout_verification ===
-                  'unverified' && (
-                  <div className="flex items-center gap-2">
-                    <Button
-                      asChild
-                      size="sm"
-                      variant="outline"
-                      className="hover:bg-gray-200 dark:hover:bg-gray-700 dark:text-gray-300 dark:bg-black text-xs px-2 py-1 h-auto flex items-center gap-1"
-                    >
-                      <Link
-                        href={`${config?.BLOCKSCOUT_URL}address/${address.toLowerCase()}?tab=contract`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="cursor-pointer"
-                      >
-                        <img
-                          src="/blockscout.svg"
-                          alt="Blockscout"
-                          className="w-4 h-4"
-                        />
-                        Verify
-                      </Link>
-                    </Button>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Contract Security Audits */}
           {isContract &&
-            verificationStatus &&
-            (verificationStatus.diligence_audit ||
-              verificationStatus.openZepplin_audit ||
-              verificationStatus.cyfrin_audit) && (
-              <div className="mt-4">
-                <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                  Contract Security Audits
+            (queriedENSName || primaryName || selectedForwardName) && (
+              <div className="mt-6">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                  Organization and management details
                 </h3>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {verificationStatus.diligence_audit && (
-                    <div className="flex items-center gap-2">
-                      <Button
-                        asChild
-                        size="sm"
-                        variant="outline"
-                        className="border border-blue-800 text-black hover:bg-blue-100 dark:border-gray-600 dark:text-white dark:bg-black dark:hover:bg-gray-800 text-xs px-2 py-1 h-auto flex items-center gap-1"
-                      >
-                        <Link
-                          href={verificationStatus.diligence_audit}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="cursor-pointer"
-                        >
-                          <img
-                            src="/consensys.svg"
-                            alt="ConsenSys Diligence"
-                            className="w-4 h-4"
-                          />
-                          ConsenSys Diligence
-                        </Link>
-                      </Button>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Card 1: Owner, Manager, Parent */}
+                  <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                    <div className="space-y-3 text-xs">
+                      <div>
+                        <span className="text-gray-500 dark:text-gray-400">
+                          Owner:
+                        </span>
+                        {ensNameOwner ? (
+                          <Link
+                            href={`/explore/${effectiveChainId}/${ensNameOwner}`}
+                            className="text-blue-600 dark:text-blue-400 hover:underline font-mono text-xs break-all block mt-1"
+                          >
+                            {ensNameOwnerResolved || ensNameOwner}
+                          </Link>
+                        ) : (
+                          <p className="text-gray-500 dark:text-gray-400 mt-1">
+                            Loading...
+                          </p>
+                        )}
+                      </div>
+                      <div>
+                        <span className="text-gray-500 dark:text-gray-400">
+                          Manager:
+                        </span>
+                        {ensNameManager ? (
+                          <Link
+                            href={`/explore/${effectiveChainId}/${ensNameManager}`}
+                            className="text-blue-600 dark:text-blue-400 hover:underline font-mono text-xs break-all block mt-1"
+                          >
+                            {ensNameManagerResolved || ensNameManager}
+                          </Link>
+                        ) : (
+                          <p className="text-gray-500 dark:text-gray-400 mt-1">
+                            Loading...
+                          </p>
+                        )}
+                      </div>
+                      <div>
+                        <span className="text-gray-500 dark:text-gray-400">
+                          Parent:
+                        </span>
+                        <div className="mt-1">
+                          {(() => {
+                            const currentName =
+                              queriedENSName ||
+                              primaryName ||
+                              selectedForwardName ||
+                              ''
+                            const parts = currentName.split('.')
+                            if (parts.length > 2) {
+                              const parentName = parts.slice(1).join('.')
+                              return (
+                                <Link
+                                  href={`/explore/${effectiveChainId}/${parentName}`}
+                                  className="text-blue-600 dark:text-blue-400 hover:underline font-mono"
+                                >
+                                  {parentName}
+                                </Link>
+                              )
+                            }
+                            return (
+                              <span className="text-gray-500">
+                                No parent (top-level domain)
+                              </span>
+                            )
+                          })()}
+                        </div>
+                      </div>
                     </div>
-                  )}
-                  {verificationStatus.openZepplin_audit && (
-                    <div className="flex items-center gap-2">
-                      <Button
-                        asChild
-                        size="sm"
-                        variant="outline"
-                        className="border border-blue-800 text-black hover:bg-blue-100 dark:border-gray-600 dark:text-white dark:bg-black dark:hover:bg-gray-800 text-xs px-2 py-1 h-auto flex items-center gap-1"
-                      >
-                        <Link
-                          href={verificationStatus.openZepplin_audit}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="cursor-pointer"
-                        >
-                          <img
-                            src="/oz.svg"
-                            alt="OpenZeppelin"
-                            className="w-4 h-4"
-                          />
-                          OpenZeppelin
-                        </Link>
-                      </Button>
+                  </div>
+
+                  {/* Card 2: Organization (2LD), Org Owner, Org Manager */}
+                  <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                    <div className="space-y-3 text-xs">
+                      <div>
+                        <span className="text-gray-500 dark:text-gray-400">
+                          Organization:
+                        </span>
+                        <div className="mt-1">
+                          {(() => {
+                            const currentName =
+                              queriedENSName ||
+                              primaryName ||
+                              selectedForwardName ||
+                              ''
+                            const parts = currentName.split('.')
+                            if (parts.length >= 2) {
+                              const tld = parts[parts.length - 1]
+                              const sld = parts[parts.length - 2]
+                              const tldName = `${sld}.${tld}`
+                              return (
+                                <Link
+                                  href={`/explore/${effectiveChainId}/${tldName}`}
+                                  className="text-blue-600 dark:text-blue-400 hover:underline font-mono text-sm font-semibold"
+                                >
+                                  {tldName}
+                                </Link>
+                              )
+                            }
+                            return <span className="text-gray-500">N/A</span>
+                          })()}
+                        </div>
+                      </div>
+                      <div>
+                        <span className="text-gray-500 dark:text-gray-400">
+                          Org Owner:
+                        </span>
+                        {tldOwner ? (
+                          <Link
+                            href={`/explore/${effectiveChainId}/${tldOwner}`}
+                            className="text-blue-600 dark:text-blue-400 hover:underline font-mono text-xs break-all block mt-1"
+                          >
+                            {tldOwnerResolved || tldOwner}
+                          </Link>
+                        ) : (
+                          <p className="text-gray-500 dark:text-gray-400 mt-1">
+                            Loading...
+                          </p>
+                        )}
+                      </div>
+                      <div>
+                        <span className="text-gray-500 dark:text-gray-400">
+                          Org Manager:
+                        </span>
+                        {tldManager ? (
+                          <Link
+                            href={`/explore/${effectiveChainId}/${tldManager}`}
+                            className="text-blue-600 dark:text-blue-400 hover:underline font-mono text-xs break-all block mt-1"
+                          >
+                            {tldManagerResolved || tldManager}
+                          </Link>
+                        ) : (
+                          <p className="text-gray-500 dark:text-gray-400 mt-1">
+                            Loading...
+                          </p>
+                        )}
+                      </div>
                     </div>
-                  )}
-                  {verificationStatus.cyfrin_audit && (
-                    <div className="flex items-center gap-2">
-                      <Button
-                        asChild
-                        size="sm"
-                        variant="outline"
-                        className="border border-blue-800 text-black hover:bg-blue-100 dark:border-gray-600 dark:text-white dark:bg-black dark:hover:bg-gray-800 text-xs px-2 py-1 h-auto flex items-center gap-1"
-                      >
-                        <Link
-                          href={verificationStatus.cyfrin_audit}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="cursor-pointer"
-                        >
-                          <img
-                            src="/cyfrin.svg"
-                            alt="Cyfrin"
-                            className="w-4 h-4"
-                          />
-                          Cyfrin
-                        </Link>
-                      </Button>
-                    </div>
-                  )}
+                  </div>
                 </div>
               </div>
             )}
 
-          {isContract && (
-            <div className="mt-4">
-              <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                Contract Attestations
-              </h3>
-              <div className="flex flex-wrap gap-2 mt-2">
-                {hasAttestations ? (
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="border border-blue-800 text-black hover:bg-blue-100 dark:border-gray-600 dark:text-white dark:bg-black dark:hover:bg-gray-800 text-xs px-2 py-1 h-auto flex items-center gap-1"
-                          asChild
-                        >
-                          <Link
-                            href={`${OLI_ATTESTATION_URL}?contract=${address}&chainId=${chainId}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="cursor-pointer"
-                          >
-                            <img
-                              src="/oli_logo.jpg"
-                              alt="oli"
-                              className="w-4 h-4"
-                            />
-                            Label on OLI
-                          </Link>
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent side="top" align="center">
-                        <p>Create label on Open Labels Initiative</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                ) : (
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="border border-blue-800 text-black hover:bg-blue-100 dark:border-gray-600 dark:text-white dark:bg-black dark:hover:bg-gray-800 text-xs px-2 py-1 h-auto flex items-center gap-1"
-                          asChild
-                        >
-                          <Link
-                            href={`${OLI_SEARCH_URL}?address=${address}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="cursor-pointer"
-                          >
-                            <img
-                              src="/oli_logo.jpg"
-                              alt="oli"
-                              className="w-4 h-4"
-                            />
-                            Labelled on OLI
-                          </Link>
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent side="top" align="center">
-                        <p>View label on Open Labels Initiative</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                )}
-              </div>
-            </div>
-          )}
-
-          <div>
-            {ensNames.length > 0 ? (
-              <>
-                <button
-                  onClick={() =>
-                    setAssociatedNamesExpanded(!associatedNamesExpanded)
-                  }
-                  className="flex items-center justify-between w-full p-3 mb-2 text-left bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"
-                >
-                  <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Associated ENS Names ({ensNames.length})
-                  </h3>
-                  {associatedNamesExpanded ? (
-                    <ChevronUp className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+          {/* Other Details - Card-based Expandable Section */}
+          <div className="mt-6">
+            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
+              {/* Card Header - Clickable */}
+              <div
+                className="flex items-center justify-between cursor-pointer p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors rounded-t-lg"
+                onClick={() => setOtherDetailsExpanded(!otherDetailsExpanded)}
+              >
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Other Details
+                </h3>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                    {otherDetailsExpanded
+                      ? 'Click to collapse'
+                      : 'Click to expand'}
+                  </span>
+                  {otherDetailsExpanded ? (
+                    <ChevronUp className="h-5 w-5 text-gray-500" />
                   ) : (
-                    <ChevronDown className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                    <ChevronDown className="h-5 w-5 text-gray-500" />
                   )}
-                </button>
-                {associatedNamesExpanded && (
-                  <div className="border border-gray-200 dark:border-gray-700 rounded-md overflow-hidden mb-4">
-                    <div className="max-h-60 overflow-y-auto p-1 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600">
-                      <div className="space-y-2">
-                        {ensNames.map((domain, index) => (
-                          <div
-                            key={index}
-                            className={`flex items-center justify-between p-2 rounded ${
-                              domain.isPrimary
-                                ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800'
-                                : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
-                            }`}
+                </div>
+              </div>
+
+              {/* Card Content - Expandable */}
+              {otherDetailsExpanded && (
+                <div className="p-6 pt-4 border-t border-gray-100 dark:border-gray-700 space-y-6 bg-gray-50 dark:bg-gray-900 rounded-b-lg">
+                  {/* Contract Deployer */}
+                  {isContract && contractDeployerAddress && (
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
+                        Contract Deployer
+                      </h4>
+                      <div className="flex items-center">
+                        <Link
+                          href={`/explore/${effectiveChainId}/${contractDeployerAddress}`}
+                          className="text-blue-600 dark:text-blue-400 hover:underline font-mono text-sm break-all"
+                        >
+                          {deployerResolved ||
+                            contractDeployerPrimaryName ||
+                            contractDeployerAddress}
+                        </Link>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="ml-2"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            copyToClipboard(
+                              contractDeployerAddress,
+                              'contractDeployerAddress',
+                            )
+                          }}
+                        >
+                          {copied['contractDeployerAddress'] ? (
+                            <Check className="h-4 w-4 text-green-500" />
+                          ) : (
+                            <Copy className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {isContract &&
+                    proxyInfo?.isProxy &&
+                    proxyInfo.implementationAddress &&
+                    !isNestedView && (
+                      <div className="mt-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                            Implementation Address
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() =>
+                              setImplementationExpanded(!implementationExpanded)
+                            }
+                            className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400"
                           >
-                            <div className="flex items-center gap-1">
-                              <span className="font-mono text-sm text-gray-900 dark:text-gray-100 truncate px-2">
-                                {domain.name}
-                              </span>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-5 w-5 p-0 flex-shrink-0"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  copyToClipboard(
-                                    domain.name,
-                                    `associated-${index}`,
-                                  )
-                                }}
-                              >
-                                {copied[`associated-${index}`] ? (
-                                  <Check className="h-3 w-3 text-green-500" />
-                                ) : (
-                                  <Copy className="h-3 w-3" />
-                                )}
-                              </Button>
+                            {implementationExpanded
+                              ? 'Hide Details'
+                              : 'Show Details'}
+                            {implementationExpanded ? (
+                              <ChevronUp className="h-4 w-4" />
+                            ) : (
+                              <ChevronDown className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
+
+                        <div className="flex items-center mt-1">
+                          <code className="text-sm font-mono break-all text-yellow-600 dark:text-yellow-400 hover:text-yellow-800 cursor-pointer">
+                            <Link
+                              href={`/explore/${effectiveChainId}/${proxyInfo.implementationAddress}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              {proxyInfo.implementationAddress}
+                            </Link>
+                          </code>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="ml-2"
+                            onClick={() =>
+                              proxyInfo.implementationAddress &&
+                              copyToClipboard(
+                                proxyInfo.implementationAddress,
+                                'implementation',
+                              )
+                            }
+                          >
+                            {copied['implementation'] ? (
+                              <Check className="h-4 w-4 text-green-500" />
+                            ) : (
+                              <Copy className="h-4 w-4" />
+                            )}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="ml-1"
+                            asChild
+                          >
+                            <a
+                              href={`${etherscanUrl}address/${proxyInfo.implementationAddress}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              <ExternalLink className="h-4 w-4" />
+                            </a>
+                          </Button>
+                        </div>
+
+                        {implementationExpanded && (
+                          <div className="mt-4 border-l-2 border-blue-300 dark:border-blue-700 pl-4 py-1">
+                            <div className="mb-2 text-sm font-medium text-blue-600 dark:text-blue-400">
+                              Implementation Contract Details
                             </div>
+                            <ENSDetails
+                              address={proxyInfo.implementationAddress}
+                              contractDeployerAddress={null}
+                              contractDeployerName={null}
+                              chainId={effectiveChainId}
+                              isContract={true}
+                              isNestedView={true}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )}
 
-                            <div className="flex items-center gap-2">
-                              {domain.expiryDate && (
-                                <span className="text-xs whitespace-nowrap">
-                                  {(() => {
-                                    const now = new Date()
-                                    const expiryDate = new Date(
-                                      domain.expiryDate * 1000,
-                                    )
-                                    const threeMonthsFromNow = new Date()
-                                    threeMonthsFromNow.setMonth(
-                                      now.getMonth() + 3,
-                                    )
-
-                                    const isExpired = expiryDate < now
-                                    const isWithinThreeMonths =
-                                      !isExpired &&
-                                      expiryDate < threeMonthsFromNow
-                                    const ninetyDaysInMs =
-                                      90 * 24 * 60 * 60 * 1000
-                                    const isInGracePeriod =
-                                      isExpired &&
-                                      now.getTime() - expiryDate.getTime() <
-                                        ninetyDaysInMs
-
-                                    let textColorClass =
-                                      'text-green-600 dark:text-green-400'
-                                    if (isWithinThreeMonths) {
-                                      textColorClass =
-                                        'text-yellow-600 dark:text-yellow-400'
-                                    } else if (isExpired && isInGracePeriod) {
-                                      textColorClass =
-                                        'text-red-600 dark:text-red-400'
-                                    } else if (isExpired) {
-                                      textColorClass =
-                                        'text-red-600 dark:text-red-400'
-                                    }
-
-                                    return (
-                                      <span className={textColorClass}>
-                                        {isExpired ? 'Expired' : 'Expires'}:{' '}
-                                        {expiryDate.toLocaleDateString()}
-                                      </span>
-                                    )
-                                  })()}
-                                </span>
-                              )}
-                              {domain.isPrimary && (
-                                <span className="text-xs bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-200 px-2 py-0.5 rounded-full whitespace-nowrap">
-                                  Primary
-                                </span>
-                              )}
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="ml-1 h-6 w-6 p-0 flex-shrink-0"
-                                asChild
+                  {/* Contract Verification Status */}
+                  {isContract && verificationStatus && (
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                        Contract Verification
+                      </h3>
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {(verificationStatus.sourcify_verification ===
+                          'exact_match' ||
+                          verificationStatus.sourcify_verification ===
+                            'match') && (
+                          <div className="flex items-center gap-2">
+                            <Button
+                              asChild
+                              size="sm"
+                              variant="outline"
+                              className="border border-green-800 text-green-800 hover:bg-emerald-100 dark:border-green-400 dark:text-green-400 dark:bg-black dark:hover:bg-green-900/20 text-xs px-2 py-1 h-auto flex items-center gap-1"
+                            >
+                              <Link
+                                href={`${SOURCIFY_URL}${effectiveChainId}/${address.toLowerCase()}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="cursor-pointer"
                               >
-                                <a
-                                  href={`${config?.ENS_APP_URL || 'https://app.ens.domains'}/${domain.name}`}
+                                <img
+                                  src="/sourcify.svg"
+                                  alt="Sourcify"
+                                  className="w-4 h-4"
+                                />
+                                Verified
+                              </Link>
+                            </Button>
+                          </div>
+                        )}
+                        {verificationStatus.etherscan_verification ===
+                          'verified' && (
+                          <div className="flex items-center gap-2">
+                            <Button
+                              asChild
+                              size="sm"
+                              variant="outline"
+                              className="border border-green-800 text-green-800 hover:bg-emerald-100 dark:border-green-400 dark:text-green-400 dark:bg-black dark:hover:bg-green-900/20 text-xs px-2 py-1 h-auto flex items-center gap-1"
+                            >
+                              <Link
+                                href={`${etherscanUrl}address/${address}#code`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                <img
+                                  src="/etherscan.svg"
+                                  alt="Etherscan"
+                                  className="w-4 h-4"
+                                />
+                                Verified
+                              </Link>
+                            </Button>
+                          </div>
+                        )}
+                        {(verificationStatus.blockscout_verification ===
+                          'exact_match' ||
+                          verificationStatus.blockscout_verification ===
+                            'match') && (
+                          <div className="flex items-center gap-2">
+                            <Button
+                              asChild
+                              size="sm"
+                              variant="outline"
+                              className="border border-green-800 text-green-800 hover:bg-emerald-100 dark:border-green-400 dark:text-green-400 dark:bg-black dark:hover:bg-green-900/20 text-xs px-2 py-1 h-auto flex items-center gap-1"
+                            >
+                              <Link
+                                href={`${config?.BLOCKSCOUT_URL}address/${address.toLowerCase()}?tab=contract`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="cursor-pointer"
+                              >
+                                <img
+                                  src="/blockscout.svg"
+                                  alt="Blockscout"
+                                  className="w-4 h-4"
+                                />
+                                Verified
+                              </Link>
+                            </Button>
+                          </div>
+                        )}
+                        {verificationStatus.sourcify_verification ===
+                          'unverified' && (
+                          <div className="flex items-center gap-2">
+                            <Button
+                              asChild
+                              size="sm"
+                              variant="outline"
+                              className="hover:bg-gray-200 dark:hover:bg-gray-700 dark:text-gray-300 dark:bg-black text-xs px-2 py-1 h-auto flex items-center gap-1"
+                            >
+                              <Link
+                                href={`https://sourcify.dev/#/verifier`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                <img
+                                  src="/sourcify.svg"
+                                  alt="Sourcify"
+                                  className="w-4 h-4"
+                                />
+                                Verify
+                              </Link>
+                            </Button>
+                          </div>
+                        )}
+                        {verificationStatus.etherscan_verification ===
+                          'unverified' && (
+                          <div className="flex items-center gap-2">
+                            <Button
+                              asChild
+                              size="sm"
+                              variant="outline"
+                              className="hover:bg-gray-200 dark:hover:bg-gray-700 dark:text-gray-300 dark:bg-black text-xs px-2 py-1 h-auto flex items-center gap-1"
+                            >
+                              <Link
+                                href={`${etherscanUrl}address/${address}#code`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                <img
+                                  src="/etherscan.svg"
+                                  alt="Etherscan"
+                                  className="w-4 h-4"
+                                />
+                                Verify
+                              </Link>
+                            </Button>
+                          </div>
+                        )}
+                        {verificationStatus.blockscout_verification ===
+                          'unverified' && (
+                          <div className="flex items-center gap-2">
+                            <Button
+                              asChild
+                              size="sm"
+                              variant="outline"
+                              className="hover:bg-gray-200 dark:hover:bg-gray-700 dark:text-gray-300 dark:bg-black text-xs px-2 py-1 h-auto flex items-center gap-1"
+                            >
+                              <Link
+                                href={`${config?.BLOCKSCOUT_URL}address/${address.toLowerCase()}?tab=contract`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="cursor-pointer"
+                              >
+                                <img
+                                  src="/blockscout.svg"
+                                  alt="Blockscout"
+                                  className="w-4 h-4"
+                                />
+                                Verify
+                              </Link>
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Contract Security Audits */}
+                  {isContract &&
+                    verificationStatus &&
+                    (verificationStatus.diligence_audit ||
+                      verificationStatus.openZepplin_audit ||
+                      verificationStatus.cyfrin_audit) && (
+                      <div className="mt-4">
+                        <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                          Contract Security Audits
+                        </h3>
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          {verificationStatus.diligence_audit && (
+                            <div className="flex items-center gap-2">
+                              <Button
+                                asChild
+                                size="sm"
+                                variant="outline"
+                                className="border border-blue-800 text-black hover:bg-blue-100 dark:border-gray-600 dark:text-white dark:bg-black dark:hover:bg-gray-800 text-xs px-2 py-1 h-auto flex items-center gap-1"
+                              >
+                                <Link
+                                  href={verificationStatus.diligence_audit}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  onClick={(e) => e.stopPropagation()}
-                                  className="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
+                                  className="cursor-pointer"
                                 >
-                                  <ExternalLink className="h-3 w-3" />
-                                </a>
+                                  <img
+                                    src="/consensys.svg"
+                                    alt="ConsenSys Diligence"
+                                    className="w-4 h-4"
+                                  />
+                                  ConsenSys Diligence
+                                </Link>
                               </Button>
                             </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="mb-4">
-                <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
-                  Associated ENS Names (0)
-                </h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 py-2">
-                  No Associated ENS names found for this address
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* Owned ENS Names */}
-          <div>
-            {userOwnedDomains.length > 0 ? (
-              <>
-                <button
-                  onClick={() => setOwnedNamesExpanded(!ownedNamesExpanded)}
-                  className="flex items-center justify-between w-full p-3 mb-2 text-left bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"
-                >
-                  <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Owned ENS Names ({userOwnedDomains.length})
-                  </h3>
-                  {ownedNamesExpanded ? (
-                    <ChevronUp className="h-4 w-4 text-gray-500 dark:text-gray-400" />
-                  ) : (
-                    <ChevronDown className="h-4 w-4 text-gray-500 dark:text-gray-400" />
-                  )}
-                </button>
-                {ownedNamesExpanded && (
-                  <div className="border border-gray-200 dark:border-gray-700 rounded-md overflow-hidden mb-4">
-                    <div className="max-h-60 overflow-y-auto p-1 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600">
-                      <div className="space-y-2">
-                        {(() => {
-                          let currentParent2LD = ''
-                          return userOwnedDomains.map((domain, index) => {
-                            // Check if we're starting a new 2LD group
-                            const isNewGroup =
-                              domain.parent2LD !== currentParent2LD
-                            if (isNewGroup && domain.parent2LD) {
-                              currentParent2LD = domain.parent2LD
-                            }
-
-                            // Calculate indentation for subdomains
-                            const indentLevel =
-                              domain.level && domain.level > 2
-                                ? domain.level - 2
-                                : 0
-                            const indentClass =
-                              indentLevel > 0 ? `pl-${indentLevel * 4}` : ''
-
-                            return (
-                              <div
-                                key={domain.name}
-                                className={`flex items-center justify-between p-2 hover:bg-gray-50 dark:hover:bg-gray-800/50 rounded ${indentClass}`}
+                          )}
+                          {verificationStatus.openZepplin_audit && (
+                            <div className="flex items-center gap-2">
+                              <Button
+                                asChild
+                                size="sm"
+                                variant="outline"
+                                className="border border-blue-800 text-black hover:bg-blue-100 dark:border-gray-600 dark:text-white dark:bg-black dark:hover:bg-gray-800 text-xs px-2 py-1 h-auto flex items-center gap-1"
                               >
-                                <div className="flex items-center gap-1">
-                                  <span
-                                    className="font-mono text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 truncate px-2 underline cursor-pointer"
-                                    onClick={async (e) => {
-                                      e.stopPropagation()
-                                      try {
-                                        if (customProvider) {
-                                          const resolvedAddress =
-                                            await customProvider.resolveName(
-                                              domain.name,
-                                            )
-                                          if (resolvedAddress) {
-                                            window.location.href = `/explore/${effectiveChainId}/${resolvedAddress}`
-                                          } else {
-                                            // Show toast message that name doesn't resolve
-                                            toast({
-                                              title: "Name doesn't resolve",
-                                              description: `${domain.name} doesn't resolve to any address`,
-                                              variant: 'destructive',
-                                            })
-                                          }
-                                        }
-                                      } catch (error) {
-                                        console.error(
-                                          'Error resolving name:',
-                                          error,
-                                        )
-                                      }
-                                    }}
+                                <Link
+                                  href={verificationStatus.openZepplin_audit}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="cursor-pointer"
+                                >
+                                  <img
+                                    src="/oz.svg"
+                                    alt="OpenZeppelin"
+                                    className="w-4 h-4"
+                                  />
+                                  OpenZeppelin
+                                </Link>
+                              </Button>
+                            </div>
+                          )}
+                          {verificationStatus.cyfrin_audit && (
+                            <div className="flex items-center gap-2">
+                              <Button
+                                asChild
+                                size="sm"
+                                variant="outline"
+                                className="border border-blue-800 text-black hover:bg-blue-100 dark:border-gray-600 dark:text-white dark:bg-black dark:hover:bg-gray-800 text-xs px-2 py-1 h-auto flex items-center gap-1"
+                              >
+                                <Link
+                                  href={verificationStatus.cyfrin_audit}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="cursor-pointer"
+                                >
+                                  <img
+                                    src="/cyfrin.svg"
+                                    alt="Cyfrin"
+                                    className="w-4 h-4"
+                                  />
+                                  Cyfrin
+                                </Link>
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                  {isContract && (
+                    <div className="mt-4">
+                      <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                        Contract Attestations
+                      </h3>
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {hasAttestations ? (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="border border-blue-800 text-black hover:bg-blue-100 dark:border-gray-600 dark:text-white dark:bg-black dark:hover:bg-gray-800 text-xs px-2 py-1 h-auto flex items-center gap-1"
+                                  asChild
+                                >
+                                  <Link
+                                    href={`${OLI_ATTESTATION_URL}?contract=${address}&chainId=${chainId}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="cursor-pointer"
                                   >
-                                    {domain.name}
-                                  </span>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-5 w-5 p-0 flex-shrink-0"
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      copyToClipboard(
-                                        domain.name,
-                                        `owned-${index}`,
-                                      )
-                                    }}
+                                    <img
+                                      src="/oli_logo.jpg"
+                                      alt="oli"
+                                      className="w-4 h-4"
+                                    />
+                                    Label on OLI
+                                  </Link>
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" align="center">
+                                <p>Create label on Open Labels Initiative</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        ) : (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="border border-blue-800 text-black hover:bg-blue-100 dark:border-gray-600 dark:text-white dark:bg-black dark:hover:bg-gray-800 text-xs px-2 py-1 h-auto flex items-center gap-1"
+                                  asChild
+                                >
+                                  <Link
+                                    href={`${OLI_SEARCH_URL}?address=${address}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="cursor-pointer"
                                   >
-                                    {copied[`owned-${index}`] ? (
-                                      <Check className="h-3 w-3 text-green-500" />
-                                    ) : (
-                                      <Copy className="h-3 w-3" />
-                                    )}
-                                  </Button>
-                                </div>
-
-                                <div className="flex items-center gap-2">
-                                  {domain.expiryDate && (
-                                    <span className="text-xs whitespace-nowrap">
-                                      {(() => {
-                                        const now = new Date()
-                                        const expiryDate = new Date(
-                                          domain.expiryDate * 1000,
-                                        )
-                                        const threeMonthsFromNow = new Date()
-                                        threeMonthsFromNow.setMonth(
-                                          now.getMonth() + 3,
-                                        )
-
-                                        const isExpired = expiryDate < now
-                                        const isWithinThreeMonths =
-                                          !isExpired &&
-                                          expiryDate < threeMonthsFromNow
-                                        const ninetyDaysInMs =
-                                          90 * 24 * 60 * 60 * 1000
-                                        const isInGracePeriod =
-                                          isExpired &&
-                                          now.getTime() - expiryDate.getTime() <
-                                            ninetyDaysInMs
-
-                                        let textColorClass =
-                                          'text-green-600 dark:text-green-400'
-                                        if (isWithinThreeMonths) {
-                                          textColorClass =
-                                            'text-yellow-600 dark:text-yellow-400'
-                                        } else if (
-                                          isExpired &&
-                                          isInGracePeriod
-                                        ) {
-                                          textColorClass =
-                                            'text-red-600 dark:text-red-400'
-                                        } else if (isExpired) {
-                                          textColorClass =
-                                            'text-red-600 dark:text-red-400'
-                                        }
-
-                                        return (
-                                          <span className={textColorClass}>
-                                            {isExpired ? 'Expired' : 'Expires'}:{' '}
-                                            {expiryDate.toLocaleDateString()}
-                                          </span>
-                                        )
-                                      })()}
-                                    </span>
-                                  )}
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="ml-2 h-6 w-6 p-0 flex-shrink-0"
-                                    asChild
-                                  >
-                                    <a
-                                      href={`${config?.ENS_APP_URL || 'https://app.ens.domains'}/${domain.name}`}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      onClick={(e) => e.stopPropagation()}
-                                      className="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
-                                    >
-                                      <ExternalLink className="h-3 w-3" />
-                                    </a>
-                                  </Button>
-                                </div>
-                              </div>
-                            )
-                          })
-                        })()}
+                                    <img
+                                      src="/oli_logo.jpg"
+                                      alt="oli"
+                                      className="w-4 h-4"
+                                    />
+                                    Labelled on OLI
+                                  </Link>
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" align="center">
+                                <p>View label on Open Labels Initiative</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
                       </div>
                     </div>
+                  )}
+
+                  <div>
+                    {ensNames.length > 0 ? (
+                      <>
+                        <button
+                          onClick={() =>
+                            setAssociatedNamesExpanded(!associatedNamesExpanded)
+                          }
+                          className="flex items-center justify-between w-full p-3 mb-2 text-left bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"
+                        >
+                          <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                            Associated ENS Names ({ensNames.length})
+                          </h3>
+                          {associatedNamesExpanded ? (
+                            <ChevronUp className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                          ) : (
+                            <ChevronDown className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                          )}
+                        </button>
+                        {associatedNamesExpanded && (
+                          <div className="border border-gray-200 dark:border-gray-700 rounded-md overflow-hidden mb-4">
+                            <div className="max-h-60 overflow-y-auto p-1 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600">
+                              <div className="space-y-2">
+                                {ensNames.map((domain, index) => (
+                                  <div
+                                    key={index}
+                                    className={`flex items-center justify-between p-2 rounded ${
+                                      domain.isPrimary
+                                        ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800'
+                                        : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
+                                    }`}
+                                  >
+                                    <div className="flex items-center gap-1">
+                                      <span className="font-mono text-sm text-gray-900 dark:text-gray-100 truncate px-2">
+                                        {domain.name}
+                                      </span>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-5 w-5 p-0 flex-shrink-0"
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          copyToClipboard(
+                                            domain.name,
+                                            `associated-${index}`,
+                                          )
+                                        }}
+                                      >
+                                        {copied[`associated-${index}`] ? (
+                                          <Check className="h-3 w-3 text-green-500" />
+                                        ) : (
+                                          <Copy className="h-3 w-3" />
+                                        )}
+                                      </Button>
+                                    </div>
+
+                                    <div className="flex items-center gap-2">
+                                      {domain.expiryDate && (
+                                        <span className="text-xs whitespace-nowrap">
+                                          {(() => {
+                                            const now = new Date()
+                                            const expiryDate = new Date(
+                                              domain.expiryDate * 1000,
+                                            )
+                                            const threeMonthsFromNow =
+                                              new Date()
+                                            threeMonthsFromNow.setMonth(
+                                              now.getMonth() + 3,
+                                            )
+
+                                            const isExpired = expiryDate < now
+                                            const isWithinThreeMonths =
+                                              !isExpired &&
+                                              expiryDate < threeMonthsFromNow
+                                            const ninetyDaysInMs =
+                                              90 * 24 * 60 * 60 * 1000
+                                            const isInGracePeriod =
+                                              isExpired &&
+                                              now.getTime() -
+                                                expiryDate.getTime() <
+                                                ninetyDaysInMs
+
+                                            let textColorClass =
+                                              'text-green-600 dark:text-green-400'
+                                            if (isWithinThreeMonths) {
+                                              textColorClass =
+                                                'text-yellow-600 dark:text-yellow-400'
+                                            } else if (
+                                              isExpired &&
+                                              isInGracePeriod
+                                            ) {
+                                              textColorClass =
+                                                'text-red-600 dark:text-red-400'
+                                            } else if (isExpired) {
+                                              textColorClass =
+                                                'text-red-600 dark:text-red-400'
+                                            }
+
+                                            return (
+                                              <span className={textColorClass}>
+                                                {isExpired
+                                                  ? 'Expired'
+                                                  : 'Expires'}
+                                                :{' '}
+                                                {expiryDate.toLocaleDateString()}
+                                              </span>
+                                            )
+                                          })()}
+                                        </span>
+                                      )}
+                                      {domain.isPrimary && (
+                                        <span className="text-xs bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-200 px-2 py-0.5 rounded-full whitespace-nowrap">
+                                          Primary
+                                        </span>
+                                      )}
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="ml-1 h-6 w-6 p-0 flex-shrink-0"
+                                        asChild
+                                      >
+                                        <a
+                                          href={`${config?.ENS_APP_URL || 'https://app.ens.domains'}/${domain.name}`}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          onClick={(e) => e.stopPropagation()}
+                                          className="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
+                                        >
+                                          <ExternalLink className="h-3 w-3" />
+                                        </a>
+                                      </Button>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="mb-4">
+                        <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
+                          Associated ENS Names (0)
+                        </h3>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 py-2">
+                          No Associated ENS names found for this address
+                        </p>
+                      </div>
+                    )}
                   </div>
-                )}
-              </>
-            ) : (
-              <div className="mb-4">
-                <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
-                  Owned ENS Names (0)
-                </h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 py-2">
-                  No Owned ENS names found for this address
-                </p>
-              </div>
-            )}
-          </div>
-              </div>
-            )}
+
+                  {/* Owned ENS Names */}
+                  <div>
+                    {userOwnedDomains.length > 0 ? (
+                      <>
+                        <button
+                          onClick={() =>
+                            setOwnedNamesExpanded(!ownedNamesExpanded)
+                          }
+                          className="flex items-center justify-between w-full p-3 mb-2 text-left bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"
+                        >
+                          <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                            Owned ENS Names ({userOwnedDomains.length})
+                          </h3>
+                          {ownedNamesExpanded ? (
+                            <ChevronUp className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                          ) : (
+                            <ChevronDown className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                          )}
+                        </button>
+                        {ownedNamesExpanded && (
+                          <div className="border border-gray-200 dark:border-gray-700 rounded-md overflow-hidden mb-4">
+                            <div className="max-h-60 overflow-y-auto p-1 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600">
+                              <div className="space-y-2">
+                                {(() => {
+                                  let currentParent2LD = ''
+                                  return userOwnedDomains.map(
+                                    (domain, index) => {
+                                      // Check if we're starting a new 2LD group
+                                      const isNewGroup =
+                                        domain.parent2LD !== currentParent2LD
+                                      if (isNewGroup && domain.parent2LD) {
+                                        currentParent2LD = domain.parent2LD
+                                      }
+
+                                      // Calculate indentation for subdomains
+                                      const indentLevel =
+                                        domain.level && domain.level > 2
+                                          ? domain.level - 2
+                                          : 0
+                                      const indentClass =
+                                        indentLevel > 0
+                                          ? `pl-${indentLevel * 4}`
+                                          : ''
+
+                                      return (
+                                        <div
+                                          key={domain.name}
+                                          className={`flex items-center justify-between p-2 hover:bg-gray-50 dark:hover:bg-gray-800/50 rounded ${indentClass}`}
+                                        >
+                                          <div className="flex items-center gap-1">
+                                            <span
+                                              className="font-mono text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 truncate px-2 underline cursor-pointer"
+                                              onClick={async (e) => {
+                                                e.stopPropagation()
+                                                try {
+                                                  if (customProvider) {
+                                                    const resolvedAddress =
+                                                      await customProvider.resolveName(
+                                                        domain.name,
+                                                      )
+                                                    if (resolvedAddress) {
+                                                      window.location.href = `/explore/${effectiveChainId}/${resolvedAddress}`
+                                                    } else {
+                                                      // Show toast message that name doesn't resolve
+                                                      toast({
+                                                        title:
+                                                          "Name doesn't resolve",
+                                                        description: `${domain.name} doesn't resolve to any address`,
+                                                        variant: 'destructive',
+                                                      })
+                                                    }
+                                                  }
+                                                } catch (error) {
+                                                  console.error(
+                                                    'Error resolving name:',
+                                                    error,
+                                                  )
+                                                }
+                                              }}
+                                            >
+                                              {domain.name}
+                                            </span>
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              className="h-5 w-5 p-0 flex-shrink-0"
+                                              onClick={(e) => {
+                                                e.stopPropagation()
+                                                copyToClipboard(
+                                                  domain.name,
+                                                  `owned-${index}`,
+                                                )
+                                              }}
+                                            >
+                                              {copied[`owned-${index}`] ? (
+                                                <Check className="h-3 w-3 text-green-500" />
+                                              ) : (
+                                                <Copy className="h-3 w-3" />
+                                              )}
+                                            </Button>
+                                          </div>
+
+                                          <div className="flex items-center gap-2">
+                                            {domain.expiryDate && (
+                                              <span className="text-xs whitespace-nowrap">
+                                                {(() => {
+                                                  const now = new Date()
+                                                  const expiryDate = new Date(
+                                                    domain.expiryDate * 1000,
+                                                  )
+                                                  const threeMonthsFromNow =
+                                                    new Date()
+                                                  threeMonthsFromNow.setMonth(
+                                                    now.getMonth() + 3,
+                                                  )
+
+                                                  const isExpired =
+                                                    expiryDate < now
+                                                  const isWithinThreeMonths =
+                                                    !isExpired &&
+                                                    expiryDate <
+                                                      threeMonthsFromNow
+                                                  const ninetyDaysInMs =
+                                                    90 * 24 * 60 * 60 * 1000
+                                                  const isInGracePeriod =
+                                                    isExpired &&
+                                                    now.getTime() -
+                                                      expiryDate.getTime() <
+                                                      ninetyDaysInMs
+
+                                                  let textColorClass =
+                                                    'text-green-600 dark:text-green-400'
+                                                  if (isWithinThreeMonths) {
+                                                    textColorClass =
+                                                      'text-yellow-600 dark:text-yellow-400'
+                                                  } else if (
+                                                    isExpired &&
+                                                    isInGracePeriod
+                                                  ) {
+                                                    textColorClass =
+                                                      'text-red-600 dark:text-red-400'
+                                                  } else if (isExpired) {
+                                                    textColorClass =
+                                                      'text-red-600 dark:text-red-400'
+                                                  }
+
+                                                  return (
+                                                    <span
+                                                      className={textColorClass}
+                                                    >
+                                                      {isExpired
+                                                        ? 'Expired'
+                                                        : 'Expires'}
+                                                      :{' '}
+                                                      {expiryDate.toLocaleDateString()}
+                                                    </span>
+                                                  )
+                                                })()}
+                                              </span>
+                                            )}
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              className="ml-2 h-6 w-6 p-0 flex-shrink-0"
+                                              asChild
+                                            >
+                                              <a
+                                                href={`${config?.ENS_APP_URL || 'https://app.ens.domains'}/${domain.name}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                onClick={(e) =>
+                                                  e.stopPropagation()
+                                                }
+                                                className="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
+                                              >
+                                                <ExternalLink className="h-3 w-3" />
+                                              </a>
+                                            </Button>
+                                          </div>
+                                        </div>
+                                      )
+                                    },
+                                  )
+                                })()}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="mb-4">
+                        <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
+                          Owned ENS Names (0)
+                        </h3>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 py-2">
+                          No Owned ENS names found for this address
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </CardContent>
