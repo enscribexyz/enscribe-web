@@ -1380,9 +1380,34 @@ export default function ENSDetails({
                           return (
                             <div className="flex items-center">
                               {showDomainSeparately && (
-                                <span className="text-gray-800 dark:text-gray-400 px-2 py-1 rounded-md bg-gray-100 dark:bg-gray-800 text-sm mr-2">
-                                  {domainToShow}
-                                </span>
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <span className="text-gray-800 dark:text-gray-400 px-2 py-1 rounded-md bg-gray-100 dark:bg-gray-800 text-sm mr-2 cursor-help">
+                                        {domainToShow}
+                                      </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-3 shadow-lg">
+                                      <div className="space-y-2 text-xs">
+                                        <p className="font-semibold text-gray-900 dark:text-white mb-2">
+                                          Organization Details
+                                        </p>
+                                        <div>
+                                          <span className="text-gray-500 dark:text-gray-400">Owner: </span>
+                                          <span className="font-mono text-gray-900 dark:text-white break-all">
+                                            {tldOwnerResolved || tldOwner || 'Loading...'}
+                                          </span>
+                                        </div>
+                                        <div>
+                                          <span className="text-gray-500 dark:text-gray-400">Manager: </span>
+                                          <span className="font-mono text-gray-900 dark:text-white break-all">
+                                            {tldManagerResolved || tldManager || 'Loading...'}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
                               )}
                               <span
                                 className={`inline-flex items-center px-3 py-1 rounded-md text-sm font-medium ${bgColorClass} ${textColorClass}`}
@@ -1538,9 +1563,34 @@ export default function ENSDetails({
                           return (
                             <div className="flex items-center">
                               {showDomainSeparately && (
-                                <span className="text-gray-800 dark:text-gray-400 px-2 py-1 rounded-md bg-gray-100 dark:bg-gray-800 text-sm mr-2">
-                                  {domainToShow}
-                                </span>
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <span className="text-gray-800 dark:text-gray-400 px-2 py-1 rounded-md bg-gray-100 dark:bg-gray-800 text-sm mr-2 cursor-help">
+                                        {domainToShow}
+                                      </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-3 shadow-lg">
+                                      <div className="space-y-2 text-xs">
+                                        <p className="font-semibold text-gray-900 dark:text-white mb-2">
+                                          Organization Details
+                                        </p>
+                                        <div>
+                                          <span className="text-gray-500 dark:text-gray-400">Owner: </span>
+                                          <span className="font-mono text-gray-900 dark:text-white break-all">
+                                            {tldOwnerResolved || tldOwner || 'Loading...'}
+                                          </span>
+                                        </div>
+                                        <div>
+                                          <span className="text-gray-500 dark:text-gray-400">Manager: </span>
+                                          <span className="font-mono text-gray-900 dark:text-white break-all">
+                                            {tldManagerResolved || tldManager || 'Loading...'}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
                               )}
                               <span
                                 className={`inline-flex items-center px-3 py-1 rounded-md text-sm font-medium ${bgColorClass} ${textColorClass}`}
@@ -2143,156 +2193,100 @@ export default function ENSDetails({
             </div>
           )}
 
-          {/* Organization and management details - 2 Cards */}
-          {isContract &&
-            (queriedENSName || primaryName || selectedForwardName) && (
-              <div className="mt-6">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                  Organization and management details
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Card 1: Owner, Manager, Parent */}
-                  <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-                    <div className="space-y-3 text-xs">
-                      <div>
-                        <span className="text-gray-500 dark:text-gray-400">
-                          Owner:
-                        </span>
-                        {ensNameOwner ? (
-                          <Link
-                            href={`/explore/${effectiveChainId}/${ensNameOwner}`}
-                            className="text-blue-600 dark:text-blue-400 hover:underline font-mono text-xs break-all block mt-1"
-                          >
-                            {ensNameOwnerResolved || ensNameOwner}
-                          </Link>
+          {/* Management details - Shows for all contracts */}
+          {isContract && (
+            <div className="mt-6">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                Management details
+              </h3>
+              <div className={`grid grid-cols-1 ${(queriedENSName || primaryName || selectedForwardName) ? 'md:grid-cols-3' : 'md:grid-cols-1'} gap-4`}>
+                {/* Card 1: Contract Deployer (always shown) */}
+                <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                  <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3">
+                    Contract Deployer
+                  </h4>
+                  {contractDeployerAddress ? (
+                    <div className="flex items-center gap-2">
+                      <Link
+                        href={`/explore/${effectiveChainId}/${contractDeployerAddress}`}
+                        className="text-blue-600 dark:text-blue-400 hover:underline font-mono text-xs break-all"
+                      >
+                        {deployerResolved || contractDeployerPrimaryName || contractDeployerAddress}
+                      </Link>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="ml-auto flex-shrink-0"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          copyToClipboard(
+                            contractDeployerAddress,
+                            'contractDeployerAddress',
+                          )
+                        }}
+                      >
+                        {copied['contractDeployerAddress'] ? (
+                          <Check className="h-3 w-3 text-green-500" />
                         ) : (
-                          <p className="text-gray-500 dark:text-gray-400 mt-1">
-                            Loading...
-                          </p>
+                          <Copy className="h-3 w-3" />
                         )}
-                      </div>
-                      <div>
-                        <span className="text-gray-500 dark:text-gray-400">
-                          Manager:
-                        </span>
-                        {ensNameManager ? (
-                          <Link
-                            href={`/explore/${effectiveChainId}/${ensNameManager}`}
-                            className="text-blue-600 dark:text-blue-400 hover:underline font-mono text-xs break-all block mt-1"
-                          >
-                            {ensNameManagerResolved || ensNameManager}
-                          </Link>
-                        ) : (
-                          <p className="text-gray-500 dark:text-gray-400 mt-1">
-                            Loading...
-                          </p>
-                        )}
-                      </div>
-                      <div>
-                        <span className="text-gray-500 dark:text-gray-400">
-                          Parent:
-                        </span>
-                        <div className="mt-1">
-                          {(() => {
-                            const currentName =
-                              queriedENSName ||
-                              primaryName ||
-                              selectedForwardName ||
-                              ''
-                            const parts = currentName.split('.')
-                            if (parts.length > 2) {
-                              const parentName = parts.slice(1).join('.')
-                              return (
-                                <Link
-                                  href={`/explore/${effectiveChainId}/${parentName}`}
-                                  className="text-blue-600 dark:text-blue-400 hover:underline font-mono"
-                                >
-                                  {parentName}
-                                </Link>
-                              )
-                            }
-                            return (
-                              <span className="text-gray-500">
-                                No parent (top-level domain)
-                              </span>
-                            )
-                          })()}
-                        </div>
-                      </div>
+                      </Button>
                     </div>
-                  </div>
-
-                  {/* Card 2: Organization (2LD), Org Owner, Org Manager */}
-                  <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-                    <div className="space-y-3 text-xs">
-                      <div>
-                        <span className="text-gray-500 dark:text-gray-400">
-                          Organization:
-                        </span>
-                        <div className="mt-1">
-                          {(() => {
-                            const currentName =
-                              queriedENSName ||
-                              primaryName ||
-                              selectedForwardName ||
-                              ''
-                            const parts = currentName.split('.')
-                            if (parts.length >= 2) {
-                              const tld = parts[parts.length - 1]
-                              const sld = parts[parts.length - 2]
-                              const tldName = `${sld}.${tld}`
-                              return (
-                                <Link
-                                  href={`/explore/${effectiveChainId}/${tldName}`}
-                                  className="text-blue-600 dark:text-blue-400 hover:underline font-mono text-sm font-semibold"
-                                >
-                                  {tldName}
-                                </Link>
-                              )
-                            }
-                            return <span className="text-gray-500">N/A</span>
-                          })()}
-                        </div>
-                      </div>
-                      <div>
-                        <span className="text-gray-500 dark:text-gray-400">
-                          Org Owner:
-                        </span>
-                        {tldOwner ? (
-                          <Link
-                            href={`/explore/${effectiveChainId}/${tldOwner}`}
-                            className="text-blue-600 dark:text-blue-400 hover:underline font-mono text-xs break-all block mt-1"
-                          >
-                            {tldOwnerResolved || tldOwner}
-                          </Link>
-                        ) : (
-                          <p className="text-gray-500 dark:text-gray-400 mt-1">
-                            Loading...
-                          </p>
-                        )}
-                      </div>
-                      <div>
-                        <span className="text-gray-500 dark:text-gray-400">
-                          Org Manager:
-                        </span>
-                        {tldManager ? (
-                          <Link
-                            href={`/explore/${effectiveChainId}/${tldManager}`}
-                            className="text-blue-600 dark:text-blue-400 hover:underline font-mono text-xs break-all block mt-1"
-                          >
-                            {tldManagerResolved || tldManager}
-                          </Link>
-                        ) : (
-                          <p className="text-gray-500 dark:text-gray-400 mt-1">
-                            Loading...
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
+                  ) : (
+                    <p className="text-gray-500 dark:text-gray-400 text-xs">N/A</p>
+                  )}
                 </div>
+
+                {/* Card 2: Owner (only show if ENS name exists) */}
+                {(queriedENSName || primaryName || selectedForwardName) && (
+                  <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                    <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3">
+                      Owner
+                    </h4>
+                    {ensNameOwner ? (
+                      <Link
+                        href={`/explore/${effectiveChainId}/${ensNameOwner}`}
+                        className="text-blue-600 dark:text-blue-400 hover:underline font-mono text-xs break-all block"
+                      >
+                        {ensNameOwnerResolved || ensNameOwner}
+                      </Link>
+                    ) : (
+                      <p className="text-gray-500 dark:text-gray-400 text-xs">Loading...</p>
+                    )}
+                  </div>
+                )}
+
+                {/* Card 3: Parent (only show if ENS name exists) */}
+                {(queriedENSName || primaryName || selectedForwardName) && (
+                  <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                    <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3">
+                      Parent
+                    </h4>
+                    {(() => {
+                      const currentName = queriedENSName || primaryName || selectedForwardName || ''
+                      const parts = currentName.split('.')
+                      if (parts.length > 2) {
+                        const parentName = parts.slice(1).join('.')
+                        return (
+                          <Link
+                            href={`/explore/${effectiveChainId}/${parentName}`}
+                            className="text-blue-600 dark:text-blue-400 hover:underline font-mono text-xs break-all"
+                          >
+                            {parentName}
+                          </Link>
+                        )
+                      }
+                      return (
+                        <span className="text-gray-500 dark:text-gray-400 text-xs">
+                          No parent (top-level domain)
+                        </span>
+                      )
+                    })()}
+                  </div>
+                )}
               </div>
-            )}
+            </div>
+          )}
 
           {/* Other Details - Card-based Expandable Section */}
           <div className="mt-6">
@@ -2322,43 +2316,6 @@ export default function ENSDetails({
               {/* Card Content - Expandable */}
               {otherDetailsExpanded && (
                 <div className="p-6 pt-4 border-t border-gray-100 dark:border-gray-700 space-y-6 bg-gray-50 dark:bg-gray-900 rounded-b-lg">
-                  {/* Contract Deployer */}
-                  {isContract && contractDeployerAddress && (
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
-                        Contract Deployer
-                      </h4>
-                      <div className="flex items-center">
-                        <Link
-                          href={`/explore/${effectiveChainId}/${contractDeployerAddress}`}
-                          className="text-blue-600 dark:text-blue-400 hover:underline font-mono text-sm break-all"
-                        >
-                          {deployerResolved ||
-                            contractDeployerPrimaryName ||
-                            contractDeployerAddress}
-                        </Link>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="ml-2"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            copyToClipboard(
-                              contractDeployerAddress,
-                              'contractDeployerAddress',
-                            )
-                          }}
-                        >
-                          {copied['contractDeployerAddress'] ? (
-                            <Check className="h-4 w-4 text-green-500" />
-                          ) : (
-                            <Copy className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-
                   {isContract &&
                     proxyInfo?.isProxy &&
                     proxyInfo.implementationAddress &&
