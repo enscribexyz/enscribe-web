@@ -33,6 +33,8 @@ export default function SearchModal({
     name: string
     address: string
     avatar?: string
+    type: 'explore' | 'nameMetadata'
+    title?: string
   }>>([])
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -134,6 +136,8 @@ export default function SearchModal({
           {
             name: cleanedQuery,
             address: cleanedQuery,
+            type: 'explore',
+            title: 'Explore Address',
           },
         ])
       } else if (containsDot) {
@@ -236,27 +240,55 @@ export default function SearchModal({
           }
 
           if (resolvedAddress && resolvedAddress !== '0x0000000000000000000000000000000000000000' && resolvedAddress !== '0x0000000000000000000000000000000000000020') {
+            // ENS name resolves to an address - show both options
             setSearchResults([
               {
                 name: ensName,
                 address: resolvedAddress,
+                type: 'explore',
+                title: 'Explore Address',
+              },
+              {
+                name: ensName,
+                address: ensName,
+                type: 'nameMetadata',
+                title: 'Name Metadata',
               },
             ])
           } else {
-            setError("ENS name doesn't resolve to any address")
-            setSearchResults([])
+            // ENS name doesn't resolve - show only Name Metadata option
+            setSearchResults([
+              {
+                name: ensName,
+                address: ensName,
+                type: 'nameMetadata',
+                title: 'Name Metadata',
+              },
+            ])
+            setError('')
           }
         } catch (ensError: any) {
           console.error('Error resolving ENS name:', ensError)
           // Provide more specific error messages
           if (ensError?.code === 'INVALID_ARGUMENT') {
             setError('Invalid ENS name format')
+            setSearchResults([])
           } else if (ensError?.message?.includes('invalid ENS name')) {
             setError('Invalid ENS name format')
+            setSearchResults([])
           } else {
-            setError("ENS name doesn't resolve to any address")
+            // ENS name doesn't resolve - show only Name Metadata option
+            const ensName = cleanedQuery as string
+            setSearchResults([
+              {
+                name: ensName,
+                address: ensName,
+                type: 'nameMetadata',
+                title: 'Name Metadata',
+              },
+            ])
+            setError('')
           }
-          setSearchResults([])
         }
       } else {
         // Not a valid address and doesn't contain a dot
@@ -316,9 +348,14 @@ export default function SearchModal({
     }
   }, [searchQuery, handleSearch])
 
-  const handleResultClick = (result: { name: string; address: string }) => {
-    console.log('Using hard redirect to ensure proper contract detection')
-    window.location.href = `/explore/${selectedChain}/${result.name}`
+  const handleResultClick = (result: { name: string; address: string; type: 'explore' | 'nameMetadata' }) => {
+    if (result.type === 'nameMetadata') {
+      console.log('Navigating to Name Metadata page')
+      window.location.href = `/nameMetadata?name=${encodeURIComponent(result.name)}`
+    } else {
+      console.log('Using hard redirect to ensure proper contract detection')
+      window.location.href = `/explore/${selectedChain}/${result.name}`
+    }
     onClose()
   }
 
@@ -394,34 +431,42 @@ export default function SearchModal({
           {searchResults.length > 0 && (
             <div className="mt-6">
               <h3 className="text-lg font-semibold text-card-foreground mb-3">
-                Search Result
+                Search Results
               </h3>
-              <div className="space-y-2">
+              <div className="space-y-4">
                 {searchResults.map((result, index) => (
-                  <button
-                    key={index}
-                    onClick={() => handleResultClick(result)}
-                    className="w-full flex items-center space-x-4 p-4 bg-accent hover:bg-muted rounded-xl transition-colors cursor-pointer border-2 border-transparent hover:border-ring"
-                  >
-                    {/* Avatar/Icon */}
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center flex-shrink-0">
-                      <span className="text-white font-bold text-lg">
-                        {result.name.substring(0, 2).toUpperCase()}
-                      </span>
-                    </div>
-
-                    {/* Name and Address */}
-                    <div className="flex-1 text-left">
-                      <div className="font-semibold text-card-foreground">
-                        {result.name}
+                  <div key={index}>
+                    {/* Result Title */}
+                    {result.title && (
+                      <div className="text-xs font-medium text-muted-foreground mb-1.5 px-1">
+                        {result.title}
                       </div>
-                      {result.name !== result.address && (
-                        <div className="text-sm text-muted-foreground truncate">
-                          {result.address}
+                    )}
+                    {/* Result Button */}
+                    <button
+                      onClick={() => handleResultClick(result)}
+                      className="w-full flex items-center space-x-4 p-4 bg-accent hover:bg-muted rounded-xl transition-colors cursor-pointer border-2 border-transparent hover:border-ring"
+                    >
+                      {/* Avatar/Icon */}
+                      <div className={`w-12 h-12 rounded-full ${result.type === 'nameMetadata' ? 'bg-gradient-to-br from-green-400 to-cyan-500' : 'bg-gradient-to-br from-blue-400 to-purple-500'} flex items-center justify-center flex-shrink-0`}>
+                        <span className="text-white font-bold text-lg">
+                          {result.name.substring(0, 2).toUpperCase()}
+                        </span>
+                      </div>
+
+                      {/* Name and Address */}
+                      <div className="flex-1 text-left">
+                        <div className="font-semibold text-card-foreground">
+                          {result.name}
                         </div>
-                      )}
-                    </div>
-                  </button>
+                        {result.name !== result.address && result.type === 'explore' && (
+                          <div className="text-sm text-muted-foreground truncate">
+                            {result.address}
+                          </div>
+                        )}
+                      </div>
+                    </button>
+                  </div>
                 ))}
               </div>
             </div>
