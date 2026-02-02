@@ -79,30 +79,9 @@ export type Database = {
         }
         Relationships: []
       }
-      poap_mint_links: {
-        Row: {
-          id: number
-          link: string
-        }
-        Insert: {
-          id?: number
-          link: string
-        }
-        Update: {
-          id?: number
-          link?: string
-        }
-        Relationships: []
-      }
     }
     Views: {
       [_ in never]: never
-    }
-    Functions: {
-      get_next_poap_link: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
     }
     Enums: {
       [_ in never]: never
