@@ -11,6 +11,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 import { CONTRACTS, CHAINS } from '../utils/constants'
 import { namehash, normalize } from 'viem/ens'
+import { healENSName, isLabelhash, extractLabelhash, healLabelhash } from '../utils/labelhashMapping'
 import {
   ChevronDownIcon,
   ChevronUpIcon,
@@ -293,8 +294,10 @@ export default function NameMetadata({
 
           for (const parentName of parents) {
             if (parentName.split('.').length > 1) {
+              // Heal the parent name if it contains labelhashes
+              const healedParentName = healENSName(parentName)
               hierarchyNodes.push({
-                name: parentName,
+                name: healedParentName,
                 metadata: null,
                 expanded: false,
               })
@@ -663,13 +666,57 @@ export default function NameMetadata({
 
       const domains = data.data?.domains || []
 
-      return domains.map((domain: any) => ({
-        name: domain.name || 'Unknown',
-        labelName: domain.labelName || domain.name?.split('.')[0] || 'Unknown',
-        metadata: null,
-        expanded: false,
-        hasSubnames: domain.subdomainCount > 0,
-      }))
+      return domains.map((domain: any) => {
+        const rawName = domain.name || 'Unknown'
+        const rawLabelName = domain.labelName || domain.name?.split('.')[0] || 'Unknown'
+        
+        console.log('[Labelhash Healing] Raw domain:', { 
+          name: rawName, 
+          labelName: rawLabelName,
+          isLabelhashFormat: isLabelhash(rawLabelName)
+        })
+        
+        // Heal the name and label if they contain labelhashes
+        const healedName = healENSName(rawName)
+        let healedLabelName = rawLabelName
+        
+        // If the labelName is in labelhash format [0x...], try to heal it
+        if (isLabelhash(rawLabelName)) {
+          const hash = extractLabelhash(rawLabelName)
+          console.log('[Labelhash Healing] Extracted hash:', hash)
+          if (hash) {
+            const healed = healLabelhash(hash)
+            console.log('[Labelhash Healing] Healed result:', healed)
+            // Only use the healed version if it's different from the hash
+            if (healed !== hash) {
+              healedLabelName = healed
+            }
+          }
+        } else if (rawLabelName && rawLabelName.startsWith('0x') && rawLabelName.length === 66) {
+          // Handle case where labelName is just a hash without brackets
+          console.log('[Labelhash Healing] Label is bare hash (no brackets):', rawLabelName)
+          const healed = healLabelhash(rawLabelName)
+          console.log('[Labelhash Healing] Healed bare hash:', healed)
+          if (healed !== rawLabelName) {
+            healedLabelName = healed
+          }
+        }
+        
+        console.log('[Labelhash Healing] Final result:', { 
+          originalName: rawName, 
+          healedName, 
+          originalLabel: rawLabelName, 
+          healedLabel: healedLabelName 
+        })
+        
+        return {
+          name: healedName,
+          labelName: healedLabelName,
+          metadata: null,
+          expanded: false,
+          hasSubnames: domain.subdomainCount > 0,
+        }
+      })
     } catch (err) {
       console.error('Error fetching subnames:', err)
       return []
@@ -729,8 +776,10 @@ export default function NameMetadata({
       for (const parentName of parents) {
         // Skip TLDs
         if (parentName.split('.').length > 1) {
+          // Heal the parent name if it contains labelhashes
+          const healedParentName = healENSName(parentName)
           hierarchyNodes.push({
-            name: parentName,
+            name: healedParentName,
             metadata: null,
             expanded: false,
           })
@@ -828,8 +877,10 @@ export default function NameMetadata({
       for (const parentName of parents) {
         // Skip TLDs
         if (parentName.split('.').length > 1) {
+          // Heal the parent name if it contains labelhashes
+          const healedParentName = healENSName(parentName)
           hierarchyNodes.push({
-            name: parentName,
+            name: healedParentName,
             metadata: null,
             expanded: false,
           })
