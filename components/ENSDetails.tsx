@@ -20,6 +20,7 @@ import {
 import {
   CHAINS,
   CONTRACTS,
+  ETHERSCAN_API,
   OLI_ATTESTATION_URL,
   OLI_GQL_URL,
   OLI_SEARCH_URL,
@@ -164,6 +165,10 @@ export default function ENSDetails({
     null,
   )
   const [deployerResolved, setDeployerResolved] = useState<string | null>(null)
+  const [implDeployerAddress, setImplDeployerAddress] = useState<string | null>(
+    null,
+  )
+  const [implDeployerName, setImplDeployerName] = useState<string | null>(null)
   const { chain, isConnected } = useAccount()
   const walletPublicClient = usePublicClient()
   const [customProvider, setCustomProvider] =
@@ -1040,6 +1045,20 @@ export default function ENSDetails({
         `[ENSDetails] useEffect - currentName: ${currentName}, isContract: ${isContract}`,
       )
 
+      // Resolve contract deployer to ENS name (even if no ENS name for contract)
+      if (contractDeployerAddress && isContract && customProvider) {
+        try {
+          const deployerENS = await getENS(
+            contractDeployerAddress,
+            customProvider,
+          )
+          setDeployerResolved(deployerENS || null)
+        } catch (err) {
+          console.log(`[ENSDetails] Could not resolve deployer ENS name`)
+          setDeployerResolved(null)
+        }
+      }
+
       if (!currentName || !isContract || !customProvider) {
         console.log(
           `[ENSDetails] Skipping owner/manager fetch - no name, not contract, or no provider`,
@@ -1119,20 +1138,6 @@ export default function ENSDetails({
           }
         }
       }
-
-      // Resolve contract deployer to ENS name
-      if (contractDeployerAddress) {
-        try {
-          const deployerENS = await getENS(
-            contractDeployerAddress,
-            customProvider,
-          )
-          setDeployerResolved(deployerENS || null)
-        } catch (err) {
-          console.log(`[ENSDetails] Could not resolve deployer ENS name`)
-          setDeployerResolved(null)
-        }
-      }
     }
 
     fetchOwnerManagerData()
@@ -1145,6 +1150,50 @@ export default function ENSDetails({
     customProvider,
     contractDeployerAddress,
   ])
+
+  // Fetch deployer for implementation contract
+  useEffect(() => {
+    const fetchImplDeployer = async () => {
+      if (!proxyInfo?.implementationAddress || !effectiveChainId) {
+        return
+      }
+
+      try {
+        console.log(
+          `[ENSDetails] Fetching deployer for implementation contract: ${proxyInfo.implementationAddress}`,
+        )
+
+        const url = `${ETHERSCAN_API}&chainid=${effectiveChainId}&module=contract&action=getcontractcreation&contractaddresses=${proxyInfo.implementationAddress}`
+        const response = await fetch(url)
+        const data = await response.json()
+
+        if (data.status === '1' && data.result && data.result.length > 0) {
+          const creatorAddress = data.result[0]?.contractCreator
+          setImplDeployerAddress(creatorAddress || null)
+
+          // Fetch primary name for the deployer
+          if (creatorAddress && customProvider) {
+            try {
+              const deployerENS = await getENS(creatorAddress, customProvider)
+              setImplDeployerName(deployerENS || null)
+            } catch (err) {
+              console.log(
+                `[ENSDetails] Could not resolve implementation deployer ENS name`,
+              )
+              setImplDeployerName(null)
+            }
+          }
+        }
+      } catch (error) {
+        console.error(
+          '[ENSDetails] Error fetching implementation deployer:',
+          error,
+        )
+      }
+    }
+
+    fetchImplDeployer()
+  }, [proxyInfo?.implementationAddress, effectiveChainId, customProvider])
 
   // Show loading until ENS data is loaded AND (for contracts) metadata is loaded
   const shouldShowLoading = isLoading || (isContract && isMetadataLoading)
@@ -1298,8 +1347,10 @@ export default function ENSDetails({
                     </div>
                     <div className="flex items-center gap-2">
                       {/* Get All Metadata Button */}
-                      {isContract && (
-                        <Link href="/nameMetadata">
+                      {isContract && primaryName && (
+                        <Link
+                          href={`/nameMetadata?name=${encodeURIComponent(primaryName)}`}
+                        >
                           <Button
                             variant="outline"
                             size="sm"
@@ -1383,26 +1434,87 @@ export default function ENSDetails({
                                 <TooltipProvider>
                                   <Tooltip>
                                     <TooltipTrigger asChild>
-                                      <span className="text-gray-800 dark:text-gray-400 px-2 py-1 rounded-md bg-gray-100 dark:bg-gray-800 text-sm mr-2 cursor-help">
+                                      <span className="text-gray-800 dark:text-gray-400 px-2 py-1 rounded-md bg-gray-100 dark:bg-gray-800 text-sm mr-2 cursor-pointer">
                                         {domainToShow}
                                       </span>
                                     </TooltipTrigger>
-                                    <TooltipContent side="top" className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-3 shadow-lg">
-                                      <div className="space-y-2 text-xs">
+                                    <TooltipContent
+                                      side="top"
+                                      className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-4 shadow-lg"
+                                    >
+                                      <div className="space-y-3 text-xs">
                                         <p className="font-semibold text-gray-900 dark:text-white mb-2">
                                           Organization Details
                                         </p>
-                                        <div>
-                                          <span className="text-gray-500 dark:text-gray-400">Owner: </span>
-                                          <span className="font-mono text-gray-900 dark:text-white break-all">
-                                            {tldOwnerResolved || tldOwner || 'Loading...'}
+                                        <div className="space-y-1">
+                                          <span className="text-gray-500 dark:text-gray-400 block mb-1">
+                                            Owner:
                                           </span>
+                                          <div className="flex items-center gap-2">
+                                            <Link
+                                              href={`/explore/${effectiveChainId}/${tldOwnerResolved || tldOwner}`}
+                                              className="font-mono text-blue-600 dark:text-blue-400 hover:underline break-all"
+                                            >
+                                              {tldOwnerResolved ||
+                                                tldOwner ||
+                                                'Loading...'}
+                                            </Link>
+                                            {tldOwner && (
+                                              <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-6 w-6 p-0 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                                onClick={(e) => {
+                                                  e.stopPropagation()
+                                                  copyToClipboard(
+                                                    tldOwner,
+                                                    'tldOwner',
+                                                  )
+                                                }}
+                                              >
+                                                {copied['tldOwner'] ? (
+                                                  <Check className="h-3 w-3 text-green-500" />
+                                                ) : (
+                                                  <Copy className="h-3 w-3 text-gray-600 dark:text-gray-400" />
+                                                )}
+                                              </Button>
+                                            )}
+                                          </div>
                                         </div>
-                                        <div>
-                                          <span className="text-gray-500 dark:text-gray-400">Manager: </span>
-                                          <span className="font-mono text-gray-900 dark:text-white break-all">
-                                            {tldManagerResolved || tldManager || 'Loading...'}
+                                        <div className="space-y-1">
+                                          <span className="text-gray-500 dark:text-gray-400 block mb-1">
+                                            Manager:
                                           </span>
+                                          <div className="flex items-center gap-2">
+                                            <Link
+                                              href={`/explore/${effectiveChainId}/${tldManagerResolved || tldManager}`}
+                                              className="font-mono text-blue-600 dark:text-blue-400 hover:underline break-all"
+                                            >
+                                              {tldManagerResolved ||
+                                                tldManager ||
+                                                'Loading...'}
+                                            </Link>
+                                            {tldManager && (
+                                              <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-6 w-6 p-0 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                                onClick={(e) => {
+                                                  e.stopPropagation()
+                                                  copyToClipboard(
+                                                    tldManager,
+                                                    'tldManager',
+                                                  )
+                                                }}
+                                              >
+                                                {copied['tldManager'] ? (
+                                                  <Check className="h-3 w-3 text-green-500" />
+                                                ) : (
+                                                  <Copy className="h-3 w-3 text-gray-600 dark:text-gray-400" />
+                                                )}
+                                              </Button>
+                                            )}
+                                          </div>
                                         </div>
                                       </div>
                                     </TooltipContent>
@@ -1481,15 +1593,19 @@ export default function ENSDetails({
                     </div>
                     <div className="flex items-center gap-2">
                       {/* Get All Metadata Button */}
-                      <Link href="/nameMetadata">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="border-blue-600 text-blue-600 hover:bg-blue-50 dark:border-blue-400 dark:text-blue-400 dark:hover:bg-blue-900/20"
+                      {(queriedENSName || selectedForwardName) && (
+                        <Link
+                          href={`/nameMetadata?name=${encodeURIComponent(queriedENSName || selectedForwardName || '')}`}
                         >
-                          View Metadata
-                        </Button>
-                      </Link>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="border-blue-600 text-blue-600 hover:bg-blue-50 dark:border-blue-400 dark:text-blue-400 dark:hover:bg-blue-900/20"
+                          >
+                            View Metadata
+                          </Button>
+                        </Link>
+                      )}
                       {/* Expiry badge */}
                       {forwardNameExpiryDate &&
                         (queriedENSName || selectedForwardName) &&
@@ -1566,26 +1682,87 @@ export default function ENSDetails({
                                 <TooltipProvider>
                                   <Tooltip>
                                     <TooltipTrigger asChild>
-                                      <span className="text-gray-800 dark:text-gray-400 px-2 py-1 rounded-md bg-gray-100 dark:bg-gray-800 text-sm mr-2 cursor-help">
+                                      <span className="text-gray-800 dark:text-gray-400 px-2 py-1 rounded-md bg-gray-100 dark:bg-gray-800 text-sm mr-2 cursor-pointer">
                                         {domainToShow}
                                       </span>
                                     </TooltipTrigger>
-                                    <TooltipContent side="top" className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-3 shadow-lg">
-                                      <div className="space-y-2 text-xs">
+                                    <TooltipContent
+                                      side="top"
+                                      className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-4 shadow-lg"
+                                    >
+                                      <div className="space-y-3 text-xs">
                                         <p className="font-semibold text-gray-900 dark:text-white mb-2">
                                           Organization Details
                                         </p>
-                                        <div>
-                                          <span className="text-gray-500 dark:text-gray-400">Owner: </span>
-                                          <span className="font-mono text-gray-900 dark:text-white break-all">
-                                            {tldOwnerResolved || tldOwner || 'Loading...'}
+                                        <div className="space-y-1">
+                                          <span className="text-gray-500 dark:text-gray-400 block mb-1">
+                                            Owner:
                                           </span>
+                                          <div className="flex items-center gap-2">
+                                            <Link
+                                              href={`/explore/${effectiveChainId}/${tldOwnerResolved || tldOwner}`}
+                                              className="font-mono text-blue-600 dark:text-blue-400 hover:underline break-all"
+                                            >
+                                              {tldOwnerResolved ||
+                                                tldOwner ||
+                                                'Loading...'}
+                                            </Link>
+                                            {tldOwner && (
+                                              <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-6 w-6 p-0 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                                onClick={(e) => {
+                                                  e.stopPropagation()
+                                                  copyToClipboard(
+                                                    tldOwner,
+                                                    'tldOwner',
+                                                  )
+                                                }}
+                                              >
+                                                {copied['tldOwner'] ? (
+                                                  <Check className="h-3 w-3 text-green-500" />
+                                                ) : (
+                                                  <Copy className="h-3 w-3 text-gray-600 dark:text-gray-400" />
+                                                )}
+                                              </Button>
+                                            )}
+                                          </div>
                                         </div>
-                                        <div>
-                                          <span className="text-gray-500 dark:text-gray-400">Manager: </span>
-                                          <span className="font-mono text-gray-900 dark:text-white break-all">
-                                            {tldManagerResolved || tldManager || 'Loading...'}
+                                        <div className="space-y-1">
+                                          <span className="text-gray-500 dark:text-gray-400 block mb-1">
+                                            Manager:
                                           </span>
+                                          <div className="flex items-center gap-2">
+                                            <Link
+                                              href={`/explore/${effectiveChainId}/${tldManagerResolved || tldManager}`}
+                                              className="font-mono text-blue-600 dark:text-blue-400 hover:underline break-all"
+                                            >
+                                              {tldManagerResolved ||
+                                                tldManager ||
+                                                'Loading...'}
+                                            </Link>
+                                            {tldManager && (
+                                              <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-6 w-6 p-0 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                                onClick={(e) => {
+                                                  e.stopPropagation()
+                                                  copyToClipboard(
+                                                    tldManager,
+                                                    'tldManager',
+                                                  )
+                                                }}
+                                              >
+                                                {copied['tldManager'] ? (
+                                                  <Check className="h-3 w-3 text-green-500" />
+                                                ) : (
+                                                  <Copy className="h-3 w-3 text-gray-600 dark:text-gray-400" />
+                                                )}
+                                              </Button>
+                                            )}
+                                          </div>
                                         </div>
                                       </div>
                                     </TooltipContent>
@@ -1638,7 +1815,10 @@ export default function ENSDetails({
                 )}
               </Button>
               <Button variant="ghost" size="sm" className="ml-1" asChild>
-                {isContract && !primaryName ? (
+                {isContract &&
+                !primaryName &&
+                !queriedENSName &&
+                !selectedForwardName ? (
                   <Link
                     href={`/nameContract?contract=${address}`}
                     className="relative overflow-hidden bg-gradient-to-r from-purple-500 via-pink-500 to-red-500 hover:shadow-xl hover:shadow-pink-500/50 focus:ring-4 focus:ring-pink-500/50 group transition-all duration-300 hover:-translate-y-1 px-2 py-2 font-medium rounded-md cursor-pointer"
@@ -2196,10 +2376,12 @@ export default function ENSDetails({
           {/* Management details - Shows for all contracts */}
           {isContract && (
             <div className="mt-6">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+              {/* <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
                 Management details
-              </h3>
-              <div className={`grid grid-cols-1 ${(queriedENSName || primaryName || selectedForwardName) ? 'md:grid-cols-3' : 'md:grid-cols-1'} gap-4`}>
+              </h3> */}
+              <div
+                className={`grid grid-cols-1 ${queriedENSName || primaryName || selectedForwardName ? 'md:grid-cols-3' : 'md:grid-cols-1'} gap-4`}
+              >
                 {/* Card 1: Contract Deployer (always shown) */}
                 <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
                   <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3">
@@ -2208,10 +2390,12 @@ export default function ENSDetails({
                   {contractDeployerAddress ? (
                     <div className="flex items-center gap-2">
                       <Link
-                        href={`/explore/${effectiveChainId}/${contractDeployerAddress}`}
+                        href={`/explore/${effectiveChainId}/${deployerResolved || contractDeployerPrimaryName || contractDeployerAddress}`}
                         className="text-blue-600 dark:text-blue-400 hover:underline font-mono text-xs break-all"
                       >
-                        {deployerResolved || contractDeployerPrimaryName || contractDeployerAddress}
+                        {deployerResolved ||
+                          contractDeployerPrimaryName ||
+                          contractDeployerAddress}
                       </Link>
                       <Button
                         variant="ghost"
@@ -2233,25 +2417,46 @@ export default function ENSDetails({
                       </Button>
                     </div>
                   ) : (
-                    <p className="text-gray-500 dark:text-gray-400 text-xs">N/A</p>
+                    <p className="text-gray-500 dark:text-gray-400 text-xs">
+                      N/A
+                    </p>
                   )}
                 </div>
 
-                {/* Card 2: Owner (only show if ENS name exists) */}
+                {/* Card 2: Manager (only show if ENS name exists) */}
                 {(queriedENSName || primaryName || selectedForwardName) && (
                   <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
                     <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3">
-                      Owner
+                      Manager
                     </h4>
-                    {ensNameOwner ? (
-                      <Link
-                        href={`/explore/${effectiveChainId}/${ensNameOwner}`}
-                        className="text-blue-600 dark:text-blue-400 hover:underline font-mono text-xs break-all block"
-                      >
-                        {ensNameOwnerResolved || ensNameOwner}
-                      </Link>
+                    {ensNameManager ? (
+                      <div className="flex items-center gap-2">
+                        <Link
+                          href={`/explore/${effectiveChainId}/${ensNameManagerResolved || ensNameManager}`}
+                          className="text-blue-600 dark:text-blue-400 hover:underline font-mono text-xs break-all"
+                        >
+                          {ensNameManagerResolved || ensNameManager}
+                        </Link>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="ml-auto flex-shrink-0"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            copyToClipboard(ensNameManager, 'ensNameManager')
+                          }}
+                        >
+                          {copied['ensNameManager'] ? (
+                            <Check className="h-3 w-3 text-green-500" />
+                          ) : (
+                            <Copy className="h-3 w-3" />
+                          )}
+                        </Button>
+                      </div>
                     ) : (
-                      <p className="text-gray-500 dark:text-gray-400 text-xs">Loading...</p>
+                      <p className="text-gray-500 dark:text-gray-400 text-xs">
+                        Loading...
+                      </p>
                     )}
                   </div>
                 )}
@@ -2263,17 +2468,38 @@ export default function ENSDetails({
                       Parent
                     </h4>
                     {(() => {
-                      const currentName = queriedENSName || primaryName || selectedForwardName || ''
+                      const currentName =
+                        queriedENSName ||
+                        primaryName ||
+                        selectedForwardName ||
+                        ''
                       const parts = currentName.split('.')
                       if (parts.length > 2) {
                         const parentName = parts.slice(1).join('.')
                         return (
-                          <Link
-                            href={`/explore/${effectiveChainId}/${parentName}`}
-                            className="text-blue-600 dark:text-blue-400 hover:underline font-mono text-xs break-all"
-                          >
-                            {parentName}
-                          </Link>
+                          <div className="flex items-center gap-2">
+                            <Link
+                              href={`/nameMetadata?name=${encodeURIComponent(parentName)}`}
+                              className="text-blue-600 dark:text-blue-400 hover:underline font-mono text-xs break-all"
+                            >
+                              {parentName}
+                            </Link>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="ml-auto flex-shrink-0"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                copyToClipboard(parentName, 'parentName')
+                              }}
+                            >
+                              {copied['parentName'] ? (
+                                <Check className="h-3 w-3 text-green-500" />
+                              ) : (
+                                <Copy className="h-3 w-3" />
+                              )}
+                            </Button>
+                          </div>
                         )
                       }
                       return (
@@ -2395,8 +2621,8 @@ export default function ENSDetails({
                             </div>
                             <ENSDetails
                               address={proxyInfo.implementationAddress}
-                              contractDeployerAddress={null}
-                              contractDeployerName={null}
+                              contractDeployerAddress={implDeployerAddress}
+                              contractDeployerName={implDeployerName}
                               chainId={effectiveChainId}
                               isContract={true}
                               isNestedView={true}

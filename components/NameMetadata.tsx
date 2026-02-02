@@ -114,14 +114,15 @@ interface TextRecordInput {
 
 interface NameMetadataProps {
   selectedChain?: number
+  initialName?: string  // Accept initial name as prop
 }
 
-export default function NameMetadata({ selectedChain }: NameMetadataProps) {
+export default function NameMetadata({ selectedChain, initialName }: NameMetadataProps) {
   const { chain, address: walletAddress } = useAccount()
   const { data: walletClient } = useWalletClient()
   const { toast } = useToast()
   
-  const [searchName, setSearchName] = useState('')
+  const [searchName, setSearchName] = useState(initialName || '')
   const [currentName, setCurrentName] = useState('')
   const [metadata, setMetadata] = useState<ENSMetadata | null>(null)
   const [parentHierarchy, setParentHierarchy] = useState<HierarchyNode[]>([])
@@ -185,6 +186,66 @@ export default function NameMetadata({ selectedChain }: NameMetadataProps) {
   useEffect(() => {
     resetForm()
   }, [walletAddress, resetForm])
+
+  // Auto-fetch metadata if initialName is provided
+  useEffect(() => {
+    const autoFetch = async () => {
+      if (initialName && !currentName && !loading && config?.SUBGRAPH_API) {
+        setLoading(true)
+        setError('')
+        setMetadata(null)
+        setParentHierarchy([])
+
+        try {
+          const normalizedName = normalize(initialName.trim())
+          
+          const parts = normalizedName.split('.')
+          if (parts.length === 1) {
+            setError('TLDs (like .eth) are not supported. Please enter a full ENS name (e.g., vitalik.eth)')
+            setLoading(false)
+            return
+          }
+          
+          setCurrentName(normalizedName)
+          
+          const fetchedMetadata = await fetchENSMetadataFromSubgraph(normalizedName)
+          setMetadata(fetchedMetadata)
+
+          if (fetchedMetadata.error) {
+            setError(fetchedMetadata.error)
+          }
+
+          const parents = getParentHierarchy(normalizedName)
+          const hierarchyNodes: HierarchyNode[] = []
+
+          for (const parentName of parents) {
+            if (parentName.split('.').length > 1) {
+              hierarchyNodes.push({
+                name: parentName,
+                metadata: null,
+                expanded: false,
+              })
+            }
+          }
+
+          setParentHierarchy(hierarchyNodes)
+
+          if (hierarchyNodes.length > 0) {
+            await loadParentMetadata(0)
+          }
+
+          const subnames = await fetchDirectSubnames(normalizedName)
+          setSubnameHierarchy(subnames)
+        } catch (err: any) {
+          setError(err.message || 'Failed to fetch metadata')
+        } finally {
+          setLoading(false)
+        }
+      }
+    }
+
+    autoFetch()
+  }, [initialName])
 
   const fetchENSMetadataFromSubgraph = async (name: string): Promise<ENSMetadata> => {
     const node = namehash(name)
