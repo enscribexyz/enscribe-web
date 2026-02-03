@@ -39,7 +39,8 @@ export default function EnscribeLandingPage() {
   const PARTNERS = [
     { name: 'Nouns DAO', logo: 'img/projects/nouns.svg', url: '/blog/nouns' }, // Nouns recently rolled out Enscribe names
     { name: 'Liquity', logo: 'img/projects/liquity.png', url: '/blog/liquity' }, // Liquity V2 integration
-    { name: 'Cork Protocol', logo: 'img/projects/cork.svg', url: 'https://cork.tech' }, // Cork uses UniV4 hooks
+    { name: 'Cork Protocol', logo: 'img/projects/cork.svg', url: '/blog/cork' }, // Cork uses UniV4 hooks
+    { name: 'Giveth', logo: 'img/projects/giveth-tq.svg', url: '/blog/giveth', invertInDark: true, scale: 1.2 },
   ];
 
   const faqs = [

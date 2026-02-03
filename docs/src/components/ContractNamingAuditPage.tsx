@@ -237,13 +237,25 @@ export default function ContractNamingAuditPage() {
                         </a>
 
                         <a
-                            href="https://www.cork.tech/"
+                            href="/blog/cork"
                             aria-label="Cork"
                             className="opacity-80 hover:opacity-100 transition"
                         >
                             <img
                                 src="/img/projects/cork-white.svg"
                                 alt="Cork"
+                                className="h-8 md:h-10 object-contain project-logo"
+                            />
+                        </a>
+
+                        <a
+                            href="/blog/giveth"
+                            aria-label="Giveth"
+                            className="opacity-80 hover:opacity-100 transition"
+                        >
+                            <img
+                                src="/img/projects/giveth-white.png"
+                                alt="Giveth"
                                 className="h-8 md:h-10 object-contain project-logo"
                             />
                         </a>
