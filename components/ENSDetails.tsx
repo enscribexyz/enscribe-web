@@ -2342,27 +2342,39 @@ export default function ENSDetails({
                             {Object.entries(
                               sourcifyMetadata.metadata.sources,
                             ).map(
-                              ([fileName, fileData]: [string, any], index) => (
-                                <div
-                                  key={index}
-                                  className="flex items-center justify-between text-xs bg-white dark:bg-gray-900 p-2 rounded"
-                                >
-                                  <span className="text-gray-700 dark:text-gray-300 font-mono truncate">
-                                    {fileName}
-                                  </span>
-                                  {fileData.urls && fileData.urls[0] && (
-                                    <a
-                                      href={fileData.urls[0]}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1 ml-2 flex-shrink-0"
-                                    >
-                                      ipfs://
-                                      <ExternalLink className="h-3 w-3" />
-                                    </a>
-                                  )}
-                                </div>
-                              ),
+                              ([fileName, fileData]: [string, any], index) => {
+                                // Extract IPFS hash from the second URL (dweb:/ipfs/<hash>)
+                                let ipfsViewerUrl = ''
+                                if (fileData.urls && fileData.urls[1]) {
+                                  const dwebUrl = fileData.urls[1]
+                                  const match = dwebUrl.match(/dweb:\/ipfs\/(.+)/)
+                                  if (match && match[1]) {
+                                    ipfsViewerUrl = `https://ipfsviewer.com/?hash=${match[1]}`
+                                  }
+                                }
+                                
+                                return (
+                                  <div
+                                    key={index}
+                                    className="flex items-center justify-between text-xs bg-white dark:bg-gray-900 p-2 rounded"
+                                  >
+                                    <span className="text-gray-700 dark:text-gray-300 font-mono truncate">
+                                      {fileName}
+                                    </span>
+                                    {ipfsViewerUrl && (
+                                      <a
+                                        href={ipfsViewerUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1 ml-2 flex-shrink-0"
+                                      >
+                                        ipfs://
+                                        <ExternalLink className="h-3 w-3" />
+                                      </a>
+                                    )}
+                                  </div>
+                                )
+                              },
                             )}
                           </div>
                         </details>
