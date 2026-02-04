@@ -11,21 +11,28 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 import { CONTRACTS, CHAINS } from '../utils/constants'
 import { namehash, normalize } from 'viem/ens'
-import { healENSName, isLabelhash, extractLabelhash, healLabelhash } from '../utils/labelhashMapping'
+import {
+  healENSName,
+  isLabelhash,
+  extractLabelhash,
+  healLabelhash,
+} from '../utils/labelhashMapping'
 import {
   ChevronDownIcon,
   ChevronUpIcon,
   PlusIcon,
   ChevronRightIcon,
 } from '@heroicons/react/24/outline'
-import { Loader2, X, Search } from 'lucide-react'
+import { Loader2, X, Search, ExternalLink } from 'lucide-react'
 import SearchModal from './SearchModal'
+import { useRouter } from 'next/router'
+import { ethers } from 'ethers'
 import {
   writeContract,
   waitForTransactionReceipt,
   readContract,
 } from 'viem/actions'
-import { createPublicClient, http, getAddress, isAddress } from 'viem'
+import { createPublicClient, http, getAddress, isAddress, parseAbi } from 'viem'
 import {
   mainnet,
   sepolia,
@@ -178,6 +185,7 @@ export default function NameMetadata({
   const { chain, address: walletAddress } = useAccount()
   const { data: walletClient } = useWalletClient()
   const { toast } = useToast()
+  const router = useRouter()
 
   const [searchName, setSearchName] = useState(initialName || '')
   const [currentName, setCurrentName] = useState('')
@@ -668,47 +676,35 @@ export default function NameMetadata({
 
       return domains.map((domain: any) => {
         const rawName = domain.name || 'Unknown'
-        const rawLabelName = domain.labelName || domain.name?.split('.')[0] || 'Unknown'
-        
-        console.log('[Labelhash Healing] Raw domain:', { 
-          name: rawName, 
-          labelName: rawLabelName,
-          isLabelhashFormat: isLabelhash(rawLabelName)
-        })
-        
+        const rawLabelName =
+          domain.labelName || domain.name?.split('.')[0] || 'Unknown'
+
         // Heal the name and label if they contain labelhashes
         const healedName = healENSName(rawName)
         let healedLabelName = rawLabelName
-        
+
         // If the labelName is in labelhash format [0x...], try to heal it
         if (isLabelhash(rawLabelName)) {
           const hash = extractLabelhash(rawLabelName)
-          console.log('[Labelhash Healing] Extracted hash:', hash)
           if (hash) {
             const healed = healLabelhash(hash)
-            console.log('[Labelhash Healing] Healed result:', healed)
             // Only use the healed version if it's different from the hash
             if (healed !== hash) {
               healedLabelName = healed
             }
           }
-        } else if (rawLabelName && rawLabelName.startsWith('0x') && rawLabelName.length === 66) {
+        } else if (
+          rawLabelName &&
+          rawLabelName.startsWith('0x') &&
+          rawLabelName.length === 66
+        ) {
           // Handle case where labelName is just a hash without brackets
-          console.log('[Labelhash Healing] Label is bare hash (no brackets):', rawLabelName)
           const healed = healLabelhash(rawLabelName)
-          console.log('[Labelhash Healing] Healed bare hash:', healed)
           if (healed !== rawLabelName) {
             healedLabelName = healed
           }
         }
-        
-        console.log('[Labelhash Healing] Final result:', { 
-          originalName: rawName, 
-          healedName, 
-          originalLabel: rawLabelName, 
-          healedLabel: healedLabelName 
-        })
-        
+
         return {
           name: healedName,
           labelName: healedLabelName,
@@ -842,6 +838,124 @@ export default function NameMetadata({
   const navigateToName = (name: string) => {
     setSearchName(name)
     handleSearchForName(name)
+  }
+
+  const handleExploreAddress = async (name: string) => {
+    try {
+      // Show loading toast
+      toast({
+        title: 'Resolving ENS name...',
+        description: `Looking up address for ${name}`,
+      })
+
+      let resolvedAddress: string | null = null
+
+      // Determine if we're on a testnet
+      const isTestnet = [
+        CHAINS.SEPOLIA,
+        CHAINS.LINEA_SEPOLIA,
+        CHAINS.BASE_SEPOLIA,
+        CHAINS.OPTIMISM_SEPOLIA,
+        CHAINS.ARBITRUM_SEPOLIA,
+        CHAINS.SCROLL_SEPOLIA,
+      ].includes(activeChainId)
+
+      // Use mainnet for mainnets, sepolia for testnets
+      const ensChainId = isTestnet ? CHAINS.SEPOLIA : CHAINS.MAINNET
+
+      console.log(
+        'Using chain for ENS resolution:',
+        ensChainId,
+        isTestnet ? '(testnet)' : '(mainnet)',
+      )
+
+      // For Base chains, use their public resolver
+      if (
+        activeChainId === CHAINS.BASE ||
+        activeChainId === CHAINS.BASE_SEPOLIA
+      ) {
+        try {
+          const baseConfig = CONTRACTS[activeChainId]
+          const baseClient = createPublicClient({
+            transport: http(baseConfig.RPC_ENDPOINT),
+            chain: {
+              id: activeChainId,
+              name: 'Base',
+              network: 'base',
+              nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+              rpcUrls: { default: { http: [baseConfig.RPC_ENDPOINT] } },
+            },
+          })
+
+          const publicResolverAbi = parseAbi([
+            'function addr(bytes32 node) view returns (address)',
+          ])
+
+          const address = (await readContract(baseClient, {
+            address: baseConfig.PUBLIC_RESOLVER as `0x${string}`,
+            abi: publicResolverAbi,
+            functionName: 'addr',
+            args: [namehash(name)],
+          })) as `0x${string}`
+
+          console.log('Base resolver address:', address)
+
+          // Check if address is not zero address
+          if (
+            address &&
+            address !== '0x0000000000000000000000000000000000000000'
+          ) {
+            resolvedAddress = address
+          }
+        } catch (baseError) {
+          console.error('Error resolving on Base:', baseError)
+          // Fall through to try mainnet/sepolia resolution
+        }
+      }
+
+      // If Base resolution failed or not on Base, try mainnet/sepolia ENS
+      if (!resolvedAddress) {
+        try {
+          const ensConfig = CONTRACTS[ensChainId]
+          const provider = new ethers.JsonRpcProvider(ensConfig.RPC_ENDPOINT)
+          resolvedAddress = await provider.resolveName(name)
+        } catch (resolveError: any) {
+          console.error(
+            'Error resolving ENS name on mainnet/sepolia:',
+            resolveError,
+          )
+        }
+      }
+
+      if (
+        resolvedAddress &&
+        resolvedAddress !== '0x0000000000000000000000000000000000000000' &&
+        resolvedAddress !== '0x0000000000000000000000000000000000000020'
+      ) {
+        // Name resolves to a valid address, navigate to explore page
+        toast({
+          title: 'Success',
+          description: `Resolved ${name} to ${resolvedAddress.slice(0, 10)}...`,
+        })
+
+        // Open in new tab
+        window.open(`/explore/${activeChainId}/${name}`, '_blank')
+      } else {
+        // Name doesn't resolve to an address
+        toast({
+          title: 'Name does not resolve',
+          description: `${name} does not resolve to any address on this network`,
+          variant: 'destructive',
+        })
+      }
+    } catch (error) {
+      console.error('Error exploring address:', error)
+      toast({
+        title: 'Error',
+        description: 'Failed to resolve ENS name. Please try again.',
+        variant: 'destructive',
+      })
+    }
   }
 
   const handleSearchForName = async (name: string) => {
@@ -1223,7 +1337,7 @@ export default function NameMetadata({
         <div className="flex flex-col items-center justify-center min-h-[60vh]">
           <div className="text-center mb-12 max-w-3xl">
             <h1 className="text-5xl font-bold mb-4 text-gray-900 dark:text-white">
-              Name Metadata
+              Name Explorer
             </h1>
             <p className="text-xl text-muted-foreground">
               Explore and manage ENS name metadata
@@ -1269,7 +1383,7 @@ export default function NameMetadata({
       {(currentName || loading) && (
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-8 border border-gray-200 dark:border-gray-700">
           <h2 className="text-3xl font-semibold text-gray-900 dark:text-white mb-8">
-            Name Metadata
+            Name Explorer
           </h2>
 
           {/* Info Box */}
@@ -1315,6 +1429,7 @@ export default function NameMetadata({
                     index={index}
                     onToggle={() => toggleParentExpansion(index)}
                     onNavigate={navigateToName}
+                    onExplore={handleExploreAddress}
                   />
                 ))}
               </div>
@@ -1325,9 +1440,18 @@ export default function NameMetadata({
           {!loading && metadata && (
             <div className="space-y-6">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  {currentName} Metadata
-                </h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    {currentName} Metadata
+                  </h3>
+                  <button
+                    onClick={() => handleExploreAddress(currentName)}
+                    className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+                    title="Explore address"
+                  >
+                    <ExternalLink className="w-4 h-4 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400" />
+                  </button>
+                </div>
                 {walletAddress && isOwnerOrManager && (
                   <Button
                     onClick={openMetadataModal}
@@ -1356,6 +1480,7 @@ export default function NameMetadata({
                     index={index}
                     onToggle={() => toggleSubnameExpansion(index)}
                     onNavigate={navigateToName}
+                    onExplore={handleExploreAddress}
                   />
                 ))}
               </div>
@@ -1636,6 +1761,7 @@ interface ParentHierarchyNodeProps {
   index: number
   onToggle: () => void
   onNavigate: (name: string) => void
+  onExplore: (name: string) => void
 }
 
 function ParentHierarchyNode({
@@ -1643,6 +1769,7 @@ function ParentHierarchyNode({
   index,
   onToggle,
   onNavigate,
+  onExplore,
 }: ParentHierarchyNodeProps) {
   return (
     <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
@@ -1663,6 +1790,13 @@ function ParentHierarchyNode({
             className="text-sm font-mono font-semibold text-blue-600 dark:text-blue-400 hover:underline"
           >
             {node.name}
+          </button>
+          <button
+            onClick={() => onExplore(node.name)}
+            className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+            title="Explore address"
+          >
+            <ExternalLink className="w-4 h-4 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400" />
           </button>
         </div>
         <span className="text-xs text-gray-500 dark:text-gray-400">
@@ -1694,6 +1828,7 @@ interface SubnameHierarchyNodeProps {
   index: number
   onToggle: () => void
   onNavigate: (name: string) => void
+  onExplore: (name: string) => void
 }
 
 function SubnameHierarchyNode({
@@ -1701,6 +1836,7 @@ function SubnameHierarchyNode({
   index,
   onToggle,
   onNavigate,
+  onExplore,
 }: SubnameHierarchyNodeProps) {
   return (
     <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
@@ -1721,6 +1857,13 @@ function SubnameHierarchyNode({
             className="text-sm font-mono font-semibold text-blue-600 dark:text-blue-400 hover:underline"
           >
             {node.name}
+          </button>
+          <button
+            onClick={() => onExplore(node.name)}
+            className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+            title="Explore address"
+          >
+            <ExternalLink className="w-4 h-4 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400" />
           </button>
           {node.hasSubnames && (
             <span className="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">

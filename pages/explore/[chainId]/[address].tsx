@@ -202,9 +202,10 @@ export default function ExploreAddressPage() {
         chainIdNumber === CHAINS.OPTIMISM ||
         chainIdNumber === CHAINS.SCROLL
       ) {
+        const mainnetConfig = CONTRACTS[CHAINS.MAINNET]
         chainClient = createPublicClient({
           chain: mainnet,
-          transport: http(),
+          transport: http(mainnetConfig.RPC_ENDPOINT),
         })
         reqObject = {
           name: normalizedName,
@@ -246,9 +247,10 @@ export default function ExploreAddressPage() {
         resolvedAddress = address
         return resolvedAddress
       } else {
+        const sepoliaConfig = CONTRACTS[CHAINS.SEPOLIA]
         chainClient = createPublicClient({
           chain: sepolia,
-          transport: http(),
+          transport: http(sepoliaConfig.RPC_ENDPOINT),
         })
         // for sepolia, coinType doesn't work according to gregskril
         reqObject = {

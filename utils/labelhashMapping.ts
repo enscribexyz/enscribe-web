@@ -82,41 +82,29 @@ export function isLabelhash(label: string): boolean {
 export function healENSName(name: string): string {
   if (!name) return name
 
-  console.log('[healENSName] Input:', name)
   const parts = name.split('.')
-  console.log('[healENSName] Split parts:', parts)
 
-  const healedParts = parts.map((part, index) => {
-    console.log(`[healENSName] Processing part ${index}:`, part)
-
+  const healedParts = parts.map((part) => {
     if (isLabelhash(part)) {
-      console.log(`[healENSName] Part ${index} is labelhash format`)
-
       // Extract the hash from the brackets
       const hash = extractLabelhash(part)
-      console.log(`[healENSName] Extracted hash:`, hash)
 
       if (hash) {
         const healed = healLabelhash(hash)
-        console.log(`[healENSName] Healed result:`, healed)
 
         // If healed successfully (not just the hash back), return without brackets
         // Otherwise keep the original format
         if (healed !== hash) {
-          console.log(`[healENSName] Successfully healed to:`, healed)
           return healed
         }
       }
-      console.log(`[healENSName] No mapping found, keeping original:`, part)
       return part
     }
 
     return part
   })
 
-  const result = healedParts.join('.')
-  console.log('[healENSName] Final result:', result)
-  return result
+  return healedParts.join('.')
 }
 
 /**

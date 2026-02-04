@@ -1115,9 +1115,10 @@ export default function BatchNamingForm() {
       }
 
       // Create a public client for the L2 chain
+      const chainConfig = CONTRACTS[l2ChainId]
       const l2PublicClient = createPublicClient({
         chain: viemChain,
-        transport: http(),
+        transport: http(chainConfig.RPC_ENDPOINT),
       })
 
       // Try to read the owner from the contract on L2
@@ -1196,9 +1197,10 @@ export default function BatchNamingForm() {
       }
 
       // Create a public client for the L2 chain
+      const chainConfig = CONTRACTS[l2ChainId]
       const l2PublicClient = createPublicClient({
         chain: viemChain,
-        transport: http(),
+        transport: http(chainConfig.RPC_ENDPOINT),
       })
 
       // Try to read the owner from the contract on L2
