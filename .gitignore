@@ -43,3 +43,5 @@ next-env.d.ts
 
 # JetBrains IDE
 .idea
+/enscribe-docs/enscribe-docs.iml
+/enscribe-web.iml
