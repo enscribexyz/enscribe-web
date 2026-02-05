@@ -31,7 +31,7 @@ export default async function handler(
     if (count > 0) {
       return res.status(200).json({ label: count === 1 ? `${name}` : `⚠️ ${count} Names`})
     } else {
-      return res.status(404).json({ label: '❌ Set ENS' })
+      return res.status(200).json({ label: '❌ Set ENS' })
     }
   }
 }
