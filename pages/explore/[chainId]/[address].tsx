@@ -202,16 +202,20 @@ export default function ExploreAddressPage() {
         chainIdNumber === CHAINS.OPTIMISM ||
         chainIdNumber === CHAINS.SCROLL
       ) {
+        const mainnetConfig = CONTRACTS[CHAINS.MAINNET]
         chainClient = createPublicClient({
           chain: mainnet,
-          transport: http(),
+          transport: http(mainnetConfig.RPC_ENDPOINT),
         })
         reqObject = {
           name: normalizedName,
           coinType: toCoinType(chainIdNumber),
         }
         console.log('[address] Using mainnet client for ENS resolution')
-      } else if (chainIdNumber === CHAINS.BASE || chainIdNumber === CHAINS.BASE_SEPOLIA) {
+      } else if (
+        chainIdNumber === CHAINS.BASE ||
+        chainIdNumber === CHAINS.BASE_SEPOLIA
+      ) {
         const config = CONTRACTS[chainIdNumber]
         console.log('config.RPC_ENDPOINT: ', config.RPC_ENDPOINT)
         const baseClient = createPublicClient({
@@ -227,25 +231,26 @@ export default function ExploreAddressPage() {
 
         const publicResolverAbi = parseAbi([
           'function addr(bytes32 node, uint256 coinType) view returns (bytes)',
-        ]);
+        ])
         const node = namehash(normalizedName)
         console.log('publicResolverAbi: ', publicResolverAbi)
         console.log('namehash(cleanedQuery): ', node)
         console.log('toCoinType(selectedChain): ', toCoinType(chainIdNumber))
         console.log('config.PUBLIC_RESOLVER: ', config.PUBLIC_RESOLVER)
-        const address = await readContract(baseClient, {
+        const address = (await readContract(baseClient, {
           address: config.PUBLIC_RESOLVER as `0x${string}`,
           abi: publicResolverAbi,
           functionName: 'addr',
           args: [node, toCoinType(chainIdNumber)],
-        }) as `0x${string}`
+        })) as `0x${string}`
         console.log('address: ', address)
         resolvedAddress = address
         return resolvedAddress
       } else {
+        const sepoliaConfig = CONTRACTS[CHAINS.SEPOLIA]
         chainClient = createPublicClient({
           chain: sepolia,
-          transport: http(),
+          transport: http(sepoliaConfig.RPC_ENDPOINT),
         })
         // for sepolia, coinType doesn't work according to gregskril
         reqObject = {
@@ -462,7 +467,9 @@ export default function ExploreAddressPage() {
                 targetAddress,
                 Number(chainId),
               )
-              console.log(`fetching contract deployer details: "${creatorAddress}"`)
+              console.log(
+                `fetching contract deployer details: "${creatorAddress}"`,
+              )
               setContractDeployerAddress(creatorAddress)
 
               if (creatorAddress !== null) {
@@ -507,36 +514,29 @@ export default function ExploreAddressPage() {
     validateInput()
   }, [router.isReady, chainId, address, client])
 
-  if (isLoading) {
-    return (
-      <Layout>
-        <div className="flex justify-center items-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 dark:border-blue-400"></div>
-        </div>
-      </Layout>
-    )
-  }
-
   return (
     <Layout>
-      <div className="flex items-center mb-6 w-full max-w-5xl mx-auto">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-          {isValidAddress && isValidChain
-            ? isContract
-              ? 'Contract Details'
-              : 'Account Details'
-            : 'Invalid Chain ID or Address/ENS name'}
-        </h1>
-      </div>
+      {!isLoading && (
+        <div className="flex items-center mb-6 w-full max-w-5xl mx-auto">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+            {isValidAddress && isValidChain
+              ? isContract
+                ? 'Contract Details'
+                : 'Account Details'
+              : 'Invalid Chain ID or Address/ENS name'}
+          </h1>
+        </div>
+      )}
 
-      {error && (
+      {error && !isLoading && (
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-6">
           <div className="text-red-700 dark:text-red-400">{error}</div>
         </div>
       )}
 
       {/* Display a message if the wallet chain differs from the URL chain */}
-      {walletChain &&
+      {!isLoading &&
+        walletChain &&
         chainId &&
         parseInt(chainId as string) !== walletChain.id && (
           <div className="mt-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
@@ -547,7 +547,8 @@ export default function ExploreAddressPage() {
           </div>
         )}
 
-      {isValidAddress && isValidChain && (
+      {/* Always render ENSDetails - it will handle its own loading state */}
+      {(isValidAddress && isValidChain) || isLoading ? (
         <ENSDetails
           address={resolvedAddress || (address as string)}
           contractDeployerAddress={contractDeployerAddress}
@@ -555,8 +556,9 @@ export default function ExploreAddressPage() {
           chainId={typeof chainId === 'string' ? parseInt(chainId) : undefined}
           isContract={isContract}
           proxyInfo={proxyInfo}
+          queriedENSName={isENSName ? (address as string) : undefined}
         />
-      )}
+      ) : null}
     </Layout>
   )
 }

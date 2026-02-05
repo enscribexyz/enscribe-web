@@ -29,11 +29,15 @@ export default function SearchModal({
     propSelectedChain || 1,
   )
   const [manuallyChanged, setManuallyChanged] = useState(false)
-  const [searchResults, setSearchResults] = useState<Array<{
-    name: string
-    address: string
-    avatar?: string
-  }>>([])
+  const [searchResults, setSearchResults] = useState<
+    Array<{
+      name: string
+      address: string
+      avatar?: string
+      type: 'explore' | 'nameMetadata'
+      title?: string
+    }>
+  >([])
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
 
   const router = useRouter()
@@ -61,7 +65,10 @@ export default function SearchModal({
       console.log('SearchModal: Using wallet chain:', chain.id)
       setSelectedChain(chain.id)
     } else if (propSelectedChain) {
-      console.log('SearchModal: Using selected chain from props:', propSelectedChain)
+      console.log(
+        'SearchModal: Using selected chain from props:',
+        propSelectedChain,
+      )
       setSelectedChain(propSelectedChain)
     }
   }, [chain?.id, propSelectedChain])
@@ -134,6 +141,8 @@ export default function SearchModal({
           {
             name: cleanedQuery,
             address: cleanedQuery,
+            type: 'explore',
+            title: 'View Address',
           },
         ])
       } else if (containsDot) {
@@ -149,8 +158,8 @@ export default function SearchModal({
           // Validate ENS name format before attempting resolution
           // Check for common invalid patterns
           if (
-            ensName.startsWith('.') || 
-            ensName.endsWith('.') || 
+            ensName.startsWith('.') ||
+            ensName.endsWith('.') ||
             ensName.includes('..') ||
             ensName.split('.').some((label: string) => label.trim() === '')
           ) {
@@ -182,7 +191,10 @@ export default function SearchModal({
           let resolvedAddress: string | null = null
 
           // For Base chains, use their public resolver with coinType
-          if (selectedChain === CHAINS.BASE || selectedChain === CHAINS.BASE_SEPOLIA) {
+          if (
+            selectedChain === CHAINS.BASE ||
+            selectedChain === CHAINS.BASE_SEPOLIA
+          ) {
             const config = CONTRACTS[selectedChain]
             const baseClient = createPublicClient({
               transport: http(config.RPC_ENDPOINT),
@@ -199,15 +211,18 @@ export default function SearchModal({
               'function addr(bytes32 node) view returns (address)',
             ])
             try {
-              const address = await readContract(baseClient, {
+              const address = (await readContract(baseClient, {
                 address: config.PUBLIC_RESOLVER as `0x${string}`,
                 abi: publicResolverAbi,
                 functionName: 'addr',
                 args: [namehash(ensName)],
-              }) as `0x${string}`
+              })) as `0x${string}`
               console.log('Base resolver address:', address)
               // Check if address is not zero address
-              if (address && address !== '0x0000000000000000000000000000000000000000') {
+              if (
+                address &&
+                address !== '0x0000000000000000000000000000000000000000'
+              ) {
                 resolvedAddress = address
               }
             } catch (baseError) {
@@ -215,14 +230,17 @@ export default function SearchModal({
               // Fall through to try mainnet/sepolia resolution
             }
           }
-          
+
           // If Base resolution failed or not on Base, try mainnet/sepolia ENS
           if (!resolvedAddress) {
             try {
               const mainnetProvider = getProvider(ensChainId)
               resolvedAddress = await mainnetProvider.resolveName(ensName)
             } catch (resolveError: any) {
-              console.error('Error resolving ENS name on mainnet/sepolia:', resolveError)
+              console.error(
+                'Error resolving ENS name on mainnet/sepolia:',
+                resolveError,
+              )
               // Check for specific error types
               if (resolveError?.code === 'INVALID_ARGUMENT') {
                 setError('Invalid ENS name format')
@@ -235,28 +253,60 @@ export default function SearchModal({
             }
           }
 
-          if (resolvedAddress && resolvedAddress !== '0x0000000000000000000000000000000000000000' && resolvedAddress !== '0x0000000000000000000000000000000000000020') {
+          if (
+            resolvedAddress &&
+            resolvedAddress !== '0x0000000000000000000000000000000000000000' &&
+            resolvedAddress !== '0x0000000000000000000000000000000000000020'
+          ) {
+            // ENS name resolves to an address - show both options
             setSearchResults([
               {
                 name: ensName,
                 address: resolvedAddress,
+                type: 'explore',
+                title: 'View Address',
+              },
+              {
+                name: ensName,
+                address: ensName,
+                type: 'nameMetadata',
+                title: 'Explore Name',
               },
             ])
           } else {
-            setError("ENS name doesn't resolve to any address")
-            setSearchResults([])
+            // ENS name doesn't resolve - show only Name Metadata option
+            setSearchResults([
+              {
+                name: ensName,
+                address: ensName,
+                type: 'nameMetadata',
+                title: 'Explore Name',
+              },
+            ])
+            setError('')
           }
         } catch (ensError: any) {
           console.error('Error resolving ENS name:', ensError)
           // Provide more specific error messages
           if (ensError?.code === 'INVALID_ARGUMENT') {
             setError('Invalid ENS name format')
+            setSearchResults([])
           } else if (ensError?.message?.includes('invalid ENS name')) {
             setError('Invalid ENS name format')
+            setSearchResults([])
           } else {
-            setError("ENS name doesn't resolve to any address")
+            // ENS name doesn't resolve - show only Name Metadata option
+            const ensName = cleanedQuery as string
+            setSearchResults([
+              {
+                name: ensName,
+                address: ensName,
+                type: 'nameMetadata',
+                title: 'Name Metadata',
+              },
+            ])
+            setError('')
           }
-          setSearchResults([])
         }
       } else {
         // Not a valid address and doesn't contain a dot
@@ -289,14 +339,15 @@ export default function SearchModal({
     const trimmed = searchQuery.trim()
     const containsDot = trimmed.includes('.')
     const isAddr = isAddress(trimmed)
-    
+
     // Skip auto-search for obviously invalid ENS names
-    if (containsDot && (
-      trimmed.startsWith('.') || 
-      trimmed.endsWith('.') || 
-      trimmed.includes('..') ||
-      trimmed.split('.').some(label => label.trim() === '')
-    )) {
+    if (
+      containsDot &&
+      (trimmed.startsWith('.') ||
+        trimmed.endsWith('.') ||
+        trimmed.includes('..') ||
+        trimmed.split('.').some((label) => label.trim() === ''))
+    ) {
       // Don't auto-search invalid ENS names, but don't show error yet
       return
     }
@@ -316,9 +367,18 @@ export default function SearchModal({
     }
   }, [searchQuery, handleSearch])
 
-  const handleResultClick = (result: { name: string; address: string }) => {
-    console.log('Using hard redirect to ensure proper contract detection')
-    window.location.href = `/explore/${selectedChain}/${result.name}`
+  const handleResultClick = (result: {
+    name: string
+    address: string
+    type: 'explore' | 'nameMetadata'
+  }) => {
+    if (result.type === 'nameMetadata') {
+      console.log('Navigating to Name Metadata page')
+      window.location.href = `/nameMetadata?name=${encodeURIComponent(result.name)}`
+    } else {
+      console.log('Using hard redirect to ensure proper contract detection')
+      window.location.href = `/explore/${selectedChain}/${result.name}`
+    }
     onClose()
   }
 
@@ -348,10 +408,10 @@ export default function SearchModal({
       <div className="relative w-full max-w-2xl bg-card rounded-2xl shadow-2xl overflow-hidden border border-border">
         {/* Header */}
         {/* <div className="flex items-center justify-between p-6 border-b border-border"> */}
-          {/* <h2 className="text-2xl font-bold text-card-foreground">
+        {/* <h2 className="text-2xl font-bold text-card-foreground">
             Select Address To View
           </h2> */}
-          {/* <button
+        {/* <button
             onClick={onClose}
             className="p-2 hover:bg-accent rounded-lg transition-colors"
           >
@@ -384,44 +444,51 @@ export default function SearchModal({
           </div>
 
           {/* Error Message */}
-          {error && (
-            <p className="text-sm text-destructive mb-4">
-              {error}
-            </p>
-          )}
+          {error && <p className="text-sm text-destructive mb-4">{error}</p>}
 
           {/* Search Results */}
           {searchResults.length > 0 && (
             <div className="mt-6">
               <h3 className="text-lg font-semibold text-card-foreground mb-3">
-                Search Result
+                Search Results
               </h3>
-              <div className="space-y-2">
+              <div className="space-y-4">
                 {searchResults.map((result, index) => (
-                  <button
-                    key={index}
-                    onClick={() => handleResultClick(result)}
-                    className="w-full flex items-center space-x-4 p-4 bg-accent hover:bg-muted rounded-xl transition-colors cursor-pointer border-2 border-transparent hover:border-ring"
-                  >
-                    {/* Avatar/Icon */}
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center flex-shrink-0">
-                      <span className="text-white font-bold text-lg">
-                        {result.name.substring(0, 2).toUpperCase()}
-                      </span>
-                    </div>
-
-                    {/* Name and Address */}
-                    <div className="flex-1 text-left">
-                      <div className="font-semibold text-card-foreground">
-                        {result.name}
+                  <div key={index}>
+                    {/* Result Title */}
+                    {result.title && (
+                      <div className="text-xs font-medium text-muted-foreground mb-1.5 px-1">
+                        {result.title}
                       </div>
-                      {result.name !== result.address && (
-                        <div className="text-sm text-muted-foreground truncate">
-                          {result.address}
+                    )}
+                    {/* Result Button */}
+                    <button
+                      onClick={() => handleResultClick(result)}
+                      className="w-full flex items-center space-x-4 p-4 bg-accent hover:bg-muted rounded-xl transition-colors cursor-pointer border-2 border-transparent hover:border-ring"
+                    >
+                      {/* Avatar/Icon */}
+                      <div
+                        className={`w-12 h-12 rounded-full ${result.type === 'nameMetadata' ? 'bg-gradient-to-br from-green-400 to-cyan-500' : 'bg-gradient-to-br from-blue-400 to-purple-500'} flex items-center justify-center flex-shrink-0`}
+                      >
+                        <span className="text-white font-bold text-lg">
+                          {result.name.substring(0, 2).toUpperCase()}
+                        </span>
+                      </div>
+
+                      {/* Name and Address */}
+                      <div className="flex-1 text-left">
+                        <div className="font-semibold text-card-foreground">
+                          {result.name}
                         </div>
-                      )}
-                    </div>
-                  </button>
+                        {result.name !== result.address &&
+                          result.type === 'explore' && (
+                            <div className="text-sm text-muted-foreground truncate">
+                              {result.address}
+                            </div>
+                          )}
+                      </div>
+                    </button>
+                  </div>
                 ))}
               </div>
             </div>
