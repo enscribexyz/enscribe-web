@@ -179,7 +179,7 @@ export default function ENSDetails({
   const effectiveChainId = chainId || chain?.id
   const config = effectiveChainId ? CONTRACTS[effectiveChainId] : undefined
   const etherscanUrl = config?.ETHERSCAN_URL || 'https://etherscan.io/'
-  const SOURCIFY_URL = 'https://sourcify.dev/#/lookup/'
+  const SOURCIFY_URL = 'https://repo.sourcify.dev/'
 
   // Determine if we should use the wallet client or a custom provider
   const shouldUseWalletClient = isConnected && chainId === chain?.id
