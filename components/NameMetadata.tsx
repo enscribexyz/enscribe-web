@@ -146,17 +146,13 @@ const CONTRACT_METADATA = [
     label: 'Security Audits',
     placeholder: 'JSON array or URLs',
   },
-  {
-    key: 'proxy',
-    label: 'Proxy Info',
-    placeholder: 'JSON: {"type":"...", "target":"..."}',
-  },
 ]
 
 // Coin type to chain mapping (ENSIP-11 for L2s, SLIP-44 for L1)
 const COIN_TYPE_MAPPING: Record<string, { name: string; logo: string }> = {
   '60': { name: 'Ethereum', logo: '/images/ethereum.svg' },
   '2147492101': { name: 'Base', logo: '/images/base.svg' },
+  '2147568180': { name: 'Base Sepolia', logo: '/images/base.svg' },
   '2147483658': { name: 'Optimism', logo: '/images/optimism.svg' },
   '2158639068': { name: 'Optimism Sepolia', logo: '/images/optimism.svg' },
   '2147525809': { name: 'Arbitrum', logo: '/images/arbitrum.svg' },
@@ -612,6 +608,11 @@ export default function NameMetadata({
           implementer,
         }),
       )
+
+      // If ethAddress exists but coinType 60 is not in the map, add it
+      if (metadata.ethAddress && !coinAddressesMap.has('60')) {
+        coinAddressesMap.set('60', metadata.ethAddress)
+      }
 
       metadata.coinAddresses = Array.from(coinAddressesMap.entries()).map(
         ([coinType, addr]) => ({
@@ -1514,7 +1515,7 @@ export default function NameMetadata({
                             {record.key}
                           </span>
                           {record.isNew && (
-                            <span className="text-xs bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 px-2 py-0.5 rounded">
+                            <span className="text-xs bg-green-50 dark:bg-green-900 text-green-600 dark:text-green-300 px-2 py-0.5 rounded border border-green-200 dark:border-green-700">
                               New
                             </span>
                           )}
@@ -1533,7 +1534,7 @@ export default function NameMetadata({
                         onClick={() => removeRecord(index)}
                         variant="outline"
                         size="sm"
-                        className="mt-6 px-2 hover:bg-red-50 dark:hover:bg-red-900/20"
+                        className="mt-6 px-2 border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-900/20"
                       >
                         <X className="w-4 h-4 text-red-600 dark:text-red-400" />
                       </Button>
@@ -1555,7 +1556,7 @@ export default function NameMetadata({
                       <button
                         key={item.key}
                         onClick={() => addMetadataKey(item.key, item.label)}
-                        className="px-3 py-1.5 text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors border border-blue-300 dark:border-blue-700"
+                        className="px-3 py-1.5 text-xs font-medium bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 rounded-full hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors border border-blue-200 dark:border-blue-700"
                       >
                         + {item.label}
                       </button>
@@ -1606,7 +1607,7 @@ export default function NameMetadata({
                                 onClick={() =>
                                   addMetadataKey(item.key, item.label)
                                 }
-                                className="px-3 py-1.5 text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors border border-blue-300 dark:border-blue-700"
+                                className="px-3 py-1.5 text-xs font-medium bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 rounded-full hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors border border-blue-200 dark:border-blue-700"
                               >
                                 + {item.label}
                               </button>
@@ -1647,7 +1648,7 @@ export default function NameMetadata({
                                 onClick={() =>
                                   addMetadataKey(item.key, item.label)
                                 }
-                                className="px-3 py-1.5 text-xs font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-full hover:bg-purple-200 dark:hover:bg-purple-900/50 transition-colors border border-purple-300 dark:border-purple-700"
+                                className="px-3 py-1.5 text-xs font-medium bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-300 rounded-full hover:bg-purple-100 dark:hover:bg-purple-900/50 transition-colors border border-purple-200 dark:border-purple-700"
                               >
                                 + {item.label}
                               </button>
@@ -1692,7 +1693,7 @@ export default function NameMetadata({
                         onClick={addCustomMetadata}
                         variant="outline"
                         size="sm"
-                        className="whitespace-nowrap"
+                        className="whitespace-nowrap border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
                       >
                         <PlusIcon className="w-4 h-4 mr-1" />
                         Add
@@ -1730,13 +1731,14 @@ export default function NameMetadata({
                 onClick={() => setIsModalOpen(false)}
                 variant="outline"
                 disabled={settingRecords}
+                className="border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
               >
                 Cancel
               </Button>
               <Button
                 onClick={handleSetTextRecords}
                 disabled={settingRecords || editingRecords.length === 0}
-                className="bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
+                className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 text-white disabled:opacity-50"
               >
                 {settingRecords ? (
                   <>
@@ -1909,9 +1911,9 @@ function MetadataDisplay({ metadata }: MetadataDisplayProps) {
             Address Records
           </h4>
           <div className="space-y-2">
-            {metadata.ethAddress && (
+            {/* {metadata.ethAddress && (
               <InfoRow label="ETH Address" value={metadata.ethAddress} mono />
-            )}
+            )} */}
             {metadata.coinAddresses.map((coin) => {
               const chainInfo = COIN_TYPE_MAPPING[coin.coinType]
               return (
@@ -1993,8 +1995,7 @@ function MetadataDisplay({ metadata }: MetadataDisplayProps) {
       )}
 
       {/* No Records Message */}
-      {!metadata.ethAddress &&
-        metadata.coinAddresses.length === 0 &&
+      {metadata.coinAddresses.length === 0 &&
         !metadata.contentHash &&
         metadata.textRecords.length === 0 &&
         metadata.interfaces.length === 0 && (
