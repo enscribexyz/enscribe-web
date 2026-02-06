@@ -32,7 +32,14 @@ import {
   waitForTransactionReceipt,
   readContract,
 } from 'viem/actions'
-import { createPublicClient, http, getAddress, isAddress, parseAbi } from 'viem'
+import {
+  createPublicClient,
+  http,
+  getAddress,
+  isAddress,
+  parseAbi,
+  encodeFunctionData,
+} from 'viem'
 import {
   mainnet,
   sepolia,
@@ -1285,22 +1292,29 @@ export default function NameMetadata({
         return
       }
 
-      // Set each text record
-      for (const record of recordsToSet) {
-        const hash = await writeContract(walletClient, {
-          chain: chain,
-          address: metadata.resolverAddress as `0x${string}`,
+      // Encode each setText call
+      const encodedCalls = recordsToSet.map((record) =>
+        encodeFunctionData({
           abi: publicResolverABI,
           functionName: 'setText',
           args: [node, record.key, record.value],
-        })
+        }),
+      )
 
-        await waitForTransactionReceipt(walletClient, { hash })
-      }
+      // Call multicall with all encoded setText calls in a single transaction
+      const hash = await writeContract(walletClient, {
+        chain: chain,
+        address: metadata.resolverAddress as `0x${string}`,
+        abi: publicResolverABI,
+        functionName: 'multicall',
+        args: [encodedCalls],
+      })
+
+      await waitForTransactionReceipt(walletClient, { hash })
 
       toast({
         title: 'Success',
-        description: `Successfully set ${recordsToSet.length} text record(s)`,
+        description: `Successfully set ${recordsToSet.length} text record(s) in a single transaction`,
       })
 
       setIsModalOpen(false)
