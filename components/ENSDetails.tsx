@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { ethers } from 'ethers'
-import { useAccount, usePublicClient } from 'wagmi'
+import { useAccount } from 'wagmi'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -170,7 +170,6 @@ export default function ENSDetails({
   )
   const [implDeployerName, setImplDeployerName] = useState<string | null>(null)
   const { chain, isConnected } = useAccount()
-  const walletPublicClient = usePublicClient()
   const [customProvider, setCustomProvider] =
     useState<ethers.JsonRpcProvider | null>(null)
   const { toast } = useToast()
@@ -2347,12 +2346,13 @@ export default function ENSDetails({
                                 let ipfsViewerUrl = ''
                                 if (fileData.urls && fileData.urls[1]) {
                                   const dwebUrl = fileData.urls[1]
-                                  const match = dwebUrl.match(/dweb:\/ipfs\/(.+)/)
+                                  const match =
+                                    dwebUrl.match(/dweb:\/ipfs\/(.+)/)
                                   if (match && match[1]) {
                                     ipfsViewerUrl = `https://ipfsviewer.com/?hash=${match[1]}`
                                   }
                                 }
-                                
+
                                 return (
                                   <div
                                     key={index}

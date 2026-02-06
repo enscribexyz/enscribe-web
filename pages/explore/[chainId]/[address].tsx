@@ -3,7 +3,6 @@ import { useState, useEffect, useCallback } from 'react'
 import { isAddress, parseAbi } from 'viem/utils'
 import { createPublicClient, http, toCoinType } from 'viem'
 import { normalize } from 'viem/ens'
-import { mainnet, sepolia, base, linea } from 'viem/chains'
 import Layout from '@/components/Layout'
 import ENSDetails from '@/components/ENSDetails'
 import { Button } from '@/components/ui/button'
@@ -188,31 +187,10 @@ export default function ExploreAddressPage() {
         return null
       }
 
-      // Create the appropriate client based on the current chain
-      let chainClient: any = null
-      let reqObject
-
       // Try to resolve the ENS name on the current chain
       let resolvedAddress: string | null = null
 
       if (
-        chainIdNumber === CHAINS.MAINNET ||
-        chainIdNumber === CHAINS.LINEA ||
-        chainIdNumber === CHAINS.ARBITRUM ||
-        chainIdNumber === CHAINS.OPTIMISM ||
-        chainIdNumber === CHAINS.SCROLL
-      ) {
-        const mainnetConfig = CONTRACTS[CHAINS.MAINNET]
-        chainClient = createPublicClient({
-          chain: mainnet,
-          transport: http(mainnetConfig.RPC_ENDPOINT),
-        })
-        reqObject = {
-          name: normalizedName,
-          coinType: toCoinType(chainIdNumber),
-        }
-        console.log('[address] Using mainnet client for ENS resolution')
-      } else if (
         chainIdNumber === CHAINS.BASE ||
         chainIdNumber === CHAINS.BASE_SEPOLIA
       ) {
@@ -246,23 +224,30 @@ export default function ExploreAddressPage() {
         console.log('address: ', address)
         resolvedAddress = address
         return resolvedAddress
-      } else {
-        const sepoliaConfig = CONTRACTS[CHAINS.SEPOLIA]
-        chainClient = createPublicClient({
-          chain: sepolia,
-          transport: http(sepoliaConfig.RPC_ENDPOINT),
-        })
-        // for sepolia, coinType doesn't work according to gregskril
-        reqObject = {
-          name: normalizedName,
-        }
-        console.log('[address] Using sepolia client for ENS resolution')
       }
 
+      // For all other chains, use ethers.js with explicit RPC endpoint to avoid eth.merkle.io
       try {
-        resolvedAddress = await chainClient.getEnsAddress(reqObject)
+        // Determine which ENS chain to use (mainnet for mainnets, sepolia for testnets)
+        const isTestnet = [
+          CHAINS.SEPOLIA,
+          CHAINS.LINEA_SEPOLIA,
+          CHAINS.OPTIMISM_SEPOLIA,
+          CHAINS.ARBITRUM_SEPOLIA,
+          CHAINS.SCROLL_SEPOLIA,
+        ].includes(chainIdNumber)
+
+        const ensChainId = isTestnet ? CHAINS.SEPOLIA : CHAINS.MAINNET
+        const ensConfig = CONTRACTS[ensChainId]
+        const provider = new ethers.JsonRpcProvider(ensConfig.RPC_ENDPOINT)
+
         console.log(
-          `[address] Resolved ${normalizedName} to ${resolvedAddress} on chain ${chainIdNumber} with cointype: ${toCoinType(chainIdNumber)}`,
+          `[address] Using ${isTestnet ? 'sepolia' : 'mainnet'} ENS resolution via ethers.js for chain ${chainIdNumber}`,
+        )
+
+        resolvedAddress = await provider.resolveName(normalizedName)
+        console.log(
+          `[address] Resolved ${normalizedName} to ${resolvedAddress} on chain ${chainIdNumber}`,
         )
       } catch (error) {
         console.log(

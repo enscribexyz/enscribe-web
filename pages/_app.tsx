@@ -22,6 +22,7 @@ import { TransactionProvider } from 'ethereum-identity-kit'
 import { ThemeProvider } from '@/hooks/useTheme'
 import { ThemeAwareRainbowKit } from '@/components/ThemeAwareRainbowKit'
 import { SafeAutoConnect } from '@/components/SafeAutoConnect'
+import { CONTRACTS, CHAINS } from '@/utils/constants'
 import '@rainbow-me/rainbowkit/styles.css'
 import '@/styles/globals.css'
 
@@ -65,12 +66,22 @@ export default function MyApp({ Component, pageProps }: AppProps) {
       })
 
       // Create wagmi config with all connectors + localStorage for reconnection
+      // Use explicit RPC endpoints to avoid eth.merkle.io rate limiting
       const config = createConfig({
         chains,
         connectors: [...connectors, safeConnector],
         transports: chains.reduce(
           (acc, chain) => {
-            acc[chain.id] = http()
+            // Get RPC endpoint from CONTRACTS config
+            const chainConfig = CONTRACTS[chain.id as CHAINS]
+            const rpcUrl = chainConfig?.RPC_ENDPOINT
+            
+            if (rpcUrl) {
+              acc[chain.id] = http(rpcUrl)
+            } else {
+              console.warn(`No RPC endpoint configured for chain ${chain.id}`)
+              acc[chain.id] = http() // Fallback to default
+            }
             return acc
           },
           {} as Record<number, ReturnType<typeof http>>,
