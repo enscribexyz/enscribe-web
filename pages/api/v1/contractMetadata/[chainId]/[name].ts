@@ -5,11 +5,13 @@
  * 
  * Optimizations:
  * 1. Paid RPC Endpoints: Uses configured RPC_ENDPOINT from env (NEXT_PUBLIC_RPC, etc.)
- * 2. Parallel Calls: Fetches direct text records for one ENS name in parallel
+ * 2. Fully Parallel: Fetches ALL text records from ALL domain levels in parallel
  * 3. Resolver Caching: Caches resolver per ENS name within a single request
+ * 4. Smart Fallback: Uses most specific (lower-level) value first, falls back to parent if not set
  * 
  * Returns: Text records (name, alias, description, avatar, url, category, license, docs, audits)
- * with parent domain fallback for url, category, license, docs, and audits.
+ * - alias: Only from the specific contract name (no parent fallback)
+ * - All others: From contract name, falls back to parent domains if not set
  */
 
 import { NextApiRequest, NextApiResponse } from 'next'
@@ -67,7 +69,7 @@ async function fetchTextRecord(
   }
 }
 
-// Function to fetch text records with parent fallback
+// Function to fetch text records with parent fallback (OPTIMIZED - All parallel)
 async function fetchTextRecordsWithFallback(
   provider: ethers.JsonRpcProvider,
   ensName: string
@@ -78,32 +80,69 @@ async function fetchTextRecordsWithFallback(
   const resolverCache = new Map<string, ethers.EnsResolver | null>()
 
   try {
-    // Step 1: Fetch direct records in parallel (name, alias, description, avatar)
-    const directKeys = ['name', 'alias', 'description', 'avatar']
-    const directPromises = directKeys.map((key) => 
-      fetchTextRecord(provider, resolverCache, ensName, key).then((value) => ({ key, value }))
-    )
-    
-    const directResults = await Promise.all(directPromises)
-    directResults.forEach(({ key, value }) => {
-      if (value) {
-        records[key as keyof TextRecords] = value
-      }
-    })
-
-    // Step 2: Fetch fallback records with parent fallback (sequential)
-    const fallbackKeys = ['url', 'category', 'license', 'docs', 'audits']
+    // Build domain chain (from most specific to least specific)
     const domainChain = [ensName, ...getParentDomains(ensName)]
     
+    // Define all keys and which ones should use fallback
+    const directKeys = ['alias'] // No parent fallback
+    const fallbackKeys = ['avatar', 'name', 'description', 'url', 'category', 'license', 'docs', 'audits']
+    
+    // Create all fetch promises in parallel
+    const allPromises: Promise<{ domain: string; key: string; value: string | null }>[] = []
+    
+    // Fetch direct keys only from the specific ENS name
+    for (const key of directKeys) {
+      allPromises.push(
+        fetchTextRecord(provider, resolverCache, ensName, key).then((value) => ({
+          domain: ensName,
+          key,
+          value,
+        }))
+      )
+    }
+    
+    // Fetch fallback keys from all domain levels in parallel
     for (const key of fallbackKeys) {
       for (const domain of domainChain) {
-        const value = await fetchTextRecord(provider, resolverCache, domain, key)
-        if (value) {
-          records[key as keyof TextRecords] = value
-          break // Stop once found
-        }
+        allPromises.push(
+          fetchTextRecord(provider, resolverCache, domain, key).then((value) => ({
+            domain,
+            key,
+            value,
+          }))
+        )
       }
     }
+    
+    // Wait for ALL requests to complete in parallel
+    const allResults = await Promise.all(allPromises)
+    
+    // Process results: For each key, use the value from the most specific domain (first in chain)
+    const resultsByKey = new Map<string, Map<string, string>>()
+    
+    allResults.forEach(({ domain, key, value }) => {
+      if (value) {
+        if (!resultsByKey.has(key)) {
+          resultsByKey.set(key, new Map())
+        }
+        resultsByKey.get(key)!.set(domain, value)
+      }
+    })
+    
+    // For each key, pick the value from the most specific domain (earliest in domainChain)
+    resultsByKey.forEach((domainValues, key) => {
+      for (const domain of domainChain) {
+        if (domainValues.has(domain)) {
+          records[key as keyof TextRecords] = domainValues.get(domain)
+          break // Use the most specific domain's value
+        }
+      }
+      
+      // If not in domainChain (i.e., direct key like 'alias'), use the only value
+      if (!records[key as keyof TextRecords] && domainValues.size > 0) {
+        records[key as keyof TextRecords] = Array.from(domainValues.values())[0]
+      }
+    })
 
     return records
   } catch (error) {
