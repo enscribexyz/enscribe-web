@@ -9,6 +9,129 @@ import { SiFarcaster } from "react-icons/si";
 import { HiArrowDown, HiArrowRight, HiCheck, HiCode, HiChevronDown, HiMenu, HiX } from "react-icons/hi"
 import HeroNameIt from "./HeroNameIt";
 
+import blogPostListProp from "@generated/docusaurus-plugin-content-blog/default/blog-post-list-prop-default"
+import { useRef } from "react"
+
+function LatestPostsCarousel({ limit = 6 }) {
+  const scrollerRef = useRef(null)
+
+  const items = (blogPostListProp?.items || []).slice(0, limit)
+
+  // If blog plugin is disabled or there are no posts
+  if (!items.length) return null
+
+  const scrollBy = (direction) => {
+    const el = scrollerRef.current
+    if (!el) return
+    const amount = Math.round(el.clientWidth * 0.9) * direction
+    el.scrollBy({ left: amount, behavior: "smooth" })
+  }
+
+  return (
+      <section className="py-12 md:py-16 bg-slate-900/50 border-y border-slate-800">
+        <div className="container mx-auto px-4 md:px-6">
+          <div className="flex items-start justify-between gap-4 mb-8">
+            <div>
+              <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-white">
+                Latest from the blog
+              </h2>
+              <p className="text-slate-300 mt-2 max-w-[760px]">
+                Product updates, naming patterns, and write-ups from work with protocol teams.
+              </p>
+            </div>
+
+            <div className="hidden sm:flex items-center gap-2">
+              <button
+                  type="button"
+                  onClick={() => scrollBy(-1)}
+                  className="px-3 py-2 rounded-md border border-slate-700 bg-slate-800 hover:bg-slate-700 text-white"
+                  aria-label="Previous posts"
+              >
+                ←
+              </button>
+              <button
+                  type="button"
+                  onClick={() => scrollBy(1)}
+                  className="px-3 py-2 rounded-md border border-slate-700 bg-slate-800 hover:bg-slate-700 text-white"
+                  aria-label="Next posts"
+              >
+                →
+              </button>
+            </div>
+          </div>
+
+          {/* Scroll-snap carousel */}
+          <div
+              ref={scrollerRef}
+              className="flex gap-6 overflow-x-auto pb-4 no-scrollbar scroll-smooth snap-x snap-mandatory"
+              style={{ WebkitOverflowScrolling: "touch" }}
+          >
+
+
+            {items.map((post) => {
+              // Generated structure includes these fields
+              const title = post.title || post.contentTitle
+              const description = post.description
+              const permalink = post.permalink
+              const date = post.date
+
+              return (
+                  <Link
+                      key={permalink}
+                      to={permalink}
+                      className="snap-start shrink-0 w-[85%] sm:w-[420px] bg-slate-800 border border-slate-700 rounded-xl overflow-hidden hover:bg-slate-700/40 transition-colors"
+                  >
+                    {/* Preview image */}
+                    {post.metadata?.image && (
+                        <div className="h-44 w-full overflow-hidden bg-slate-900">
+                          <img
+                              src={post.metadata.image}
+                              alt={title}
+                              className="h-full w-full object-cover"
+                              loading="lazy"
+                          />
+                        </div>
+                    )}
+
+                    <div className="p-6 flex flex-col h-full">
+                      <div className="text-xs text-slate-400 mb-3">
+                        {date &&
+                            new Date(date).toLocaleDateString(undefined, {
+                              year: "numeric",
+                              month: "short",
+                              day: "numeric",
+                            })}
+                      </div>
+
+                      <h3 className="text-lg font-semibold text-white mb-3">
+                        {title}
+                      </h3>
+
+                      {description && (
+                          <p className="text-slate-300 mb-6 line-clamp-3">
+                            {description}
+                          </p>
+                      )}
+
+                      <div className="mt-auto inline-flex items-center gap-2 text-cyan-400 font-bold">
+                        Read post <HiArrowRight className="w-4 h-4" />
+                      </div>
+                    </div>
+                  </Link>
+              )
+            })}
+          </div>
+
+          <div className="text-center mt-6">
+            <Link to="/blog" className="text-slate-300 hover:text-cyan-400 transition-colors">
+              View all posts →
+            </Link>
+          </div>
+        </div>
+      </section>
+  )
+}
+
 // FAQ Accordion component
 const FAQItem = ({ question, answer }) => {
   const [isOpen, setIsOpen] = useState(false)
@@ -56,42 +179,44 @@ export default function EnscribeLandingPage() {
     {
       question: "Why should I use Enscribe?",
       answer:
-        "Ethereum has a thriving DApp ecosystem, but developers and users still rely on smart contract addresses to address contracts. ENS names can be used to name smart contracts, but few take advantage of this functionality. The Enscribe service changes this and enables developers to name their smart contracts at deploy time with no additional coding.",
+          "Smart contracts on Ethereum are still identified by hex addresses. That’s fine for machines, but not humans. ENS can name smart contracts, but most teams never operationalise it at protocol scale. Enscribe gives you the infrastructure to name and manage your contracts using ENS, ensuring your protocols identity is onchain, not offchain in out of date documentation.",
     },
     {
       question: "What networks do you support?",
-      answer: "We support all networks that ENS is deployed to, including Ethereum, Base and Linea",
+      answer: "We support networks where ENS is deployed, including Ethereum, Base, Arbitrum, Optimism and Scroll.",
     },
     {
       question: "Can I name existing contracts?",
-      answer: "Yes. If you already have deployed contracts, you can assign ENS names through Enscribe using your own ENS names or one of ours."
-    },
-    {
-      question: "Can Enscribe show if a contract is verified?",
-      answer: "Yes. We pull verification data from services like Etherscan, Blockscout, and Sourcify so you and your users can see verification status at a glance."
+      answer:
+          "Yes. If you already have deployed contracts, you can assign ENS names through Enscribe using your own ENS names or one of ours.",
     },
     {
       question: "How does Enscribe work?",
       answer:
-        "When you deploy a contract using Enscribe it creates a new ENS subname you specify that resolves to the address of the newly deployed contract. Enscribe does this as an atomic transaction, so if contract deployment succeeds you will always have an ENS name you can refer to the contract with.",
+          "Enscribe makes it simple to attach ENS names to smart contracts. In addition, you can use the Enscribe App to deploy a smart contract. Enscribe creates the ENS subname you specify and sets it to resolve to the new contract address. This is done atomically, so if deployment succeeds, you always end up with a name you can refer to."
+    },
+    {
+      question: "What is a Smart Contract Naming Audit?",
+      answer:
+          "For established protocols, naming existing onchain infrastructure takes time. A Contract Naming Audit is a structured review the Enscribe team undertake of deployed contracts and operational wallets. From this we work with you to create a consistent on-chain naming scheme using ENS. The output is a complete on-chain directory of your protocol that’s easier to verify and maintain over time.",
     },
     {
       question: "Are there any restrictions on the types of contracts you support?",
       answer: (
-        <>
-          Enscribe caters for contracts that implement{" "}
-          <a href="https://eips.ethereum.org/EIPS/eip-173" className="text-cyan-400 hover:underline">
-            ERC-173: Contract Ownership Standard
-          </a>{" "}
-          or the{" "}
-          <a
-            href="https://docs.openzeppelin.com/contracts/2.x/access-control#ownership-and-ownable"
-            className="text-cyan-400 hover:underline"
-          >
-            Ownable interface
-          </a>
-          . However, you can use the service to issue names for already deployed contracts.
-        </>
+          <>
+            Enscribe caters for contracts that implement{" "}
+            <a href="https://eips.ethereum.org/EIPS/eip-173" className="text-cyan-400 hover:underline">
+              ERC-173: Contract Ownership Standard
+            </a>{" "}
+            or the{" "}
+            <a
+                href="https://docs.openzeppelin.com/contracts/2.x/access-control#ownership-and-ownable"
+                className="text-cyan-400 hover:underline"
+            >
+              Ownable interface
+            </a>
+            . However, you can still use the service to issue names for already deployed contracts.
+          </>
       ),
     },
     {
@@ -210,39 +335,41 @@ export default function EnscribeLandingPage() {
           </a>
         </div>
 
-        {/* Hero Section */}
-        <section className="relative py-6 overflow-hidden">
-          <div className="container mx-auto px-4 md:px-6 relative z-10">
-            <div className="flex flex-col md:flex-row items-center gap-8">
-              <div className="flex-1">
-                <h1 className="text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl bg-gradient-to-r from-white to-cyan-400 bg-clip-text text-transparent mb-6">
-                  Give Your Smart Contracts a Name — and a Reputation
-                </h1>
-                <p className="text-slate-300 text-xl max-w-[600px] mb-8">
-                  With Enscribe, developers can easily assign ENS names to smart contracts, while
-                  providing verification data to increase user trust.
-                </p>
-                <div className="flex flex-wrap gap-4">
-                  <Link to={customFields.appUrl} className="button-primary rounded-md">
-                    Launch App
-                  </Link>
-                  <Link
-                      to="/docs"
-                      className="inline-flex items-center justify-center px-6 py-3 rounded-md bg-slate-800 border border-cyan-500 text-cyan-400 font-bold hover:bg-slate-700 transition-colors gap-2"
-                  >
-                    Documentation
-                    <HiArrowRight className="w-4 h-4"/>
-                  </Link>
+          {/* Hero Section */}
+          <section className="relative py-6 overflow-hidden">
+            <div className="container mx-auto px-4 md:px-6 relative z-10">
+              <div className="flex flex-col md:flex-row items-center gap-8">
+                <div className="flex-1">
+                  <h1 className="text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl bg-gradient-to-r from-white to-cyan-400 bg-clip-text text-transparent mb-6">
+                    Smart contract identity and naming infrastructure for Ethereum
+                  </h1>
+                  <p className="text-slate-300 text-xl max-w-[600px] mb-8">
+                    Smart contracts are still identified by hex addresses. That’s fine for machines,
+                    but not people.
+
+                    Enscribe gives your protocol a real onchain identity using ENS.
+                  </p>
+                  <div className="flex flex-wrap gap-4">
+                    <Link to={customFields.appUrl} className="button-primary rounded-md">
+                      Launch App
+                    </Link>
+                    <Link
+                        to={customFields.calendarUrl}
+                        className="inline-flex items-center justify-center px-6 py-3 rounded-md bg-slate-800 border border-cyan-500 text-cyan-400 font-bold hover:bg-slate-700 transition-colors gap-2"
+                    >
+                      Talk to us
+                      <HiArrowRight className="w-4 h-4"/>
+                    </Link>
+                  </div>
+                </div>
+                <div className="flex-1 flex justify-center">
+                  <HeroNameIt/>
                 </div>
               </div>
-              <div className="flex-1 flex justify-center">
-                <HeroNameIt/>
-              </div>
             </div>
-          </div>
-          <div
-              className="absolute inset-0 bg-[url('/img/grid.svg')] bg-center [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))]"></div>
-        </section>
+            <div
+                className="absolute inset-0 bg-[url('/img/grid.svg')] bg-center [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))]"></div>
+          </section>
 
         {/* Partners Section */}
         <section className="py-8 bg-slate-900/50 border-y border-slate-800">
@@ -268,142 +395,150 @@ export default function EnscribeLandingPage() {
           </div>
         </section>
 
-        {/* Features Section */}
-        <section id="features" className="py-12 md:py-16">
+          {/* Features Section */}
+          <section id="features" className="py-12 md:py-16">
+            <div className="container mx-auto px-4 md:px-6">
+              <h2 className="text-3xl font-bold tracking-tight md:text-4xl text-center bg-gradient-to-r from-white to-cyan-400 bg-clip-text text-transparent mb-12">
+                Key Features
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <div className="bg-slate-800 border border-slate-700 rounded-lg p-8">
+                  <div className="text-cyan-400 text-3xl mb-4">
+                    <FaShieldAlt />
+                  </div>
+                  <h3 className="text-xl font-semibold mb-4">Clearer identity</h3>
+                  <p className="text-slate-300">
+                    Associate human-readable ENS names with contracts, creating an onchain identity for your project or protocol.
+                  </p>
+                </div>
+
+                <div className="bg-slate-800 border border-slate-700 rounded-lg p-8">
+                  <div className="text-cyan-400 text-3xl mb-4">
+                    <FaBolt />
+                  </div>
+                  <h3 className="text-xl font-semibold mb-4">Deploy with names</h3>
+                  <p className="text-slate-300">
+                    Name contracts as you deploy them, or retroactively name your existing infrastructure. Every contract gets a permanent, human-readable address.
+                  </p>
+                </div>
+
+                <div className="bg-slate-800 border border-slate-700 rounded-lg p-8">
+                  <div className="text-cyan-400 text-3xl mb-4">
+                    <FaGlobe />
+                  </div>
+                  <h3 className="text-xl font-semibold mb-4">Multi-chain support</h3>
+                  <p className="text-slate-300">
+                    Name contracts on ENS-supported chains including Ethereum, Base, Optimism, Arbitrum and Scroll.
+                  </p>
+                </div>
+
+                <div className="bg-slate-800 border border-slate-700 rounded-lg p-8">
+                  <div className="text-cyan-400 text-3xl mb-4">
+                    <FaUserAlt />
+                  </div>
+                  <h3 className="text-xl font-semibold mb-4">Bring your own name</h3>
+                  <p className="text-slate-300">Use your existing ENS name, or use one of ours to get started quickly.</p>
+                </div>
+
+                <div className="bg-slate-800 border border-slate-700 rounded-lg p-8">
+                  <div className="text-cyan-400 text-3xl mb-4">
+                    <FaLock />
+                  </div>
+                  <h3 className="text-xl font-semibold mb-4">Manage your contract inventory</h3>
+                  <p className="text-slate-300">
+                    Never lose track of deployed contracts across chains. See your entire protocol infrastructure in one place,
+                    properly named and organised.
+                  </p>
+                </div>
+
+                <div className="bg-slate-800 border border-slate-700 rounded-lg p-8">
+                  <div className="text-cyan-400 text-3xl mb-4">
+                    <FaShieldAlt />
+                  </div>
+                  <h3 className="text-xl font-semibold mb-4">Smart contract verifications</h3>
+                  <p className="text-slate-300">
+                    View and display verification status of contracts accross a number of sources
+                    including Etherscan, Blockscout, and Sourcify.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* How It Works Section */}
+        {/* How It Works Section */}
+        <section id="how-it-works" className="py-12 md:py-24 lg:py-32 bg-slate-800">
           <div className="container mx-auto px-4 md:px-6">
             <h2 className="text-3xl font-bold tracking-tight md:text-4xl text-center bg-gradient-to-r from-white to-cyan-400 bg-clip-text text-transparent mb-12">
-              Key Features
+              Smart contract identity on Ethereum
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              <div className="bg-slate-800 border border-slate-700 rounded-lg p-8">
-                <div className="text-cyan-400 text-3xl mb-4">
-                  <FaShieldAlt/>
-                </div>
-                <h3 className="text-xl font-semibold mb-4">Enhanced Trust</h3>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
+              {/* Left: simple narrative */}
+              <div className="space-y-8 max-w-xl">
                 <p className="text-slate-300">
-                  Associate human-readable ENS names with smart contracts, boosting user confidence
-                  and transparency.
+                  Enscribe assigns ENS names to smart contracts and wallets under a protocol’s own
+                  namespace.
+                  Names are written on-chain and resolve directly to deployed addresses.
                 </p>
+
+                <p className="text-slate-300">
+                  This allows teams to reference contracts by name across tooling, documentation,
+                  and user
+                  interfaces, without maintaining separate address lists.
+                </p>
+
+                <p className="text-slate-300">
+                  Names persist independently of documentation, explorers, or third-party services,
+                  and can
+                  be verified by anyone using ENS resolution.
+                </p>
+
+                <p className="text-slate-300">
+                  Without ENS names, teams rely on documentation that goes stale, users paste addresses
+                  from unverified sources, and every contract interaction requires cross-referencing
+                  multiple block explorers. Enscribe eliminates this friction by making your contract
+                  addresses human-readable and verifiable onchain.
+                </p>
+
               </div>
-              <div className="bg-slate-800 border border-slate-700 rounded-lg p-8">
-                <div className="text-cyan-400 text-3xl mb-4">
-                  <FaBolt/>
+
+              {/* Right: example */}
+              <div className="bg-slate-900 p-6 rounded-xl border border-slate-700 shadow-lg">
+                <div className="space-y-6">
+                  <div>
+                    <div className="text-sm text-slate-400 mb-1">Contract address</div>
+                    <div className="bg-slate-950 p-3 rounded-md font-mono text-sm overflow-x-auto">
+              <span className="text-red-400">
+                0x830BD73E4184ceF73443C15111a1DF14e495C706
+              </span>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-center">
+                    <div className="bg-cyan-500/10 rounded-full p-2">
+                      <HiArrowDown className="h-8 w-8 text-cyan-400" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="text-sm text-slate-400 mb-1">ENS name</div>
+                    <div className="bg-slate-950 p-3 rounded-md font-mono text-sm">
+                      <span className="text-cyan-400">auction.nouns.eth</span>
+                    </div>
+                  </div>
+
+                  <p className="text-sm text-slate-400 text-center pt-2">
+                    Replace opaque hex addresses with ENS-based identity that can be referenced across
+                    tooling, documentation, and user interfaces.
+                  </p>
                 </div>
-                <h3 className="text-xl font-semibold mb-4">Automatic ENS Integration</h3>
-                <p className="text-slate-300">
-                  Seamlessly create ENS records for smart contracts at deployment, or for existing
-                  contracts, eliminating manual steps.
-                </p>
-              </div>
-              <div className="bg-slate-800 border border-slate-700 rounded-lg p-8">
-                <div className="text-cyan-400 text-3xl mb-4">
-                  <FaGlobe/>
-                </div>
-                <h3 className="text-xl font-semibold mb-4">Multi-chain Support</h3>
-                <p className="text-slate-300">
-                  Name contracts on multiple ENS-supported chains including Ethereum, Base and
-                  Linea.
-                </p>
-              </div>
-              <div className="bg-slate-800 border border-slate-700 rounded-lg p-8">
-                <div className="text-cyan-400 text-3xl mb-4">
-                  <FaUserAlt/>
-                </div>
-                <h3 className="text-xl font-semibold mb-4">Bring Your Own Name</h3>
-                <p className="text-slate-300">
-                  Enscribe supports using your own ENS name or you can use one of our own.
-                </p>
-              </div>
-              <div className="bg-slate-800 border border-slate-700 rounded-lg p-8">
-                <div className="text-cyan-400 text-3xl mb-4">
-                  <FaLock/>
-                </div>
-                <h3 className="text-xl font-semibold mb-4">Track and Manager Your Contracts</h3>
-                <p className="text-slate-300">
-                  Track your existing contracts in the Enscribe dashboard to easily find, name and
-                  verify your contracts.
-                </p>
-              </div>
-              <div className="bg-slate-800 border border-slate-700 rounded-lg p-8">
-                <div className="text-cyan-400 text-3xl mb-4">
-                  <FaPlug/>
-                </div>
-                <h3 className="text-xl font-semibold mb-4">Smart Contract Verifications</h3>
-                <p className="text-slate-300">
-                  View and display verification status of contracts accross a number of sources
-                  including Etherscan, Blockscout, and Sourcify.
-                </p>
               </div>
             </div>
           </div>
         </section>
 
-        {/* How It Works Section */}
-        <section id="how-it-works" className="py-12 md:py-24 lg:py-32 bg-slate-800">
-          <div className="container mx-auto px-4 md:px-6">
-            <h2 className="text-3xl font-bold tracking-tight md:text-4xl text-center bg-gradient-to-r from-white to-cyan-400 bg-clip-text text-transparent mb-12">
-              How It Works
-            </h2>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
-              <div className="space-y-6">
-                <div className="space-y-4">
-                  <h3 className="text-xl font-bold text-cyan-400">Input</h3>
-                  <ul className="space-y-2">
-                    <li className="flex items-center">
-                      <HiCheck className="mr-2 h-4 w-4 text-cyan-400"/>
-                      <span className="text-slate-200">ENS subname for contract deployment</span>
-                    </li>
-                    <li className="flex items-center">
-                      <HiCheck className="mr-2 h-4 w-4 text-cyan-400"/>
-                      <span className="text-slate-200">Contract bytecode to be deployed or existing contract address</span>
-                    </li>
-                  </ul>
-                </div>
-                <div className="space-y-4">
-                  <h3 className="text-xl font-bold text-cyan-400">Output</h3>
-                  <ul className="space-y-2">
-                    <li className="flex items-center">
-                      <HiCheck className="mr-2 h-4 w-4 text-cyan-400"/>
-                      <span className="text-slate-200">ENS primary name that resolves to contract address</span>
-                    </li>
-                    <li className="flex items-center">
-                      <HiCheck className="mr-2 h-4 w-4 text-cyan-400"/>
-                      <span
-                          className="text-slate-200">Optional verifications for additional trust</span>
-                    </li>
-                  </ul>
-                </div>
-              </div>
-              <div className="bg-slate-900 p-6 rounded-xl border border-slate-700 shadow-lg">
-                <div className="space-y-6">
-                  <div className="space-y-2">
-                    <div className="text-sm text-slate-400">Complex Contract Address</div>
-                    <div className="bg-slate-950 p-3 rounded-md font-mono text-sm overflow-x-auto">
-                      <span
-                          className="text-red-400">0x830BD73E4184ceF73443C15111a1DF14e495C706</span>
-                    </div>
-                  </div>
-                  <div className="flex justify-center">
-                    <div className="bg-cyan-500/10 rounded-full p-2">
-                      <HiArrowDown className="h-8 w-8 text-cyan-400"/>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="text-sm text-slate-400">Human-Readable ENS Name</div>
-                    <div className="bg-slate-950 p-3 rounded-md font-mono text-sm">
-                      <span className="text-cyan-400">auction.nouns.eth</span>
-                    </div>
-                  </div>
-                  <div className="mt-4 text-center text-sm text-slate-400">
-                    Enscribe automatically creates and links ENS names to your smart contracts,
-                    making them more
-                    accessible and trustworthy for users.
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
+        <LatestPostsCarousel limit={6} />
 
         {/* FAQ Section */}
         <section id="faq" className="py-12 md:py-24 lg:py-32">
@@ -495,15 +630,13 @@ export default function EnscribeLandingPage() {
           <div className="container mx-auto px-4 md:px-6">
             <div className="flex flex-col items-center space-y-4 text-center max-w-3xl mx-auto">
               <h2 className="text-3xl font-bold tracking-tight md:text-4xl bg-gradient-to-r from-white to-cyan-400 bg-clip-text text-transparent mb-4">
-                ENS names are only the beginning — start building trust into every contract
-                interaction
+                Give your smart contracts and protocol an real onchain identity
               </h2>
               <p className="text-slate-300 text-xl mb-8 max-w-[600px]">
-                Join the growing community of developers using Enscribe to name their smart
-                contracts, enhancing trust and transparency in their web3 apps.
+                Stop relying on hex addresses and offchain documentation
               </p>
-              <Link to={customFields.appUrl} className="button-primary rounded-md">
-                Launch App
+              <Link to={customFields.calendarUrl} className="button-primary rounded-md">
+                Talk to us
               </Link>
             </div>
           </div>
@@ -513,8 +646,7 @@ export default function EnscribeLandingPage() {
           <div className="container mx-auto px-4 md:px-6">
             <div className="flex flex-col items-center space-y-4 text-center max-w-3xl mx-auto">
               <h2 className="text-2xl font-bold tracking-tight md:text-3xl text-white mb-4">
-                Join the growing community of developers using Enscribe to name their smart
-                contracts
+                Sign up for product updates, naming guidance, and new integrations
               </h2>
               <form className="w-full max-w-md flex flex-col sm:flex-row gap-3"
                     action="https://web3labs.us17.list-manage.com/subscribe/post" method="POST"
@@ -579,5 +711,3 @@ export default function EnscribeLandingPage() {
     </div>
   )
 }
-
-

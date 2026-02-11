@@ -6,7 +6,7 @@ import 'dotenv/config';
 /** @type {import('@docusaurus/types').Config} */
 const config = {
   title: "Enscribe",
-  tagline: "Easily name your Ethereum smart contracts with ENS names using Enscribe",
+  tagline: "Smart contract identity and naming infrastructure for Ethereum",
   favicon: "img/favicon.ico",
 
   url: "https://www.enscribe.xyz",
@@ -72,6 +72,10 @@ const config = {
           showReadingTime: true,
           blogSidebarTitle: 'All our posts',
           blogSidebarCount: 'ALL',
+          feedOptions: {
+            type: ["rss", "atom", "json"],
+            copyright: `Copyright © ${new Date().getFullYear()} Web3 Labs Ltd.`,
+          },
         },
         theme: {
           customCss: require.resolve("./src/css/custom.css"),
@@ -94,6 +98,7 @@ const config = {
     // Put your custom environment here
     appUrl: process.env.APP_URL,
     formspreeUrl: process.env.FORMSPREE_URL,
+    calendarUrl: 'https://calendar.app.google/J1xEJA4Hr3GBqJ4K8',
   },
 
   themeConfig:
@@ -103,13 +108,13 @@ const config = {
       image: "img/social-card.png",
 
       metadata: [
-        { name: 'keywords', content: 'smart, contract, naming, naming smart contracts, web3, blockchain, ens, Ethereum Name Service, Ethereum, smart contracts, Enscribe, UX, smart contract deployment' },
-        { name: 'description', content: 'Easily name your Ethereum smart contracts with ENS names using Enscribe. Live on Ethereum, Base, and Linea networks.' },
+        { name: 'keywords', content: 'smart contract naming, smart contract identity, ENS, Ethereum Name Service, Ethereum smart contracts, ENS smart contract naming, protocol infrastructure, smart contract naming audits, naming audits, Enscribe' },
+        { name: 'description', content: 'Enscribe provides infrastructure for naming and managing smart contracts and wallets using ENS.' },
         { name: 'twitter:card', content: 'summary_large_image' },
         { name: 'twitter:image', content: 'https://www.enscribe.xyz/img/social-card.png' },
         { property: 'og:image', content: 'https://www.enscribe.xyz/img/social-card.png' },
-        { property: 'og:title', content: 'Enscribe – Name your smart contracts' },
-        { property: 'og:description', content: 'Easily name your Ethereum smart contracts with ENS names using Enscribe. Live on Ethereum, Base, and Linea networks.' },
+        { property: 'og:title', content: 'Smart contract identity and naming infrastructure for Ethereum | Enscribe' },
+        { property: 'og:description', content: 'Enscribe provides infrastructure for naming and managing smart contracts and wallets using ENS.' },
       ],
 
       headTags: [

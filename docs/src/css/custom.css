@@ -314,3 +314,13 @@ html[data-theme="light"] .project-logo {
   filter: invert(1) brightness(1.1);
   opacity: 0.9;
 }
+
+/* Hide scrollbar but keep scroll */
+.no-scrollbar {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE 10+ */
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Edge */
+}
