@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { useAccount, useWalletClient, useSwitchChain } from 'wagmi'
 import { Button } from '@/components/ui/button'
+import { checkIfSafe } from '@/components/componentUtils'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -37,7 +38,7 @@ interface BatchEntry {
 const L2_CHAIN_OPTIONS = ['Optimism', 'Arbitrum', 'Scroll', 'Base', 'Linea']
 
 export default function BatchNamingForm() {
-  const { address: walletAddress, isConnected, chain } = useAccount()
+  const { address: walletAddress, isConnected, chain, connector } = useAccount()
   const { data: walletClient } = useWalletClient()
   const { switchChain } = useSwitchChain()
   const { toast } = useToast()
@@ -72,6 +73,7 @@ export default function BatchNamingForm() {
   const addressInputRefs = useRef<{ [key: string]: HTMLInputElement | null }>({})
   const [shouldTruncateAddress, setShouldTruncateAddress] = useState<{ [key: string]: boolean }>({})
   const [truncatedAddresses, setTruncatedAddresses] = useState<{ [key: string]: string }>({})
+  const [isSafeWallet, setIsSafeWallet] = useState(false)
 
   // Unsupported L2 gating for this page: Optimism/Arbitrum/Scroll/Linea/Base L2s should show guidance
   const isUnsupportedL2Chain = [
@@ -1225,6 +1227,10 @@ export default function BatchNamingForm() {
     }
   }
 
+  const checkIfSafeWallet = async (): Promise<boolean> => {
+    return await checkIfSafe(connector)
+  }
+
   const grantOperatorAccess = async (): Promise<`0x${string}` | undefined> => {
     if (
       !walletClient ||
@@ -1240,6 +1246,7 @@ export default function BatchNamingForm() {
     try {
       const parentNode = getParentNode(parentName)
       let tx: `0x${string}`
+      const safeCheck = await checkIfSafeWallet()
       
       if (chain?.id === CHAINS.BASE || chain?.id === CHAINS.BASE_SEPOLIA) {
         tx = await writeContract(walletClient, {
@@ -1251,7 +1258,9 @@ export default function BatchNamingForm() {
           account: walletAddress,
         })
 
-        await waitForTransactionReceipt(walletClient, { hash: tx })
+        if (!safeCheck) {
+          await waitForTransactionReceipt(walletClient, { hash: tx })
+        }
       } else {
         const isWrapped = (await readContract(walletClient, {
           address: config.NAME_WRAPPER as `0x${string}`,
@@ -1278,7 +1287,9 @@ export default function BatchNamingForm() {
               account: walletAddress,
             })
 
-        await waitForTransactionReceipt(walletClient, { hash: tx })
+        if (!safeCheck) {
+          await waitForTransactionReceipt(walletClient, { hash: tx })
+        }
       }
 
       console.log('Operator access granted successfully')
@@ -1304,6 +1315,7 @@ export default function BatchNamingForm() {
     try {
       const parentNode = getParentNode(parentName)
       let tx: `0x${string}`
+      const safeCheck = await checkIfSafeWallet()
 
       if (chain?.id === CHAINS.BASE || chain?.id === CHAINS.BASE_SEPOLIA) {
         tx = await writeContract(walletClient, {
@@ -1315,7 +1327,9 @@ export default function BatchNamingForm() {
           account: walletAddress,
         })
 
-        await waitForTransactionReceipt(walletClient, { hash: tx })
+        if (!safeCheck) {
+          await waitForTransactionReceipt(walletClient, { hash: tx })
+        }
       } else {
         const isWrapped = (await readContract(walletClient, {
           address: config.NAME_WRAPPER as `0x${string}`,
@@ -1342,7 +1356,9 @@ export default function BatchNamingForm() {
               account: walletAddress,
             })
 
-        await waitForTransactionReceipt(walletClient, { hash: tx })
+        if (!safeCheck) {
+          await waitForTransactionReceipt(walletClient, { hash: tx })
+        }
       }
 
       console.log('Operator access revoked successfully')
@@ -1544,6 +1560,10 @@ export default function BatchNamingForm() {
       return
     }
 
+    // Check if connected wallet is a Safe wallet
+    const safeCheck = await checkIfSafeWallet()
+    setIsSafeWallet(safeCheck)
+
     if (isUnsupportedL2Chain) {
       setError(
         `To batch name contracts on ${unsupportedL2Name}, change to the ${chain?.id === CHAINS.OPTIMISM || chain?.id === CHAINS.ARBITRUM || chain?.id === CHAINS.SCROLL || chain?.id === CHAINS.LINEA || chain?.id === CHAINS.BASE ? 'Ethereum Mainnet' : 'Sepolia'} network and use the Naming on L2 Chains option.`
@@ -1722,8 +1742,10 @@ export default function BatchNamingForm() {
               })
             }
 
-            await waitForTransactionReceipt(walletClient!, { hash })
-            console.log(`Batch ${index + 1} completed`)
+            if (!safeCheck) {
+              await waitForTransactionReceipt(walletClient!, { hash })
+            }
+            console.log(`Batch ${index + 1} ${safeCheck ? 'sent to Safe' : 'completed'}`)
             return hash
           },
         })
@@ -1768,7 +1790,9 @@ export default function BatchNamingForm() {
                       entry.label,
                     ],
                   })
-                  await waitForTransactionReceipt(walletClient!, { hash: tx })
+                  if (!safeCheck) {
+                    await waitForTransactionReceipt(walletClient!, { hash: tx })
+                  }
                   return tx
                 },
               })
@@ -1798,7 +1822,9 @@ export default function BatchNamingForm() {
                       entry.label,
                     ],
                   })
-                  await waitForTransactionReceipt(walletClient!, { hash: tx })
+                  if (!safeCheck) {
+                    await waitForTransactionReceipt(walletClient!, { hash: tx })
+                  }
                   return tx
                 },
               })
@@ -2004,9 +2030,11 @@ export default function BatchNamingForm() {
                     args: [contract.address as `0x${string}`, contract.label],
                   })
 
-                  await waitForTransactionReceipt(walletClient!, { hash: txn })
+                  if (!safeCheck) {
+                    await waitForTransactionReceipt(walletClient!, { hash: txn })
+                  }
                   console.log(
-                    `Reverse record set for ${contract.labelOnly} on ${l2Chain.name}`
+                    `Reverse record ${safeCheck ? 'sent to Safe' : 'set'} for ${contract.labelOnly} on ${l2Chain.name}`
                   )
                   return txn
                 },
@@ -2072,7 +2100,9 @@ export default function BatchNamingForm() {
       setModalSteps(steps)
       setModalTitle('Batch Naming')
       setModalSubtitle(
-        `Naming ${allProcessedEntries.length} entries in ${batchGroups.length} batch${batchGroups.length !== 1 ? 'es' : ''} (${realContracts} contract${realContracts !== 1 ? 's' : ''}${parentSubdomains > 0 ? ` + ${parentSubdomains} subdomain${parentSubdomains !== 1 ? 's' : ''}` : ''})`
+        safeCheck 
+          ? `Transactions will be executed in your Safe wallet app`
+          : `Naming ${allProcessedEntries.length} entries in ${batchGroups.length} batch${batchGroups.length !== 1 ? 'es' : ''} (${realContracts} contract${realContracts !== 1 ? 's' : ''}${parentSubdomains > 0 ? ` + ${parentSubdomains} subdomain${parentSubdomains !== 1 ? 's' : ''}` : ''})`
       )
       setModalOpen(true)
     } catch (error: any) {

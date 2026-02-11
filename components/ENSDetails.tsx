@@ -631,17 +631,24 @@ export default function ENSDetails({
           // Fallback: If manager is not available, check ENS Registry contract directly
           if (!manager && config.ENS_REGISTRY && customProvider) {
             try {
-              console.log(`[ENSDetails] Manager not found in subgraph, checking ENS Registry for ${ensName}`)
+              console.log(
+                `[ENSDetails] Manager not found in subgraph, checking ENS Registry for ${ensName}`,
+              )
               const nameNode = ethers.namehash(ensName)
               const registryContract = new ethers.Contract(
                 config.ENS_REGISTRY,
                 ensRegistryABI,
-                customProvider
+                customProvider,
               )
               manager = await registryContract.owner(nameNode)
-              console.log(`[ENSDetails] Fallback manager from ENS Registry: ${manager}`)
+              console.log(
+                `[ENSDetails] Fallback manager from ENS Registry: ${manager}`,
+              )
             } catch (registryError) {
-              console.error(`[ENSDetails] Error fetching from ENS Registry:`, registryError)
+              console.error(
+                `[ENSDetails] Error fetching from ENS Registry:`,
+                registryError,
+              )
             }
           }
 
@@ -652,7 +659,9 @@ export default function ENSDetails({
         }
 
         // No domain found in subgraph, try fallback to ENS Registry
-        console.log(`[ENSDetails] No domain found in subgraph for ${ensName}, trying ENS Registry fallback`)
+        console.log(
+          `[ENSDetails] No domain found in subgraph for ${ensName}, trying ENS Registry fallback`,
+        )
         let manager = null
         if (config.ENS_REGISTRY && customProvider) {
           try {
@@ -660,12 +669,17 @@ export default function ENSDetails({
             const registryContract = new ethers.Contract(
               config.ENS_REGISTRY,
               ensRegistryABI,
-              customProvider
+              customProvider,
             )
             manager = await registryContract.owner(nameNode)
-            console.log(`[ENSDetails] Fallback manager from ENS Registry: ${manager}`)
+            console.log(
+              `[ENSDetails] Fallback manager from ENS Registry: ${manager}`,
+            )
           } catch (registryError) {
-            console.error(`[ENSDetails] Error fetching from ENS Registry:`, registryError)
+            console.error(
+              `[ENSDetails] Error fetching from ENS Registry:`,
+              registryError,
+            )
           }
         }
         return { owner: null, manager }
@@ -1932,7 +1946,7 @@ export default function ENSDetails({
 
                         {/* Description */}
                         {textRecords.description && (
-                          <p className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed">
+                          <p className="text-black dark:text-white text-sm leading-relaxed font-bold">
                             {textRecords.description}
                           </p>
                         )}
@@ -1947,7 +1961,7 @@ export default function ENSDetails({
                             }
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                            className="inline-flex items-center text-sm text-blue-800 dark:text-blue-200 hover:underline font-bold"
                           >
                             {textRecords.url}
                             <ExternalLink className="ml-1 h-3 w-3" />
