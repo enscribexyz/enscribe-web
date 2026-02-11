@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useAccount, useWalletClient } from 'wagmi'
 import { Button } from '@/components/ui/button'
+import { checkIfSafe } from '@/components/componentUtils'
 import { Input } from '@/components/ui/input'
 import {
   Dialog,
@@ -185,7 +186,7 @@ export default function NameMetadata({
   selectedChain,
   initialName,
 }: NameMetadataProps) {
-  const { chain, address: walletAddress } = useAccount()
+  const { chain, address: walletAddress, connector } = useAccount()
   const { data: walletClient } = useWalletClient()
   const { toast } = useToast()
   const router = useRouter()
@@ -208,6 +209,7 @@ export default function NameMetadata({
   const [showAccountMetadata, setShowAccountMetadata] = useState(false)
   const [showContractMetadata, setShowContractMetadata] = useState(false)
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false)
+  const [isSafeWallet, setIsSafeWallet] = useState(false)
 
   // Use wallet chain if connected, otherwise use selected chain from ChainSelector
   const activeChainId = chain?.id || selectedChain || CHAINS.MAINNET
@@ -268,6 +270,29 @@ export default function NameMetadata({
   useEffect(() => {
     resetForm()
   }, [walletAddress, resetForm])
+
+  // Handle URL changes - for browser back/forward and sidebar clicks
+  useEffect(() => {
+    const urlName = typeof router.query.name === 'string' ? router.query.name : ''
+    
+    // If URL has no name and we have current name, reset to home
+    if (!urlName && currentName) {
+      setCurrentName('')
+      setSearchName('')
+      setMetadata(null)
+      setParentHierarchy([])
+      setSubnameHierarchy([])
+      setError('')
+      return
+    }
+    
+    // If URL has a name and it's different from current name, fetch it (for browser back/forward)
+    if (urlName && urlName !== currentName && config?.SUBGRAPH_API && !loading) {
+      console.log(`[NameMetadata] URL changed to: ${urlName}, fetching metadata`)
+      setSearchName(urlName)
+      handleSearchForName(urlName)
+    }
+  }, [router.query.name, currentName, config?.SUBGRAPH_API, loading])
 
   // Auto-fetch metadata if initialName is provided
   useEffect(() => {
@@ -846,6 +871,8 @@ export default function NameMetadata({
   const navigateToName = (name: string) => {
     setSearchName(name)
     handleSearchForName(name)
+    // Update URL to reflect the current name
+    router.push(`/nameMetadata?name=${encodeURIComponent(name)}`, undefined, { shallow: true })
   }
 
   const handleExploreAddress = async (name: string) => {
@@ -1236,6 +1263,10 @@ export default function NameMetadata({
     return metadataList.filter((item) => !existingKeys.has(item.key))
   }
 
+  const checkIfSafeWallet = async (): Promise<boolean> => {
+    return await checkIfSafe(connector)
+  }
+
   const handleSetTextRecords = async () => {
     if (!walletClient || !walletAddress) {
       toast({
@@ -1275,6 +1306,9 @@ export default function NameMetadata({
     setSettingRecords(true)
 
     try {
+      // Check if using Safe wallet
+      const safeCheck = await checkIfSafeWallet()
+      
       const node = namehash(currentName)
 
       // Filter out empty values
@@ -1302,27 +1336,44 @@ export default function NameMetadata({
       )
 
       // Call multicall with all encoded setText calls in a single transaction
-      const hash = await writeContract(walletClient, {
-        chain: chain,
-        address: metadata.resolverAddress as `0x${string}`,
-        abi: publicResolverABI,
-        functionName: 'multicall',
-        args: [encodedCalls],
-      })
+      if (safeCheck) {
+        // For Safe wallets, just trigger the transaction without waiting
+        await writeContract(walletClient, {
+          chain: chain,
+          address: metadata.resolverAddress as `0x${string}`,
+          abi: publicResolverABI,
+          functionName: 'multicall',
+          args: [encodedCalls],
+        })
 
-      await waitForTransactionReceipt(walletClient, { hash })
+        toast({
+          title: 'Safe Transaction Created',
+          description: `Transaction sent to Safe wallet. Please confirm in Safe app to set ${recordsToSet.length} text record(s).`,
+        })
+      } else {
+        // For regular wallets, wait for transaction confirmation
+        const hash = await writeContract(walletClient, {
+          chain: chain,
+          address: metadata.resolverAddress as `0x${string}`,
+          abi: publicResolverABI,
+          functionName: 'multicall',
+          args: [encodedCalls],
+        })
 
-      toast({
-        title: 'Success',
-        description: `Successfully set ${recordsToSet.length} text record(s) in a single transaction`,
-      })
+        await waitForTransactionReceipt(walletClient, { hash })
+
+        toast({
+          title: 'Success',
+          description: `Successfully set ${recordsToSet.length} text record(s) in a single transaction`,
+        })
+      }
 
       setIsModalOpen(false)
 
-      // Refresh metadata
+      // Refresh metadata (with longer delay for Safe wallets)
       setTimeout(() => {
         handleSearchForName(currentName)
-      }, 2000)
+      }, safeCheck ? 5000 : 2000)
     } catch (err: any) {
       console.error('Error setting text records:', err)
       toast({
