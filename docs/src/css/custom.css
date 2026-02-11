@@ -7,104 +7,74 @@
  * work well for content-centric websites.
  */
 
-/* You can override the default Infima variables here. */
+/* ── Smooth scrolling ── */
+html {
+  scroll-behavior: smooth;
+}
+
+/* ── Infima overrides (dark default) ── */
 :root {
   --ifm-color-primary: #06b6d4;
-  /* Tailwind cyan-500 */
   --ifm-color-primary-dark: #0891b2;
-  /* Tailwind cyan-600 */
   --ifm-color-primary-darker: #0e7490;
-  /* Tailwind cyan-700 */
   --ifm-color-primary-darkest: #155e75;
-  /* Tailwind cyan-800 */
   --ifm-color-primary-light: #22d3ee;
-  /* Tailwind cyan-400 */
   --ifm-color-primary-lighter: #67e8f9;
-  /* Tailwind cyan-300 */
   --ifm-color-primary-lightest: #a5f3fc;
-  /* Tailwind cyan-200 */
 
-  --ifm-background-color: #0f172a;
-  /* Tailwind slate-900 */
-  --ifm-background-surface-color: #1e293b;
-  /* Tailwind slate-800 */
-  --ifm-navbar-background-color: #0f172a;
-  /* Tailwind slate-900 */
-  --ifm-footer-background-color: #1e293b;
-  /* Tailwind slate-800 */
+  --ifm-background-color: #0a0e1a;
+  --ifm-background-surface-color: #111827;
+  --ifm-navbar-background-color: #0a0e1a;
+  --ifm-footer-background-color: #111827;
 
   --ifm-code-font-size: 95%;
   --docusaurus-highlighted-code-line-bg: rgba(22, 212, 238, 0.1);
 
   --ifm-font-color-base: #f8fafc;
-  /* Tailwind slate-50 */
   --ifm-heading-color: #ffffff;
   --ifm-navbar-link-color: #f8fafc;
-  /* Tailwind slate-50 */
   --ifm-menu-color: #f8fafc;
-  /* Tailwind slate-50 */
   --ifm-footer-link-color: #f8fafc;
-  /* Tailwind slate-50 */
   --ifm-footer-title-color: #ffffff;
 
   --ifm-link-color: var(--ifm-color-primary);
   --ifm-link-hover-color: var(--ifm-color-primary-lighter);
 
-  --ifm-card-background-color: #1e293b;
-  /* Tailwind slate-800 */
-  --ifm-toc-border-color: #334155;
-  /* Tailwind slate-700 */
-  --ifm-hr-border-color: #334155;
-  /* Tailwind slate-700 */
+  --ifm-card-background-color: #111827;
+  --ifm-toc-border-color: #1e293b;
+  --ifm-hr-border-color: #1e293b;
 }
 
-/* For readability concerns, you should choose a lighter palette in light mode */
+/* ── Light mode ── */
 html[data-theme="light"] {
   --ifm-color-primary: #0e7490;
-  /* Tailwind cyan-700 */
   --ifm-color-primary-dark: #0891b2;
-  /* Tailwind cyan-600 */
   --ifm-color-primary-darker: #06b6d4;
-  /* Tailwind cyan-500 */
   --ifm-color-primary-darkest: #0891b2;
-  /* Tailwind cyan-600 */
   --ifm-color-primary-light: #22d3ee;
-  /* Tailwind cyan-400 */
   --ifm-color-primary-lighter: #67e8f9;
-  /* Tailwind cyan-300 */
   --ifm-color-primary-lightest: #a5f3fc;
-  /* Tailwind cyan-200 */
 
   --ifm-background-color: #ffffff;
   --ifm-background-surface-color: #f8fafc;
-  /* Tailwind slate-50 */
   --ifm-navbar-background-color: #ffffff;
   --ifm-footer-background-color: #f8fafc;
-  /* Tailwind slate-50 */
 
   --ifm-font-color-base: #1e293b;
-  /* Tailwind slate-800 */
   --ifm-heading-color: #0f172a;
-  /* Tailwind slate-900 */
   --ifm-navbar-link-color: #1e293b;
-  /* Tailwind slate-800 */
   --ifm-menu-color: #1e293b;
-  /* Tailwind slate-800 */
   --ifm-footer-link-color: #1e293b;
-  /* Tailwind slate-800 */
   --ifm-footer-title-color: #0f172a;
-  /* Tailwind slate-900 */
 
   --ifm-card-background-color: #ffffff;
   --ifm-toc-border-color: #e2e8f0;
-  /* Tailwind slate-200 */
   --ifm-hr-border-color: #e2e8f0;
-  /* Tailwind slate-200 */
 
   --docusaurus-highlighted-code-line-bg: rgba(14, 116, 144, 0.1);
 }
 
-/* Hide Docusaurus header and footer on landing page */
+/* ── Landing page: hide Docusaurus chrome ── */
 html.enscribe-landing-page {
   --ifm-navbar-height: 0;
 }
@@ -117,18 +87,16 @@ html.enscribe-landing-page .footer {
   display: none;
 }
 
-/* Adjust main container padding for landing page */
 html.enscribe-landing-page .main-wrapper {
   padding-top: 0;
   padding-bottom: 0;
 }
 
-/* Adjust main container padding for docs and blog */
 html:not(.enscribe-landing-page) .main-wrapper {
   padding-top: var(--ifm-navbar-height);
 }
 
-/* Override colour for landing page in light mode*/
+/* Landing page headings stay white in light mode */
 html[data-theme="light"] .enscribe-landing h1,
 html[data-theme="light"] .enscribe-landing h2,
 html[data-theme="light"] .enscribe-landing h3,
@@ -138,61 +106,51 @@ html[data-theme="light"] .enscribe-landing h6 {
   color: white !important;
 }
 
-/* Additional styles for better dark mode appearance */
+/* ── Navbar / Footer borders ── */
 html[data-theme="dark"] .navbar {
-  border-bottom: 1px solid #334155;
-  /* Tailwind slate-700 */
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 html[data-theme="dark"] .footer {
-  border-top: 1px solid #334155;
-  /* Tailwind slate-700 */
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-/* Improve code block styling */
+.navbar {
+  border-bottom: 1px solid var(--ifm-toc-border-color);
+}
+
+.footer {
+  border-top: 1px solid var(--ifm-toc-border-color);
+}
+
+/* ── Code blocks ── */
 .prism-code {
   background-color: #020617 !important;
-  /* Tailwind slate-950 */
   border-radius: 8px;
 }
 
-/* Improve button styling in docs */
-.button {
-  background-color: var(--ifm-color-primary);
-  color: #0f172a;
-  /* Tailwind slate-900 */
-  border: none;
-  transition: background-color 0.2s;
-  font-weight: 600;
-}
-
-.button:hover {
-  background-color: var(--ifm-color-primary-lighter);
-  color: #0f172a;
-  /* Tailwind slate-900 */
-}
-
-/* Add this to your custom.css file to override Docusaurus link styling */
+/* ── Primary button ── */
 .button-primary {
-  background-color: #4db8e8 !important;
+  background-color: #06b6d4 !important;
   color: #ffffff !important;
   border: none !important;
   font-weight: 600 !important;
   padding: 0.75rem 1.5rem !important;
-  font-size: 1rem !important;
+  font-size: 0.875rem !important;
   line-height: 1.5 !important;
   min-height: 44px !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
+  transition: all 0.2s ease !important;
 }
 
 .button-primary:hover {
-  background-color: #3ca7d7 !important;
+  background-color: #0891b2 !important;
   color: #ffffff !important;
+  transform: translateY(-1px);
 }
 
-/* Ensure links inside buttons maintain the button text color and alignment */
 a.button-primary,
 a.button-primary:hover,
 a.button-primary:focus,
@@ -202,7 +160,20 @@ a.button-primary:active {
   text-align: center !important;
 }
 
-/* Ensure links inside buttons maintain the button text color */
+/* ── Generic button overrides ── */
+.button {
+  background-color: var(--ifm-color-primary);
+  color: #0f172a;
+  border: none;
+  transition: background-color 0.2s;
+  font-weight: 600;
+}
+
+.button:hover {
+  background-color: var(--ifm-color-primary-lighter);
+  color: #0f172a;
+}
+
 a.button,
 a.button:hover,
 a.button:focus,
@@ -211,7 +182,7 @@ a.button:active {
   text-decoration: none !important;
 }
 
-/* Improve card styling */
+/* ── Cards ── */
 .card {
   border: 1px solid var(--ifm-toc-border-color);
   border-radius: 8px;
@@ -224,16 +195,7 @@ a.button:active {
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
 }
 
-/* Navbar and footer styling for docs/blog pages */
-.navbar {
-  border-bottom: 1px solid var(--ifm-toc-border-color);
-}
-
-.footer {
-  border-top: 1px solid var(--ifm-toc-border-color);
-}
-
-/* Add some spacing to the main content area */
+/* ── Container ── */
 .container {
   padding: 1rem;
 }
@@ -244,7 +206,7 @@ a.button:active {
   }
 }
 
-/* Fix external link icons in navbar and footer */
+/* ── External link icons ── */
 .navbar__item svg,
 .footer__link-item svg {
   display: inline-block;
@@ -253,17 +215,10 @@ a.button:active {
   margin-bottom: 0.3rem;
 }
 
-/* Adjust image sizing in hero section */
-.hero-image {
-  max-height: 450px;
-  width: auto;
-}
-
-/* Add these styles for the hero section */
+/* ── Hero section ── */
 .hero-section {
   position: relative;
   min-height: calc(100vh - 64px);
-  /* Subtract header height */
   display: flex;
   align-items: center;
 }
@@ -285,7 +240,7 @@ a.button:active {
   z-index: 1;
 }
 
-/* Ensure light mode banner text and links remain legible */
+/* ── Announcement banner ── */
 .contract-season-banner a {
   color: #ffffff !important;
 }
@@ -295,6 +250,7 @@ a.button:active {
   text-decoration: underline !important;
 }
 
+/* ── Input flash animation ── */
 @keyframes input-flash {
   0%   { box-shadow: 0 0 0 0 rgba(103,232,249,0); }
   30%  { box-shadow: 0 0 0 6px rgba(103,232,249,0.18); }
@@ -304,23 +260,32 @@ a.button:active {
   animation: input-flash 450ms ease-out;
 }
 
-/* Default: light mode (no filter) */
+/* ── Project logos ── */
 .project-logo {
   opacity: 0.85;
 }
 
-/* Light mode: invert logos so they pop on dark background */
 html[data-theme="light"] .project-logo {
   filter: invert(1) brightness(1.1);
   opacity: 0.9;
 }
 
-/* Hide scrollbar but keep scroll */
+/* ── Hide scrollbar but keep scroll ── */
 .no-scrollbar {
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* IE 10+ */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
 .no-scrollbar::-webkit-scrollbar {
-  display: none; /* Chrome, Safari, Edge */
+  display: none;
+}
+
+/* ── Shine animation for HeroNameIt button ── */
+@keyframes shine {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.animate-shine {
+  animation: shine 0.75s ease-in-out;
 }

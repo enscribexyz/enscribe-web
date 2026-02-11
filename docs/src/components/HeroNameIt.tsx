@@ -101,13 +101,13 @@ export default function HeroNameIt() {
     return (
         <form
             onSubmit={onSubmit}
-            className="group relative w-full max-w-xl p-6 rounded-2xl border border-slate-700/60
-                 bg-slate-900/70 backdrop-blur-lg shadow-[0_0_25px_rgba(0,0,0,0.4)]
-                 hover:shadow-[0_0_40px_rgba(103,232,249,0.15)] transition-all duration-500 overflow-hidden"
+            className="group relative w-full max-w-xl p-6 rounded-2xl border border-white/[0.06]
+                 bg-[#0d1220]/80 backdrop-blur-lg shadow-[0_0_25px_rgba(0,0,0,0.5)]
+                 hover:shadow-[0_0_40px_rgba(103,232,249,0.1)] transition-all duration-500 overflow-hidden"
         >
             {/* ambient glow */}
             <div className="pointer-events-none absolute -inset-px rounded-2xl
-                      bg-gradient-to-r from-cyan-500/15 via-transparent to-purple-600/15
+                      bg-gradient-to-r from-cyan-500/10 via-transparent to-blue-600/10
                       opacity-0 group-hover:opacity-100 blur-xl transition duration-700" />
 
             <div className="relative z-10">
@@ -124,7 +124,7 @@ export default function HeroNameIt() {
                     onFocus={stopDemoAndClearIfDemo}
                     onChange={(e) => setAddress(e.target.value)}
                     placeholder="0x…"
-                    className={`w-full mb-4 bg-slate-800/70 text-slate-100 rounded-lg px-4 py-3
+                    className={`w-full mb-4 bg-slate-900/70 text-slate-100 rounded-lg px-4 py-3
                      border border-slate-700 focus:border-cyan-400 focus:ring-2
                      focus:ring-cyan-500/30 outline-none transition-all duration-300
                      placeholder:text-slate-500 font-mono ${addrFlash ? "animate-input-flash" : ""}`}
@@ -144,7 +144,7 @@ export default function HeroNameIt() {
                     onFocus={stopDemoAndClearIfDemo}
                     onChange={(e) => setEnsName(e.target.value)}
                     placeholder="your-awesome-name.eth"
-                    className="w-full mb-4 bg-slate-800/70 text-slate-100 rounded-lg px-4 py-3
+                    className="w-full mb-4 bg-slate-900/70 text-slate-100 rounded-lg px-4 py-3
                      border border-slate-700  outline-none transition-all duration-300
                      placeholder:text-slate-500 font-mono"
                     autoComplete="off"
