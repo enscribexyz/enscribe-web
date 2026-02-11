@@ -269,6 +269,29 @@ export default function NameMetadata({
     resetForm()
   }, [walletAddress, resetForm])
 
+  // Handle URL changes - for browser back/forward and sidebar clicks
+  useEffect(() => {
+    const urlName = typeof router.query.name === 'string' ? router.query.name : ''
+    
+    // If URL has no name and we have current name, reset to home
+    if (!urlName && currentName) {
+      setCurrentName('')
+      setSearchName('')
+      setMetadata(null)
+      setParentHierarchy([])
+      setSubnameHierarchy([])
+      setError('')
+      return
+    }
+    
+    // If URL has a name and it's different from current name, fetch it (for browser back/forward)
+    if (urlName && urlName !== currentName && config?.SUBGRAPH_API && !loading) {
+      console.log(`[NameMetadata] URL changed to: ${urlName}, fetching metadata`)
+      setSearchName(urlName)
+      handleSearchForName(urlName)
+    }
+  }, [router.query.name, currentName, config?.SUBGRAPH_API, loading])
+
   // Auto-fetch metadata if initialName is provided
   useEffect(() => {
     const autoFetch = async () => {
@@ -846,6 +869,8 @@ export default function NameMetadata({
   const navigateToName = (name: string) => {
     setSearchName(name)
     handleSearchForName(name)
+    // Update URL to reflect the current name
+    router.push(`/nameMetadata?name=${encodeURIComponent(name)}`, undefined, { shallow: true })
   }
 
   const handleExploreAddress = async (name: string) => {

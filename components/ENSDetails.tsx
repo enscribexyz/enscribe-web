@@ -156,6 +156,7 @@ export default function ENSDetails({
   const [sourcifyMetadata, setSourceifyMetadata] = useState<any>(null)
   const [ensNameOwner, setEnsNameOwner] = useState<string | null>(null)
   const [ensNameManager, setEnsNameManager] = useState<string | null>(null)
+  const [ensNameManagerLoading, setEnsNameManagerLoading] = useState(false)
   const [tldOwner, setTldOwner] = useState<string | null>(null)
   const [tldManager, setTldManager] = useState<string | null>(null)
   const [otherDetailsExpanded, setOtherDetailsExpanded] = useState(false)
@@ -577,7 +578,7 @@ export default function ENSDetails({
     await fetchNameExpiryDate(forwardENS, setForwardNameExpiryDate)
   }, [])
 
-  // Function to fetch owner and manager from ENS subgraph
+  // Function to fetch owner and manager from ENS subgraph with fallback to ENS Registry
   const fetchOwnerAndManager = useCallback(
     async (ensName: string) => {
       if (!config?.SUBGRAPH_API) {
@@ -622,10 +623,27 @@ export default function ENSDetails({
           console.log(`[ENSDetails] Domain data:`, domain)
 
           // Manager is the 'owner' field in subgraph (confusing naming)
-          const manager = domain.owner?.id || null
+          let manager = domain.owner?.id || null
 
           // Owner is wrappedOwner if set (wrapped name), else registrant
           const owner = domain.wrappedOwner?.id || domain.registrant?.id || null
+
+          // Fallback: If manager is not available, check ENS Registry contract directly
+          if (!manager && config.ENS_REGISTRY && customProvider) {
+            try {
+              console.log(`[ENSDetails] Manager not found in subgraph, checking ENS Registry for ${ensName}`)
+              const nameNode = ethers.namehash(ensName)
+              const registryContract = new ethers.Contract(
+                config.ENS_REGISTRY,
+                ensRegistryABI,
+                customProvider
+              )
+              manager = await registryContract.owner(nameNode)
+              console.log(`[ENSDetails] Fallback manager from ENS Registry: ${manager}`)
+            } catch (registryError) {
+              console.error(`[ENSDetails] Error fetching from ENS Registry:`, registryError)
+            }
+          }
 
           console.log(
             `[ENSDetails] Resolved for ${ensName} - Owner: ${owner}, Manager: ${manager}`,
@@ -633,8 +651,24 @@ export default function ENSDetails({
           return { owner, manager }
         }
 
-        console.log(`[ENSDetails] No domain found for ${ensName}`)
-        return { owner: null, manager: null }
+        // No domain found in subgraph, try fallback to ENS Registry
+        console.log(`[ENSDetails] No domain found in subgraph for ${ensName}, trying ENS Registry fallback`)
+        let manager = null
+        if (config.ENS_REGISTRY && customProvider) {
+          try {
+            const nameNode = ethers.namehash(ensName)
+            const registryContract = new ethers.Contract(
+              config.ENS_REGISTRY,
+              ensRegistryABI,
+              customProvider
+            )
+            manager = await registryContract.owner(nameNode)
+            console.log(`[ENSDetails] Fallback manager from ENS Registry: ${manager}`)
+          } catch (registryError) {
+            console.error(`[ENSDetails] Error fetching from ENS Registry:`, registryError)
+          }
+        }
+        return { owner: null, manager }
       } catch (error) {
         console.error(
           `[ENSDetails] Error fetching owner/manager for ${ensName}:`,
@@ -643,7 +677,7 @@ export default function ENSDetails({
         return { owner: null, manager: null }
       }
     },
-    [config],
+    [config, customProvider],
   )
 
   // Function to fetch all ENS names resolving to this address
@@ -1075,12 +1109,14 @@ export default function ENSDetails({
       )
 
       // Fetch owner/manager for current ENS name
+      setEnsNameManagerLoading(true)
       const { owner, manager } = await fetchOwnerAndManager(currentName)
       console.log(
         `[ENSDetails] Setting name owner/manager - Owner: ${owner}, Manager: ${manager}`,
       )
       setEnsNameOwner(owner)
       setEnsNameManager(manager)
+      setEnsNameManagerLoading(false)
 
       // Resolve owner to ENS name
       if (owner) {
@@ -2259,7 +2295,7 @@ export default function ENSDetails({
                           <span>Contract ABI</span>
                           <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
                         </summary>
-                        <div className="mt-2 h-64 overflow-y-auto bg-gray-50 dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+                        <div className="mt-2 max-h-64 overflow-y-auto bg-gray-50 dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
                           {/* Functions */}
                           {sourcifyMetadata.abi.filter(
                             (item: any) => item.type === 'function',
@@ -2447,7 +2483,7 @@ export default function ENSDetails({
                             <span>Source Files</span>
                             <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
                           </summary>
-                          <div className="mt-2 h-48 overflow-y-auto space-y-2 bg-gray-50 dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+                          <div className="mt-2 max-h-48 overflow-y-auto space-y-2 bg-gray-50 dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
                             {Object.entries(
                               sourcifyMetadata.metadata.sources,
                             ).map(
@@ -2551,7 +2587,11 @@ export default function ENSDetails({
                     <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3">
                       Manager
                     </h4>
-                    {ensNameManager ? (
+                    {ensNameManagerLoading ? (
+                      <p className="text-gray-500 dark:text-gray-400 text-xs">
+                        Loading...
+                      </p>
+                    ) : ensNameManager ? (
                       <div className="flex items-center gap-2">
                         <Link
                           href={`/explore/${effectiveChainId}/${ensNameManagerResolved || ensNameManager}`}
@@ -2577,7 +2617,7 @@ export default function ENSDetails({
                       </div>
                     ) : (
                       <p className="text-gray-500 dark:text-gray-400 text-xs">
-                        Loading...
+                        Not available
                       </p>
                     )}
                   </div>
