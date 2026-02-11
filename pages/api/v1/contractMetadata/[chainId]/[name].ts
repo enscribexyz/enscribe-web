@@ -9,9 +9,10 @@
  * 3. Resolver Caching: Caches resolver per ENS name within a single request
  * 4. Smart Fallback: Uses most specific (lower-level) value first, falls back to parent if not set
  * 
- * Returns: Text records (name, alias, description, avatar, url, category, license, docs, audits)
+ * Returns: Text records (name, alias, description, avatar, header, url, category, license, docs, audits, socials)
  * - alias: Only from the specific contract name (no parent fallback)
  * - All others: From contract name, falls back to parent domains if not set
+ * - Socials: com.github, com.twitter, org.telegram, com.linkedin
  */
 
 import { NextApiRequest, NextApiResponse } from 'next'
@@ -23,23 +24,28 @@ interface TextRecords {
   alias?: string
   description?: string
   avatar?: string
+  header?: string
   url?: string
   category?: string
   license?: string
   docs?: string
   audits?: string
+  'com.github'?: string
+  'com.twitter'?: string
+  'org.telegram'?: string
+  'com.linkedin'?: string
 }
 
 // Function to get parent domains up to 2LD
 function getParentDomains(ensName: string): string[] {
   const parts = ensName.split('.')
   const parents: string[] = []
-  
+
   // Build parent chain from immediate parent to 2LD
   for (let i = 1; i < parts.length - 1; i++) {
     parents.push(parts.slice(i).join('.'))
   }
-  
+
   return parents
 }
 
@@ -48,18 +54,18 @@ async function fetchTextRecord(
   provider: ethers.JsonRpcProvider,
   resolverCache: Map<string, ethers.EnsResolver | null>,
   ensName: string,
-  key: string
+  key: string,
 ): Promise<string | null> {
   try {
     // Check resolver cache for this specific ENS name
     let resolver = resolverCache.get(ensName)
-    
+
     if (resolver === undefined) {
       // Not cached yet, fetch it
       resolver = await provider.getResolver(ensName)
       resolverCache.set(ensName, resolver)
     }
-    
+
     if (!resolver) return null
 
     const value = await resolver.getText(key)
@@ -72,54 +78,76 @@ async function fetchTextRecord(
 // Function to fetch text records with parent fallback (OPTIMIZED - All parallel)
 async function fetchTextRecordsWithFallback(
   provider: ethers.JsonRpcProvider,
-  ensName: string
+  ensName: string,
 ): Promise<TextRecords> {
   const records: TextRecords = {}
-  
+
   // Resolver cache scoped to this request only
   const resolverCache = new Map<string, ethers.EnsResolver | null>()
 
   try {
     // Build domain chain (from most specific to least specific)
     const domainChain = [ensName, ...getParentDomains(ensName)]
-    
+
     // Define all keys and which ones should use fallback
     const directKeys = ['alias'] // No parent fallback
-    const fallbackKeys = ['avatar', 'name', 'description', 'url', 'category', 'license', 'docs', 'audits']
-    
+    const fallbackKeys = [
+      'avatar',
+      'name',
+      'description',
+      'header',
+      'url',
+      'category',
+      'license',
+      'docs',
+      'audits',
+      'com.github',
+      'com.twitter',
+      'org.telegram',
+      'com.linkedin',
+    ]
+
     // Create all fetch promises in parallel
-    const allPromises: Promise<{ domain: string; key: string; value: string | null }>[] = []
-    
+    const allPromises: Promise<{
+      domain: string
+      key: string
+      value: string | null
+    }>[] = []
+
     // Fetch direct keys only from the specific ENS name
     for (const key of directKeys) {
       allPromises.push(
-        fetchTextRecord(provider, resolverCache, ensName, key).then((value) => ({
-          domain: ensName,
-          key,
-          value,
-        }))
+        fetchTextRecord(provider, resolverCache, ensName, key).then(
+          (value) => ({
+            domain: ensName,
+            key,
+            value,
+          }),
+        ),
       )
     }
-    
+
     // Fetch fallback keys from all domain levels in parallel
     for (const key of fallbackKeys) {
       for (const domain of domainChain) {
         allPromises.push(
-          fetchTextRecord(provider, resolverCache, domain, key).then((value) => ({
-            domain,
-            key,
-            value,
-          }))
+          fetchTextRecord(provider, resolverCache, domain, key).then(
+            (value) => ({
+              domain,
+              key,
+              value,
+            }),
+          ),
         )
       }
     }
-    
+
     // Wait for ALL requests to complete in parallel
     const allResults = await Promise.all(allPromises)
-    
+
     // Process results: For each key, use the value from the most specific domain (first in chain)
     const resultsByKey = new Map<string, Map<string, string>>()
-    
+
     allResults.forEach(({ domain, key, value }) => {
       if (value) {
         if (!resultsByKey.has(key)) {
@@ -128,7 +156,7 @@ async function fetchTextRecordsWithFallback(
         resultsByKey.get(key)!.set(domain, value)
       }
     })
-    
+
     // For each key, pick the value from the most specific domain (earliest in domainChain)
     resultsByKey.forEach((domainValues, key) => {
       for (const domain of domainChain) {
@@ -137,7 +165,7 @@ async function fetchTextRecordsWithFallback(
           break // Use the most specific domain's value
         }
       }
-      
+
       // If not in domainChain (i.e., direct key like 'alias'), use the only value
       if (!records[key as keyof TextRecords] && domainValues.size > 0) {
         records[key as keyof TextRecords] = Array.from(domainValues.values())[0]
@@ -153,7 +181,7 @@ async function fetchTextRecordsWithFallback(
 
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse
+  res: NextApiResponse,
 ) {
   if (req.method !== 'GET') {
     res.setHeader('Allow', ['GET'])
@@ -183,7 +211,7 @@ export default async function handler(
 
     // Fetch text records with parent fallback
     const records = await fetchTextRecordsWithFallback(provider, name)
-    
+
     return res.status(200).json(records)
   } catch (error) {
     console.error('[API] Error in contractMetadata handler:', error)
