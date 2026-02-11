@@ -630,7 +630,7 @@ export default function EnscribeLandingPage() {
           <div className="container mx-auto px-4 md:px-6">
             <div className="flex flex-col items-center space-y-4 text-center max-w-3xl mx-auto">
               <h2 className="text-3xl font-bold tracking-tight md:text-4xl bg-gradient-to-r from-white to-cyan-400 bg-clip-text text-transparent mb-4">
-                Give your smart contracts and protocol an real onchain identity
+                Give your smart contracts and protocol a real onchain identity
               </h2>
               <p className="text-slate-300 text-xl mb-8 max-w-[600px]">
                 Stop relying on hex addresses and offchain documentation
