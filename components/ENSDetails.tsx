@@ -75,10 +75,15 @@ interface TextRecords {
   description?: string
   url?: string
   avatar?: string
+  header?: string
   category?: string
   license?: string
   docs?: string
   audits?: string
+  'com.github'?: string
+  'com.twitter'?: string
+  'org.telegram'?: string
+  'com.linkedin'?: string
 }
 
 interface VerificationStatus {
@@ -151,6 +156,7 @@ export default function ENSDetails({
   const [sourcifyMetadata, setSourceifyMetadata] = useState<any>(null)
   const [ensNameOwner, setEnsNameOwner] = useState<string | null>(null)
   const [ensNameManager, setEnsNameManager] = useState<string | null>(null)
+  const [ensNameManagerLoading, setEnsNameManagerLoading] = useState(false)
   const [tldOwner, setTldOwner] = useState<string | null>(null)
   const [tldManager, setTldManager] = useState<string | null>(null)
   const [otherDetailsExpanded, setOtherDetailsExpanded] = useState(false)
@@ -572,7 +578,7 @@ export default function ENSDetails({
     await fetchNameExpiryDate(forwardENS, setForwardNameExpiryDate)
   }, [])
 
-  // Function to fetch owner and manager from ENS subgraph
+  // Function to fetch owner and manager from ENS subgraph with fallback to ENS Registry
   const fetchOwnerAndManager = useCallback(
     async (ensName: string) => {
       if (!config?.SUBGRAPH_API) {
@@ -617,10 +623,34 @@ export default function ENSDetails({
           console.log(`[ENSDetails] Domain data:`, domain)
 
           // Manager is the 'owner' field in subgraph (confusing naming)
-          const manager = domain.owner?.id || null
+          let manager = domain.owner?.id || null
 
           // Owner is wrappedOwner if set (wrapped name), else registrant
           const owner = domain.wrappedOwner?.id || domain.registrant?.id || null
+
+          // Fallback: If manager is not available, check ENS Registry contract directly
+          if (!manager && config.ENS_REGISTRY && customProvider) {
+            try {
+              console.log(
+                `[ENSDetails] Manager not found in subgraph, checking ENS Registry for ${ensName}`,
+              )
+              const nameNode = ethers.namehash(ensName)
+              const registryContract = new ethers.Contract(
+                config.ENS_REGISTRY,
+                ensRegistryABI,
+                customProvider,
+              )
+              manager = await registryContract.owner(nameNode)
+              console.log(
+                `[ENSDetails] Fallback manager from ENS Registry: ${manager}`,
+              )
+            } catch (registryError) {
+              console.error(
+                `[ENSDetails] Error fetching from ENS Registry:`,
+                registryError,
+              )
+            }
+          }
 
           console.log(
             `[ENSDetails] Resolved for ${ensName} - Owner: ${owner}, Manager: ${manager}`,
@@ -628,8 +658,31 @@ export default function ENSDetails({
           return { owner, manager }
         }
 
-        console.log(`[ENSDetails] No domain found for ${ensName}`)
-        return { owner: null, manager: null }
+        // No domain found in subgraph, try fallback to ENS Registry
+        console.log(
+          `[ENSDetails] No domain found in subgraph for ${ensName}, trying ENS Registry fallback`,
+        )
+        let manager = null
+        if (config.ENS_REGISTRY && customProvider) {
+          try {
+            const nameNode = ethers.namehash(ensName)
+            const registryContract = new ethers.Contract(
+              config.ENS_REGISTRY,
+              ensRegistryABI,
+              customProvider,
+            )
+            manager = await registryContract.owner(nameNode)
+            console.log(
+              `[ENSDetails] Fallback manager from ENS Registry: ${manager}`,
+            )
+          } catch (registryError) {
+            console.error(
+              `[ENSDetails] Error fetching from ENS Registry:`,
+              registryError,
+            )
+          }
+        }
+        return { owner: null, manager }
       } catch (error) {
         console.error(
           `[ENSDetails] Error fetching owner/manager for ${ensName}:`,
@@ -638,7 +691,7 @@ export default function ENSDetails({
         return { owner: null, manager: null }
       }
     },
-    [config],
+    [config, customProvider],
   )
 
   // Function to fetch all ENS names resolving to this address
@@ -1070,12 +1123,14 @@ export default function ENSDetails({
       )
 
       // Fetch owner/manager for current ENS name
+      setEnsNameManagerLoading(true)
       const { owner, manager } = await fetchOwnerAndManager(currentName)
       console.log(
         `[ENSDetails] Setting name owner/manager - Owner: ${owner}, Manager: ${manager}`,
       )
       setEnsNameOwner(owner)
       setEnsNameManager(manager)
+      setEnsNameManagerLoading(false)
 
       // Resolve owner to ENS name
       if (owner) {
@@ -1846,21 +1901,33 @@ export default function ENSDetails({
             (queriedENSName || primaryName || selectedForwardName) &&
             Object.keys(textRecords).length > 0 && (
               <div className="mt-6 space-y-6">
-                {/* Name/Alias, Description, URL with Avatar */}
+                {/* Name/Alias, Description, URL with Avatar and Header */}
                 {(textRecords.name ||
                   textRecords.alias ||
                   textRecords.description ||
                   textRecords.url ||
-                  textRecords.avatar) && (
-                  <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
-                    <div className="flex gap-6">
-                      {/* Avatar Section (Left) */}
+                  textRecords.avatar ||
+                  textRecords.header) && (
+                  <div className="relative bg-gray-50 dark:bg-gray-900 rounded-lg p-6 border border-gray-200 dark:border-gray-700 overflow-hidden">
+                    {/* Header Background Image */}
+                    {textRecords.header && (
+                      <div
+                        className="absolute inset-0 bg-cover bg-center opacity-30 dark:opacity-40"
+                        style={{
+                          backgroundImage: `url(${textRecords.header})`,
+                        }}
+                      />
+                    )}
+
+                    {/* Content */}
+                    <div className="relative z-10 flex gap-6">
+                      {/* Avatar Section (Left) - Circular */}
                       {textRecords.avatar && (
                         <div className="flex-shrink-0">
                           <img
                             src={textRecords.avatar}
                             alt="Avatar"
-                            className="w-24 h-24 rounded-lg object-cover"
+                            className="w-24 h-24 rounded-full object-cover"
                             onError={(e) => {
                               e.currentTarget.style.display = 'none'
                             }}
@@ -1879,7 +1946,7 @@ export default function ENSDetails({
 
                         {/* Description */}
                         {textRecords.description && (
-                          <p className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed">
+                          <p className="text-black dark:text-white text-sm leading-relaxed font-bold">
                             {textRecords.description}
                           </p>
                         )}
@@ -1894,11 +1961,104 @@ export default function ENSDetails({
                             }
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                            className="inline-flex items-center text-sm text-blue-800 dark:text-blue-200 hover:underline font-bold"
                           >
                             {textRecords.url}
                             <ExternalLink className="ml-1 h-3 w-3" />
                           </a>
+                        )}
+
+                        {/* Social Links */}
+                        {(textRecords['com.github'] ||
+                          textRecords['com.twitter'] ||
+                          textRecords['org.telegram'] ||
+                          textRecords['com.linkedin']) && (
+                          <div className="flex items-center gap-3 pt-2">
+                            {textRecords['com.github'] && (
+                              <a
+                                href={
+                                  textRecords['com.github'].startsWith('http')
+                                    ? textRecords['com.github']
+                                    : `https://github.com/${textRecords['com.github']}`
+                                }
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+                                title="GitHub"
+                              >
+                                <svg
+                                  className="w-5 h-5"
+                                  fill="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
+                                </svg>
+                              </a>
+                            )}
+                            {textRecords['com.twitter'] && (
+                              <a
+                                href={
+                                  textRecords['com.twitter'].startsWith('http')
+                                    ? textRecords['com.twitter']
+                                    : `https://twitter.com/${textRecords['com.twitter']}`
+                                }
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+                                title="Twitter/X"
+                              >
+                                <svg
+                                  className="w-5 h-5"
+                                  fill="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                                </svg>
+                              </a>
+                            )}
+                            {textRecords['org.telegram'] && (
+                              <a
+                                href={
+                                  textRecords['org.telegram'].startsWith('http')
+                                    ? textRecords['org.telegram']
+                                    : `https://t.me/${textRecords['org.telegram']}`
+                                }
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+                                title="Telegram"
+                              >
+                                <svg
+                                  className="w-5 h-5"
+                                  fill="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.14.18-.357.295-.6.295-.002 0-.003 0-.005 0l.213-3.054 5.56-5.022c.24-.213-.054-.334-.373-.121l-6.869 4.326-2.96-.924c-.64-.203-.658-.64.135-.954l11.566-4.458c.538-.196 1.006.128.832.941z" />
+                                </svg>
+                              </a>
+                            )}
+                            {textRecords['com.linkedin'] && (
+                              <a
+                                href={
+                                  textRecords['com.linkedin'].startsWith('http')
+                                    ? textRecords['com.linkedin']
+                                    : `https://linkedin.com/in/${textRecords['com.linkedin']}`
+                                }
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+                                title="LinkedIn"
+                              >
+                                <svg
+                                  className="w-5 h-5"
+                                  fill="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
+                                </svg>
+                              </a>
+                            )}
+                          </div>
                         )}
                       </div>
                     </div>
@@ -2149,7 +2309,7 @@ export default function ENSDetails({
                           <span>Contract ABI</span>
                           <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
                         </summary>
-                        <div className="mt-2 h-64 overflow-y-auto bg-gray-50 dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+                        <div className="mt-2 max-h-64 overflow-y-auto bg-gray-50 dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
                           {/* Functions */}
                           {sourcifyMetadata.abi.filter(
                             (item: any) => item.type === 'function',
@@ -2337,7 +2497,7 @@ export default function ENSDetails({
                             <span>Source Files</span>
                             <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
                           </summary>
-                          <div className="mt-2 h-48 overflow-y-auto space-y-2 bg-gray-50 dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+                          <div className="mt-2 max-h-48 overflow-y-auto space-y-2 bg-gray-50 dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
                             {Object.entries(
                               sourcifyMetadata.metadata.sources,
                             ).map(
@@ -2441,7 +2601,11 @@ export default function ENSDetails({
                     <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3">
                       Manager
                     </h4>
-                    {ensNameManager ? (
+                    {ensNameManagerLoading ? (
+                      <p className="text-gray-500 dark:text-gray-400 text-xs">
+                        Loading...
+                      </p>
+                    ) : ensNameManager ? (
                       <div className="flex items-center gap-2">
                         <Link
                           href={`/explore/${effectiveChainId}/${ensNameManagerResolved || ensNameManager}`}
@@ -2467,7 +2631,7 @@ export default function ENSDetails({
                       </div>
                     ) : (
                       <p className="text-gray-500 dark:text-gray-400 text-xs">
-                        Loading...
+                        Not available
                       </p>
                     )}
                   </div>
