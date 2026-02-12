@@ -75,6 +75,7 @@ export default function SetNameStepsModal({
   const [lastTxHash, setLastTxHash] = useState<string | null>(null)
   const [allStepsCompleted, setAllStepsCompleted] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [poapMintLink, setPoapMintLink] = useState<string | null>(null)
   const [stepStatuses, setStepStatuses] = useState<
     ('pending' | 'completed' | 'error')[]
   >(Array(steps?.length || 0).fill('pending'))
@@ -248,6 +249,11 @@ export default function SetNameStepsModal({
       } else {
         setCurrentStep(steps.length)
         setAllStepsCompleted(true)
+        // Only get POAP link for non-Safe wallets since we don't have transaction data
+        if (!isSafeWallet) {
+          const link = await getPoapMintLink()
+          setPoapMintLink(link)
+        }
       }
     } catch (error: any) {
       console.error('Step failed:', error)
@@ -262,6 +268,19 @@ export default function SetNameStepsModal({
     } finally {
       setExecuting(false)
     }
+  }
+
+  const getPoapMintLink = async (): Promise<string | null> => {
+    try {
+      let res = await fetch(`/api/v1/mint`, { method: 'POST' })
+      if (res.ok) {
+        const data = await res.json()
+        return data.link
+      }
+    } catch (err) {
+      console.error('POAP mint link fetch failed:', err)
+    }
+    return null
   }
 
   const updateStepStatus = (
@@ -630,6 +649,40 @@ export default function SetNameStepsModal({
                     </a>
                   </Button>
                 </div>
+
+                {/* Claim POAP Button */}
+                {!errorMessage && poapMintLink != null &&
+                  chain != undefined &&
+                  !isTestNet(chain.id) && stepTxHashes.some(Boolean) && (
+                    <div className="mt-4">
+                      <Button
+                        className="w-full py-6 text-lg font-medium relative overflow-hidden shadow-lg hover:shadow-indigo-500/30"
+                        style={{
+                          background:
+                            'linear-gradient(90deg, #ff6b6b 0%, #8a2be2 50%, #4b6cb7 100%)',
+                          backgroundSize: '200% 100%',
+                          animation: 'glow 1.5s infinite alternate',
+                        }}
+                      >
+                        <a
+                          href={poapMintLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          {/* Background animation elements */}
+                          <span className="absolute top-0 left-0 w-full h-full bg-white/10 transform -skew-x-12 animate-shimmer pointer-events-none"></span>
+                          <span className="absolute bottom-0 right-0 w-12 h-12 bg-white/20 rounded-full blur-xl animate-pulse pointer-events-none"></span>
+                          <span className="absolute inset-0 h-full w-full bg-gradient-to-r from-indigo-500/0 via-indigo-500/40 to-indigo-500/0 animate-shine pointer-events-none"></span>
+                          <div className="flex items-center justify-center relative z-10">
+                            <span className="scale-105 transition-transform duration-300">
+                              Claim my POAP
+                            </span>
+                            <span className="ml-2 inline-block">🏆</span>
+                          </div>
+                        </a>
+                      </Button>
+                    </div>
+                  )}
               </>
             )}
           </div>
