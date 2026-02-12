@@ -8,6 +8,10 @@ type FormState = {
     message: string;
 };
 
+type SiteCustomFields = {
+    formspreeUrl?: string;
+};
+
 const initialFormState: FormState = {
     name: "",
     email: "",
@@ -25,10 +29,9 @@ const primaryButtonStyle: React.CSSProperties = {
 
 export default function ContractNamingAuditPage() {
 
-    const {
-        siteConfig: {customFields},
-    } = useDocusaurusContext();
-    const FORMSPREE_URL = customFields.formspreeUrl || 'formspreeUrl is not defined'
+    const {siteConfig} = useDocusaurusContext();
+    const customFields = (siteConfig.customFields ?? {}) as SiteCustomFields;
+    const FORMSPREE_URL = customFields.formspreeUrl ?? "";
 
     const [form, setForm] = useState<FormState>(initialFormState);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -63,6 +66,13 @@ export default function ContractNamingAuditPage() {
         if (validationError) {
             setErrorMessage(validationError);
             setStatus("error");
+            return;
+        }
+        if (!FORMSPREE_URL) {
+            setStatus("error");
+            setErrorMessage(
+                "Form endpoint is not configured. Please email hi@enscribe.xyz."
+            );
             return;
         }
 

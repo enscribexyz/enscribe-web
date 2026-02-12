@@ -242,7 +242,12 @@ export default function EnscribeLandingPage() {
                 { label: "Guides", to: "/guides" },
                 { label: "Blog", to: "/blog" },
               ].map(({ label, to }) => (
-                  <Link key={label} to={to} className="px-3 py-2 text-sm text-slate-400 hover:text-white transition-colors rounded-md">
+                  <Link
+                    key={label}
+                    to={to}
+                    data-noBrokenLinkCheck={to.startsWith("#")}
+                    className="px-3 py-2 text-sm text-slate-400 hover:text-white transition-colors rounded-md"
+                  >
                     {label}
                   </Link>
               ))}
@@ -277,7 +282,13 @@ export default function EnscribeLandingPage() {
                     { label: "Guides", to: "/guides" },
                     { label: "Blog", to: "/blog" },
                   ].map(({ label, to }) => (
-                      <Link key={label} to={to} className="block text-lg font-medium text-slate-300 hover:text-cyan-400" onClick={() => setMenuOpen(false)}>
+                      <Link
+                        key={label}
+                        to={to}
+                        data-noBrokenLinkCheck={to.startsWith("#")}
+                        className="block text-lg font-medium text-slate-300 hover:text-cyan-400"
+                        onClick={() => setMenuOpen(false)}
+                      >
                         {label}
                       </Link>
                   ))}

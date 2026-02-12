@@ -19,7 +19,6 @@ const config = {
   projectName: "enscribe",
 
   onBrokenLinks: "throw",
-  onBrokenMarkdownLinks: "warn",
 
   // Even if you don't use internalization, you can use this field to set useful
   // metadata like html lang. For example, if your site is Chinese, you may want
@@ -55,6 +54,9 @@ const config = {
 
   markdown: {
     mermaid: true,
+    hooks: {
+      onBrokenMarkdownLinks: "warn",
+    },
   },
   themes: ['@docusaurus/theme-mermaid'],
 
@@ -72,6 +74,8 @@ const config = {
           showReadingTime: true,
           blogSidebarTitle: 'All our posts',
           blogSidebarCount: 'ALL',
+          onInlineTags: 'ignore',
+          onUntruncatedBlogPosts: 'ignore',
           feedOptions: {
             type: ["rss", "atom", "json"],
             copyright: `Copyright © ${new Date().getFullYear()} Web3 Labs Ltd.`,
@@ -254,5 +258,4 @@ const config = {
 }
 
 module.exports = config
-
 
