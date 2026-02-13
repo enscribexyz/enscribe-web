@@ -9,6 +9,7 @@ import {
   ClockIcon,
   Bars3Icon,
   XMarkIcon,
+  Squares2X2Icon,
   DocumentTextIcon,
   InformationCircleIcon,
   DocumentIcon,
@@ -17,7 +18,6 @@ import {
   QueueListIcon,
   TagIcon,
 } from '@heroicons/react/24/outline'
-import AddressSearch from './AddressSearch'
 import ChainSelector from './ChainSelector'
 import SearchModal from './SearchModal'
 import { useAccount } from 'wagmi'
@@ -110,22 +110,27 @@ export default function Layout({ children }: LayoutProps) {
   const [prevChain, setPrevChain] = useState<number | undefined>()
   const router = useRouter()
 
-  const navigation = [
+  const primaryNavigation = [
+    { name: 'Identity Workspace', href: '/workspace', icon: Squares2X2Icon },
     { name: 'Name Contract', href: '/nameContract', icon: DocumentTextIcon },
     { name: 'Batch Naming', href: '/batchNaming', icon: QueueListIcon },
     { name: 'Deploy Contract', href: '/deploy', icon: PencilSquareIcon },
-    { name: 'Name Explorer', href: '/nameMetadata', icon: TagIcon },
-    ...(isConnected
-      ? [
-          {
-            name: 'My Account',
-            href: `/explore/${chain?.id}/${walletAddress}`,
-            icon: UserIcon,
-          },
-          { name: 'My Contracts', href: '/history', icon: ClockIcon },
-        ]
-      : []),
   ]
+
+  const secondaryNavigation = [
+    { name: 'Name Explorer', href: '/nameMetadata', icon: TagIcon },
+  ]
+
+  const accountNavigation = isConnected
+    ? [
+        {
+          name: 'My Account',
+          href: `/explore/${chain?.id}/${walletAddress}`,
+          icon: UserIcon,
+        },
+        { name: 'My Contracts', href: '/history', icon: ClockIcon },
+      ]
+    : []
 
   // Initialize selectedChain from URL on first load only
   useEffect(() => {
@@ -254,7 +259,7 @@ export default function Layout({ children }: LayoutProps) {
           {/* Navigation menu */}
           <nav className="px-4 py-6">
             <ul className="space-y-2">
-              {navigation.slice(0, 3).map((item) => (
+              {primaryNavigation.map((item) => (
                 <li key={item.name}>
                   <Link href={item.href} legacyBehavior>
                     <a className="flex items-center p-3 text-gray-300 hover:bg-gray-800 dark:hover:bg-gray-900 rounded-md transition-colors">
@@ -265,14 +270,13 @@ export default function Layout({ children }: LayoutProps) {
                 </li>
               ))}
 
-              {/* Divider before Name Explorer */}
-              {navigation.length > 3 && (
+              {secondaryNavigation.length > 0 && (
                 <li className="py-2">
                   <div className="border-t border-gray-700 dark:border-gray-600"></div>
                 </li>
               )}
 
-              {navigation.slice(3, 4).map((item) => (
+              {secondaryNavigation.map((item) => (
                 <li key={item.name}>
                   <Link href={item.href} legacyBehavior>
                     <a className="flex items-center p-3 text-gray-300 hover:bg-gray-800 dark:hover:bg-gray-900 rounded-md transition-colors">
@@ -283,14 +287,13 @@ export default function Layout({ children }: LayoutProps) {
                 </li>
               ))}
 
-              {/* Divider before My Account/My Contracts */}
-              {navigation.length > 4 && (
+              {accountNavigation.length > 0 && (
                 <li className="py-2">
                   <div className="border-t border-gray-700 dark:border-gray-600"></div>
                 </li>
               )}
 
-              {navigation.slice(4).map((item) => (
+              {accountNavigation.map((item) => (
                 <li key={item.name}>
                   <Link href={item.href} legacyBehavior>
                     <a className="flex items-center p-3 text-gray-300 hover:bg-gray-800 dark:hover:bg-gray-900 rounded-md transition-colors">
@@ -380,7 +383,7 @@ export default function Layout({ children }: LayoutProps) {
         {/* Navigation Links */}
         <nav className="px-4 py-6 flex-grow">
           <ul className="space-y-2">
-            {navigation.slice(0, 3).map((item) => (
+            {primaryNavigation.map((item) => (
               <li key={item.name}>
                 <Link href={item.href} legacyBehavior>
                   <a className="flex items-center p-3 text-gray-300 hover:bg-gray-800 dark:hover:bg-gray-700 rounded-md transition-colors">
@@ -391,14 +394,13 @@ export default function Layout({ children }: LayoutProps) {
               </li>
             ))}
 
-            {/* Divider before Name Explorer */}
-            {navigation.length > 3 && (
+            {secondaryNavigation.length > 0 && (
               <li className="py-2">
                 <div className="border-t border-gray-700 dark:border-gray-600"></div>
               </li>
             )}
 
-            {navigation.slice(3, 4).map((item) => (
+            {secondaryNavigation.map((item) => (
               <li key={item.name}>
                 <Link href={item.href} legacyBehavior>
                   <a className="flex items-center p-3 text-gray-300 hover:bg-gray-800 dark:hover:bg-gray-700 rounded-md transition-colors">
@@ -409,14 +411,13 @@ export default function Layout({ children }: LayoutProps) {
               </li>
             ))}
 
-            {/* Divider before My Account/My Contracts */}
-            {navigation.length > 4 && (
+            {accountNavigation.length > 0 && (
               <li className="py-2">
                 <div className="border-t border-gray-700 dark:border-gray-600"></div>
               </li>
             )}
 
-            {navigation.slice(4).map((item) => (
+            {accountNavigation.map((item) => (
               <li key={item.name}>
                 <Link href={item.href} legacyBehavior>
                   <a className="flex items-center p-3 text-gray-300 hover:bg-gray-800 dark:hover:bg-gray-700 rounded-md transition-colors">
