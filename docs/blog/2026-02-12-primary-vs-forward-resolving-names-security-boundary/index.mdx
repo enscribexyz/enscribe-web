@@ -22,7 +22,7 @@ Especially as smart contract identity becomes more visible in wallets and other 
 
 A primary name is unique per address. An externally owned account or a smart contract can declare exactly one ENS name as its primary identifier.
 
-`myname.eth -> 0x1234…`
+`0x1234… -> myname.eth`
 
 When configured correctly, that declaration establishes a canonical mapping from address to name. If a wallet encounters the address and retrieves a valid primary name, there is no ambiguity about which ENS name represents it. The address has explicitly asserted its ENS identity.
 
@@ -32,7 +32,7 @@ This matters because identity is often needed in the reverse direction. Users do
 
 Forward-resolving names work the other way around. A name resolves to an address. If someone types the name into a resolver, they receive the correct destination.
 
-`0x1234… -> myname.eth`
+`myname.eth -> 0x1234…`
 
 This is closer to traditional DNS behaviour. A domain name resolves to an IP address. Reverse DNS exists, but it is inconsistently configured and rarely treated as authoritative identity. Many IP addresses either lack reverse records or have generic ones. As a result, reverse DNS is not widely relied upon as a definitive signal of identity.
 
