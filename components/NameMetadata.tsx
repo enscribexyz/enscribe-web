@@ -1397,15 +1397,15 @@ export default function NameMetadata({
         metadata.owner.toLowerCase() === walletAddress.toLowerCase()))
 
   return (
-    <div className="p-6 sm:p-8 max-w-7xl mx-auto">
+    <div className="w-full max-w-7xl mx-auto">
       {/* Show search button when no name is provided (landing page) */}
       {!currentName && !loading && (
-        <div className="flex flex-col items-center justify-center min-h-[60vh]">
-          <div className="text-center mb-12 max-w-3xl">
-            <h1 className="text-5xl font-bold mb-4 text-gray-900 dark:text-white">
+        <div className="flex flex-col items-center justify-center min-h-[50vh] rounded-2xl border border-slate-200/80 bg-white/95 p-8 text-center shadow-xl backdrop-blur dark:border-slate-700 dark:bg-slate-900/70">
+          <div className="mb-8 max-w-3xl">
+            <h1 className="text-4xl font-semibold mb-3 text-slate-900 dark:text-white">
               Name Explorer
             </h1>
-            <p className="text-xl text-muted-foreground">
+            <p className="text-base text-slate-600 dark:text-slate-300">
               Explore and manage ENS name metadata
             </p>
           </div>
@@ -1424,7 +1424,7 @@ export default function NameMetadata({
           {/* Search Button */}
           <button
             onClick={() => setIsSearchModalOpen(true)}
-            className="w-full max-w-lg flex items-center justify-center gap-3 px-8 py-5 bg-card hover:bg-accent text-card-foreground rounded-2xl font-semibold text-lg border-2 border-border hover:border-ring transition-all duration-200 shadow-md hover:shadow-lg"
+            className="w-full max-w-lg flex items-center justify-center gap-3 px-8 py-5 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl font-semibold text-lg transition-all duration-200 shadow-md hover:shadow-lg"
           >
             <Search className="w-6 h-6" />
             <span>Search ENS Name</span>
@@ -1447,8 +1447,8 @@ export default function NameMetadata({
 
       {/* Show metadata content when name is loaded */}
       {(currentName || loading) && (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-8 border border-gray-200 dark:border-gray-700">
-          <h2 className="text-3xl font-semibold text-gray-900 dark:text-white mb-8">
+        <div className="rounded-2xl border border-slate-200/80 bg-white/95 p-8 shadow-xl backdrop-blur dark:border-slate-700 dark:bg-slate-900/70">
+          <h2 className="text-3xl font-semibold text-slate-900 dark:text-white mb-8">
             Name Explorer
           </h2>
 
