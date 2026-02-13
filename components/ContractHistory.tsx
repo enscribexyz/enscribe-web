@@ -370,7 +370,17 @@ export default function ContractHistory() {
     list.slice((page - 1) * itemsPerPage, page * itemsPerPage)
 
   return (
-    <div className="flex flex-col space-y-2 max-h-[calc(100vh-160px)] overflow-y-auto pr-1">
+    <div className="w-full rounded-2xl border border-slate-200/80 bg-white/95 p-6 shadow-xl backdrop-blur dark:border-slate-700 dark:bg-slate-900/70">
+      <div className="mb-4">
+        <h2 className="text-3xl font-semibold text-slate-900 dark:text-white">
+          Contract History
+        </h2>
+        <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+          Monitor deployment and naming coverage across your account.
+        </p>
+      </div>
+
+      <div className="flex flex-col space-y-2 max-h-[calc(100vh-220px)] overflow-y-auto pr-1">
       {!isConnected ? (
         <p className="text-red-500 text-lg text-center">
           Please connect your wallet
@@ -379,24 +389,18 @@ export default function ContractHistory() {
         <p className="text-red-500">{error}</p>
       ) : (
         <Tabs defaultValue="without-ens">
-          <TabsList className="inline-flex bg-gray-100 dark:bg-gray-700 shadow-sm">
-            <TabsTrigger
-              value="without-ens"
-              className="px-6 py-2 rounded-md text-sm font-medium transition-all bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-400 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-900 data-[state=active]:text-gray-900 dark:data-[state=active]:text-white"
-            >
+          <TabsList>
+            <TabsTrigger value="without-ens">
               Unnamed Contracts
             </TabsTrigger>
 
-            <TabsTrigger
-              value="with-ens"
-              className="px-6 py-2 rounded-md text-sm font-medium transition-all bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-400 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-900 data-[state=active]:text-gray-900 dark:data-[state=active]:text-white"
-            >
+            <TabsTrigger value="with-ens">
               Named Contracts
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="without-ens">
-            <Card className="p-6">
+            <Card className="p-6 border-slate-200 dark:border-slate-700">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -676,7 +680,7 @@ export default function ContractHistory() {
             </Card>
           </TabsContent>
           <TabsContent value="with-ens">
-            <Card className="p-6">
+            <Card className="p-6 border-slate-200 dark:border-slate-700">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -992,6 +996,7 @@ export default function ContractHistory() {
           </TabsContent>
         </Tabs>
       )}
+      </div>
     </div>
   )
 }

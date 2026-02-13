@@ -2472,10 +2472,15 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
   }
 
   return (
-    <div className="w-full max-w-5xl mx-auto bg-white dark:bg-gray-800 shadow-lg rounded-xl p-8 border border-gray-200 dark:border-gray-700">
-      <h2 className="text-3xl font-semibold text-gray-900 dark:text-white">
-        Name Contract
-      </h2>
+    <div className="w-full rounded-2xl border border-slate-200/80 bg-white/95 p-8 shadow-xl backdrop-blur dark:border-slate-700 dark:bg-slate-900/70">
+      <div className="mb-5">
+        <h2 className="text-3xl font-semibold text-slate-900 dark:text-white">
+          Name Contract
+        </h2>
+        <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+          Attach a stable ENS identity to an existing deployment.
+        </p>
+      </div>
       {(!isConnected || isUnsupportedL2Chain) && (
         <p className="text-red-500">
           {!isConnected

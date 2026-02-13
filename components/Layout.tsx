@@ -1,21 +1,18 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { Toaster } from '@/components/ui/toaster'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import 'ethereum-identity-kit/css'
 import {
-  PencilSquareIcon,
   ClockIcon,
   Bars3Icon,
   XMarkIcon,
   Squares2X2Icon,
-  DocumentTextIcon,
   InformationCircleIcon,
   DocumentIcon,
   MagnifyingGlassIcon,
   UserIcon,
-  QueueListIcon,
   TagIcon,
 } from '@heroicons/react/24/outline'
 import ChainSelector from './ChainSelector'
@@ -28,6 +25,13 @@ interface LayoutProps {
 }
 
 const productLink = process.env.NEXT_PUBLIC_DOCS_SITE_URL
+type TaskMode = 'operate' | 'discover' | 'account'
+type NavItem = {
+  name: string
+  shortName?: string
+  href: string
+  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>
+}
 
 export default function Layout({ children }: LayoutProps) {
   const ConnectButton = dynamic(
@@ -109,28 +113,167 @@ export default function Layout({ children }: LayoutProps) {
   const [prevConnected, setPrevConnected] = useState(false)
   const [prevChain, setPrevChain] = useState<number | undefined>()
   const router = useRouter()
+  const [taskMode, setTaskMode] = useState<TaskMode>('operate')
 
-  const primaryNavigation = [
-    { name: 'Identity Workspace', href: '/workspace', icon: Squares2X2Icon },
-    { name: 'Name Contract', href: '/nameContract', icon: DocumentTextIcon },
-    { name: 'Batch Naming', href: '/batchNaming', icon: QueueListIcon },
-    { name: 'Deploy Contract', href: '/deploy', icon: PencilSquareIcon },
+  const primaryNavigation: NavItem[] = [
+    {
+      name: 'Identity Workspace',
+      shortName: 'Workspace',
+      href: '/workspace',
+      icon: Squares2X2Icon,
+    },
   ]
 
-  const secondaryNavigation = [
-    { name: 'Name Explorer', href: '/nameMetadata', icon: TagIcon },
+  const secondaryNavigation: NavItem[] = [
+    {
+      name: 'Name Explorer',
+      shortName: 'Explorer',
+      href: '/nameMetadata',
+      icon: TagIcon,
+    },
   ]
 
-  const accountNavigation = isConnected
+  const monitoringNavigation: NavItem[] = [
+    {
+      name: 'My Contracts',
+      shortName: 'Contracts',
+      href: '/history',
+      icon: ClockIcon,
+    },
+  ]
+
+  const accountNavigation: NavItem[] = isConnected
     ? [
         {
           name: 'My Account',
-          href: `/explore/${chain?.id}/${walletAddress}`,
+          shortName: 'Account',
+          href:
+            chain?.id && walletAddress
+              ? `/explore/${chain.id}/${walletAddress}`
+              : '/explore',
           icon: UserIcon,
         },
-        { name: 'My Contracts', href: '/history', icon: ClockIcon },
       ]
     : []
+
+  const inferTaskMode = (pathname: string): TaskMode => {
+    if (
+      pathname === '/' ||
+      pathname === '/workspace' ||
+      pathname === '/nameContract' ||
+      pathname === '/batchNaming' ||
+      pathname === '/deploy'
+    ) {
+      return 'operate'
+    }
+
+    if (pathname === '/nameMetadata') {
+      return 'discover'
+    }
+
+    return 'account'
+  }
+
+  const modeOptions: Array<{ id: TaskMode; label: string }> = [
+    { id: 'operate', label: 'Operate' },
+    { id: 'discover', label: 'Discover' },
+    { id: 'account', label: 'Account' },
+  ]
+
+  const navigationSections = useMemo(
+    () => {
+      const byMode: Record<
+        TaskMode,
+        Array<{ key: string; label: string; items: NavItem[] }>
+      > = {
+        operate: [
+          { key: 'workflows', label: 'Workflows', items: primaryNavigation },
+        ],
+        discover: [
+          {
+            key: 'explore',
+            label: 'Explore & Inventory',
+            items: [...secondaryNavigation, ...monitoringNavigation],
+          },
+        ],
+        account: [
+          { key: 'inventory', label: 'Inventory', items: monitoringNavigation },
+          { key: 'account', label: 'Wallet', items: accountNavigation },
+        ],
+      }
+
+      return byMode[taskMode].filter((section) => section.items.length > 0)
+    },
+    [
+      taskMode,
+      primaryNavigation,
+      secondaryNavigation,
+      monitoringNavigation,
+      accountNavigation,
+    ],
+  )
+
+  const isNavItemActive = (href: string) => {
+    if (href.startsWith('/explore/')) {
+      return router.pathname.startsWith('/explore')
+    }
+
+    return router.pathname === href
+  }
+
+  const allNavigationItems = useMemo(
+    () => [
+      ...primaryNavigation,
+      ...secondaryNavigation,
+      ...monitoringNavigation,
+      ...accountNavigation,
+    ],
+    [
+      primaryNavigation,
+      secondaryNavigation,
+      monitoringNavigation,
+      accountNavigation,
+    ],
+  )
+
+  const staticRouteLabels: Record<string, string> = {
+    '/': 'Home',
+    '/workspace': 'Identity Workspace',
+    '/nameContract': 'Name Contract',
+    '/batchNaming': 'Batch Naming',
+    '/deploy': 'Deploy Contract',
+    '/nameMetadata': 'Name Explorer',
+    '/history': 'My Contracts',
+  }
+
+  const currentPageLabel =
+    allNavigationItems.find((item) => isNavItemActive(item.href))?.name ||
+    staticRouteLabels[router.pathname] ||
+    'Dashboard'
+
+  const breadcrumbs = useMemo(() => {
+    const modeLabel = taskMode.charAt(0).toUpperCase() + taskMode.slice(1)
+    const address =
+      typeof router.query.address === 'string' ? router.query.address : ''
+    const addressLabel =
+      address.length > 10
+        ? `${address.slice(0, 6)}...${address.slice(-4)}`
+        : address || 'Address'
+
+    if (router.pathname.startsWith('/explore/') && address) {
+      return [
+        { label: 'Home', href: '/' },
+        { label: 'Account', href: '/history' },
+        { label: addressLabel },
+      ]
+    }
+
+    return [
+      { label: 'Home', href: '/' },
+      { label: modeLabel },
+      { label: currentPageLabel },
+    ]
+  }, [taskMode, currentPageLabel, router.pathname, router.query.address])
 
   // Initialize selectedChain from URL on first load only
   useEffect(() => {
@@ -147,6 +290,10 @@ export default function Layout({ children }: LayoutProps) {
       }
     }
   }, [router.isReady, router.query.chainId, manuallyChanged])
+
+  useEffect(() => {
+    setTaskMode(inferTaskMode(router.pathname))
+  }, [router.pathname])
 
   useEffect(() => {
     const isExplorePage = router.pathname.startsWith('/explore')
@@ -211,11 +358,11 @@ export default function Layout({ children }: LayoutProps) {
   return (
     <div className="flex min-h-screen bg-gray-100 dark:bg-gray-200 transition-colors duration-200">
       {/* Sidebar for Large Screens - Fixed position */}
-      <aside className="hidden lg:flex lg:flex-col lg:fixed lg:inset-y-0 lg:left-0 lg:w-66 bg-gray-900 dark:bg-gray-800 text-white shadow-md z-10">
+      <aside className="hidden lg:flex lg:flex-col lg:fixed lg:inset-y-0 lg:left-0 lg:w-66 bg-gradient-to-b from-slate-950 via-slate-900 to-slate-900 text-white shadow-md z-10">
         {/* Main sidebar content with scroll */}
         <div className="flex-1 overflow-y-auto">
           {/* Logo and site name */}
-          <div className="px-6 py-4 flex items-center space-x-2 border-b border-gray-700 dark:border-white">
+          <div className="px-6 py-4 flex items-center space-x-2 border-b border-slate-700/70">
             <Link href="/" legacyBehavior>
               <a className="flex items-center space-x-2">
                 {/* Logo */}
@@ -256,51 +403,64 @@ export default function Layout({ children }: LayoutProps) {
             </Link>
           </div>
 
+          <div className="px-4 pt-4">
+            <div className="grid grid-cols-3 gap-1 rounded-xl bg-slate-800/90 p-1">
+              {modeOptions.map((mode) => (
+                <button
+                  key={mode.id}
+                  type="button"
+                  onClick={() => setTaskMode(mode.id)}
+                  className={`rounded-lg px-2 py-1.5 text-[11px] font-medium transition-colors ${
+                    taskMode === mode.id
+                      ? 'bg-cyan-500/20 text-cyan-100'
+                      : 'text-slate-300 hover:bg-slate-700/80'
+                  }`}
+                >
+                  {mode.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Navigation menu */}
           <nav className="px-4 py-6">
-            <ul className="space-y-2">
-              {primaryNavigation.map((item) => (
-                <li key={item.name}>
-                  <Link href={item.href} legacyBehavior>
-                    <a className="flex items-center p-3 text-gray-300 hover:bg-gray-800 dark:hover:bg-gray-900 rounded-md transition-colors">
-                      <item.icon className="w-5 h-5 mr-3 text-gray-400" />
-                      {item.name}
-                    </a>
-                  </Link>
-                </li>
-              ))}
+            {navigationSections.length === 0 && (
+              <p className="px-3 text-sm text-slate-400">
+                Connect your wallet to view account tools.
+              </p>
+            )}
+            <ul className="space-y-4">
+              {navigationSections.map((section) => (
+                <li key={section.key}>
+                  <p className="px-3 pb-1 text-[11px] uppercase tracking-[0.14em] text-slate-400">
+                    {section.label}
+                  </p>
+                  <ul className="space-y-1">
+                    {section.items.map((item) => {
+                      const active = isNavItemActive(item.href)
 
-              {secondaryNavigation.length > 0 && (
-                <li className="py-2">
-                  <div className="border-t border-gray-700 dark:border-gray-600"></div>
-                </li>
-              )}
-
-              {secondaryNavigation.map((item) => (
-                <li key={item.name}>
-                  <Link href={item.href} legacyBehavior>
-                    <a className="flex items-center p-3 text-gray-300 hover:bg-gray-800 dark:hover:bg-gray-900 rounded-md transition-colors">
-                      <item.icon className="w-5 h-5 mr-3 text-gray-400" />
-                      {item.name}
-                    </a>
-                  </Link>
-                </li>
-              ))}
-
-              {accountNavigation.length > 0 && (
-                <li className="py-2">
-                  <div className="border-t border-gray-700 dark:border-gray-600"></div>
-                </li>
-              )}
-
-              {accountNavigation.map((item) => (
-                <li key={item.name}>
-                  <Link href={item.href} legacyBehavior>
-                    <a className="flex items-center p-3 text-gray-300 hover:bg-gray-800 dark:hover:bg-gray-900 rounded-md transition-colors">
-                      <item.icon className="w-5 h-5 mr-3 text-gray-400" />
-                      {item.name}
-                    </a>
-                  </Link>
+                      return (
+                        <li key={item.name}>
+                          <Link href={item.href} legacyBehavior>
+                            <a
+                              className={`flex items-center rounded-xl p-3 transition-colors ${
+                                active
+                                  ? 'bg-cyan-500/15 text-cyan-200'
+                                  : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
+                              }`}
+                            >
+                              <item.icon
+                                className={`mr-3 w-5 h-5 ${
+                                  active ? 'text-cyan-200' : 'text-slate-400'
+                                }`}
+                              />
+                              {item.name}
+                            </a>
+                          </Link>
+                        </li>
+                      )
+                    })}
+                  </ul>
                 </li>
               ))}
             </ul>
@@ -308,24 +468,24 @@ export default function Layout({ children }: LayoutProps) {
         </div>
 
         {/* Footer buttons - always visible at bottom */}
-        <div className="px-4 py-4 flex space-x-4 bg-gray-900 dark:bg-gray-800 shadow-inner">
+        <div className="px-4 py-4 flex space-x-4 bg-slate-900 shadow-inner border-t border-slate-700/60">
           <Link href={productLink || '/'} legacyBehavior>
             <a
-              className="flex items-center justify-center w-1/2 text-gray-300 hover:bg-gray-800 dark:hover:bg-gray-900 p-3 rounded-md transition-colors"
+              className="flex items-center justify-center w-1/2 text-slate-300 hover:bg-slate-800 p-3 rounded-xl transition-colors"
               target="_blank"
               rel="noopener noreferrer"
             >
-              <InformationCircleIcon className="w-5 h-5 mr-3 text-gray-400" />
+              <InformationCircleIcon className="w-5 h-5 mr-3 text-slate-400" />
               About
             </a>
           </Link>
           <Link href={productLink + '/docs'} legacyBehavior>
             <a
-              className="flex items-center justify-center w-1/2 text-gray-300 hover:bg-gray-800 dark:hover:bg-gray-900 p-3 rounded-md transition-colors"
+              className="flex items-center justify-center w-1/2 text-slate-300 hover:bg-slate-800 p-3 rounded-xl transition-colors"
               target="_blank"
               rel="noopener noreferrer"
             >
-              <DocumentIcon className="w-5 h-5 mr-3 text-gray-400" />
+              <DocumentIcon className="w-5 h-5 mr-3 text-slate-400" />
               Docs
             </a>
           </Link>
@@ -334,9 +494,9 @@ export default function Layout({ children }: LayoutProps) {
 
       {/* Mobile Sidebar */}
       <div
-        className={`fixed inset-y-0 left-0 z-50 w-66 bg-gray-900 dark:bg-gray-800 text-white transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform lg:hidden flex flex-col h-full`}
+        className={`fixed inset-y-0 left-0 z-50 w-66 bg-gradient-to-b from-slate-950 via-slate-900 to-slate-900 text-white transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform lg:hidden flex flex-col h-full`}
       >
-        <div className="px-6 py-4 flex items-center justify-between border-b border-gray-700 dark:border-gray-800">
+        <div className="px-6 py-4 flex items-center justify-between border-b border-slate-700/70">
           <Link href="/" legacyBehavior>
             <a className="flex items-center space-x-2">
               {/* Logo */}
@@ -380,51 +540,65 @@ export default function Layout({ children }: LayoutProps) {
           </button>
         </div>
 
+        <div className="px-4 pt-4">
+          <div className="grid grid-cols-3 gap-1 rounded-xl bg-slate-800/90 p-1">
+            {modeOptions.map((mode) => (
+              <button
+                key={mode.id}
+                type="button"
+                onClick={() => setTaskMode(mode.id)}
+                className={`rounded-lg px-2 py-1.5 text-[11px] font-medium transition-colors ${
+                  taskMode === mode.id
+                    ? 'bg-cyan-500/20 text-cyan-100'
+                    : 'text-slate-300 hover:bg-slate-700/80'
+                }`}
+              >
+                {mode.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Navigation Links */}
         <nav className="px-4 py-6 flex-grow">
-          <ul className="space-y-2">
-            {primaryNavigation.map((item) => (
-              <li key={item.name}>
-                <Link href={item.href} legacyBehavior>
-                  <a className="flex items-center p-3 text-gray-300 hover:bg-gray-800 dark:hover:bg-gray-700 rounded-md transition-colors">
-                    <item.icon className="w-5 h-5 mr-3 text-gray-400" />
-                    {item.name}
-                  </a>
-                </Link>
-              </li>
-            ))}
+          {navigationSections.length === 0 && (
+            <p className="px-3 text-sm text-slate-400">
+              Connect your wallet to view account tools.
+            </p>
+          )}
+          <ul className="space-y-4">
+            {navigationSections.map((section) => (
+              <li key={section.key}>
+                <p className="px-3 pb-1 text-[11px] uppercase tracking-[0.14em] text-slate-400">
+                  {section.label}
+                </p>
+                <ul className="space-y-1">
+                  {section.items.map((item) => {
+                    const active = isNavItemActive(item.href)
 
-            {secondaryNavigation.length > 0 && (
-              <li className="py-2">
-                <div className="border-t border-gray-700 dark:border-gray-600"></div>
-              </li>
-            )}
-
-            {secondaryNavigation.map((item) => (
-              <li key={item.name}>
-                <Link href={item.href} legacyBehavior>
-                  <a className="flex items-center p-3 text-gray-300 hover:bg-gray-800 dark:hover:bg-gray-700 rounded-md transition-colors">
-                    <item.icon className="w-5 h-5 mr-3 text-gray-400" />
-                    {item.name}
-                  </a>
-                </Link>
-              </li>
-            ))}
-
-            {accountNavigation.length > 0 && (
-              <li className="py-2">
-                <div className="border-t border-gray-700 dark:border-gray-600"></div>
-              </li>
-            )}
-
-            {accountNavigation.map((item) => (
-              <li key={item.name}>
-                <Link href={item.href} legacyBehavior>
-                  <a className="flex items-center p-3 text-gray-300 hover:bg-gray-800 dark:hover:bg-gray-700 rounded-md transition-colors">
-                    <item.icon className="w-5 h-5 mr-3 text-gray-400" />
-                    {item.name}
-                  </a>
-                </Link>
+                    return (
+                      <li key={item.name}>
+                        <Link href={item.href} legacyBehavior>
+                          <a
+                            onClick={() => setSidebarOpen(false)}
+                            className={`flex items-center rounded-xl p-3 transition-colors ${
+                              active
+                                ? 'bg-cyan-500/15 text-cyan-200'
+                                : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
+                            }`}
+                          >
+                            <item.icon
+                              className={`mr-3 w-5 h-5 ${
+                                active ? 'text-cyan-200' : 'text-slate-400'
+                              }`}
+                            />
+                            {item.name}
+                          </a>
+                        </Link>
+                      </li>
+                    )
+                  })}
+                </ul>
               </li>
             ))}
           </ul>
@@ -434,21 +608,21 @@ export default function Layout({ children }: LayoutProps) {
         <div className="mt-auto px-4 py-4 flex space-x-4">
           <Link href={productLink || '/'} target="_blank" legacyBehavior>
             <a
-              className="flex items-center justify-center w-1/2 text-gray-300 hover:bg-gray-800 dark:hover:bg-gray-700 p-3 rounded-md transition-colors"
+              className="flex items-center justify-center w-1/2 text-slate-300 hover:bg-slate-800 p-3 rounded-xl transition-colors"
               target="_blank"
               rel="noopener noreferrer"
             >
-              <InformationCircleIcon className="w-5 h-5 mr-3 text-gray-400" />
+              <InformationCircleIcon className="w-5 h-5 mr-3 text-slate-400" />
               About
             </a>
           </Link>
           <Link href={`${productLink}/docs`} target="_blank" legacyBehavior>
             <a
-              className="flex items-center justify-center w-1/2 text-gray-300 hover:bg-gray-800 dark:hover:bg-gray-700 p-3 rounded-md transition-colors"
+              className="flex items-center justify-center w-1/2 text-slate-300 hover:bg-slate-800 p-3 rounded-xl transition-colors"
               target="_blank"
               rel="noopener noreferrer"
             >
-              <DocumentIcon className="w-5 h-5 mr-3 text-gray-400" />
+              <DocumentIcon className="w-5 h-5 mr-3 text-slate-400" />
               Docs
             </a>
           </Link>
@@ -461,7 +635,7 @@ export default function Layout({ children }: LayoutProps) {
       {/* Main content area */}
       <div className="flex flex-1 flex-col">
         {/* Top Navbar */}
-        <header className="flex items-center p-4 bg-white dark:bg-gray-200 shadow-md">
+        <header className="flex items-center gap-2 p-4 border-b border-slate-200 bg-white/90 dark:border-slate-700 dark:bg-slate-900/70 backdrop-blur-sm shadow-sm">
           {/* Mobile Menu Button */}
           <div className="lg:hidden">
             <button onClick={() => setSidebarOpen(true)}>
@@ -508,19 +682,38 @@ export default function Layout({ children }: LayoutProps) {
           </div>
 
           {/* Address Search Component - Click to open modal */}
-          <div className="flex-1 max-w-none sm:max-w-md mr-2">
+          <div className="flex-1 min-w-0 sm:min-w-[220px] max-w-[360px] mr-2">
             <button
               onClick={() => setIsSearchModalOpen(true)}
-              className="w-full flex items-center space-x-2 px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:border-gray-400 dark:hover:border-gray-500 transition-colors text-left"
+              className="h-10 w-full flex items-center gap-2 px-4 bg-white/90 dark:bg-slate-800/70 border border-slate-300 dark:border-slate-600 rounded-xl hover:border-slate-400 dark:hover:border-slate-500 transition-colors text-left"
             >
               <MagnifyingGlassIcon className="w-5 h-5 text-gray-400" />
-              <span className="text-gray-500 dark:text-gray-400 text-sm">
+              <span className="min-w-0 truncate whitespace-nowrap text-gray-500 dark:text-gray-400 text-sm">
                 Search address or ENS name
               </span>
+              <kbd className="ml-auto hidden md:inline-flex h-5 min-w-5 items-center justify-center rounded border border-slate-300 px-1 text-[10px] text-slate-500 dark:border-slate-500 dark:text-slate-300">
+                /
+              </kbd>
             </button>
           </div>
 
+          <div className="hidden xl:block">
+            <span className="rounded-full border border-slate-300 bg-slate-100/80 px-3 py-1 text-xs font-medium text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200">
+              {currentPageLabel}
+            </span>
+          </div>
+
           <div className="hidden sm:block flex-1"></div>
+
+          {router.pathname !== '/workspace' && (
+            <div className="hidden md:block mr-2">
+              <Link href="/workspace" legacyBehavior>
+                <a className="inline-flex h-10 items-center rounded-xl border border-slate-300 bg-white/90 px-4 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800/70 dark:text-slate-200 dark:hover:bg-slate-700">
+                  Workspace
+                </a>
+              </Link>
+            </div>
+          )}
 
           {/* Chain Selector - only visible when wallet is not connected */}
           {!isConnected && (
@@ -599,7 +792,27 @@ export default function Layout({ children }: LayoutProps) {
           </ConnectErrorBoundary>
         </header>
 
-        <main className="flex-1 p-6 bg-white dark:bg-gray-100 transition-colors duration-200">
+        <main className="flex-1 p-6 bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-950 transition-colors duration-200">
+          <div className="mx-auto w-full max-w-7xl mb-4">
+            <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+              {breadcrumbs.map((crumb, index) => (
+                <React.Fragment key={`${crumb.label}-${index}`}>
+                  {crumb.href ? (
+                    <Link href={crumb.href} legacyBehavior>
+                      <a className="hover:text-slate-700 dark:hover:text-slate-200 transition-colors">
+                        {crumb.label}
+                      </a>
+                    </Link>
+                  ) : (
+                    <span className="text-slate-700 dark:text-slate-200">
+                      {crumb.label}
+                    </span>
+                  )}
+                  {index < breadcrumbs.length - 1 && <span>/</span>}
+                </React.Fragment>
+              ))}
+            </div>
+          </div>
           {React.isValidElement(children)
             ? React.cloneElement(children as React.ReactElement<any>, {
                 selectedChain,

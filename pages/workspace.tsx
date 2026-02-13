@@ -23,13 +23,13 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import {
+  ArrowUpRight,
   BriefcaseBusiness,
   Building2,
   Layers,
   Link2,
   ShieldCheck,
   Sparkles,
-  Wallet,
   Zap,
 } from 'lucide-react'
 
@@ -39,6 +39,7 @@ type TransactionStatus = 'queued' | 'simulated' | 'submitted' | 'confirmed'
 type DelegationStatus = 'queued' | 'active'
 type ContractStatus = 'unnamed' | 'pending' | 'named'
 type ActionType = 'delegate_manager' | 'import_contract' | 'assign_contract_name'
+type WorkspaceTab = 'overview' | 'inventory' | 'transactions' | 'billing'
 
 type Org = {
   id: string
@@ -318,6 +319,8 @@ export default function IdentityWorkspacePage() {
   const [assignmentDrafts, setAssignmentDrafts] = React.useState<
     Record<string, AssignmentDraft>
   >({})
+  const [activeTab, setActiveTab] = React.useState<WorkspaceTab>('overview')
+  const tabsAnchorRef = React.useRef<HTMLDivElement | null>(null)
 
   React.useEffect(() => {
     const loaded = safeLoadWorkspace()
@@ -914,6 +917,101 @@ export default function IdentityWorkspacePage() {
   )
 
   const hasWorkspace = workspace.orgs.length > 0
+  const unnamedContractsCount = React.useMemo(
+    () => orgContracts.filter((contract) => !contract.ensName).length,
+    [orgContracts],
+  )
+
+  const goToTab = React.useCallback((tab: WorkspaceTab) => {
+    setActiveTab(tab)
+    if (typeof window !== 'undefined') {
+      window.requestAnimationFrame(() => {
+        tabsAnchorRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start',
+        })
+      })
+    }
+  }, [])
+
+  const outcomeCards = React.useMemo(() => {
+    if (!hasWorkspace) {
+      return []
+    }
+
+    const cards = [
+      {
+        key: 'coverage',
+        title: 'Increase naming coverage',
+        description:
+          unnamedContractsCount > 0
+            ? `${unnamedContractsCount} contract${unnamedContractsCount > 1 ? 's' : ''} still need ENS identity.`
+            : 'All imported contracts currently have an assigned ENS identity.',
+        signal:
+          unnamedContractsCount > 0
+            ? `${unnamedContractsCount} unnamed`
+            : 'Coverage complete',
+        tab: 'inventory' as WorkspaceTab,
+        cta: unnamedContractsCount > 0 ? 'Resolve in inventory' : 'Review inventory',
+        priority: unnamedContractsCount > 0 ? 100 : 30,
+        links: [
+          { label: 'Single naming', href: '/nameContract' },
+          { label: 'Bulk naming', href: '/batchNaming' },
+        ],
+      },
+      {
+        key: 'delegation',
+        title: 'Enable ENS delegation',
+        description:
+          activeDelegationRoots.length === 0
+            ? 'No delegated parent names found. Delegation unlocks fast assignment workflows.'
+            : `${activeDelegationRoots.length} delegated parent name${activeDelegationRoots.length > 1 ? 's' : ''} ready for assignment.`,
+        signal:
+          activeDelegationRoots.length === 0
+            ? 'Action required'
+            : `${activeDelegationRoots.length} active`,
+        tab: 'overview' as WorkspaceTab,
+        cta:
+          activeDelegationRoots.length === 0
+            ? 'Set delegation'
+            : 'Review delegation',
+        priority: activeDelegationRoots.length === 0 ? 95 : 25,
+        links: [{ label: 'Name explorer', href: '/nameMetadata' }],
+      },
+      {
+        key: 'queue',
+        title: 'Clear execution backlog',
+        description:
+          actionQueueDepth > 0
+            ? `${actionQueueDepth} action${actionQueueDepth > 1 ? 's' : ''} queued or simulated and ready to process.`
+            : 'No pending actions. Queue is clear.',
+        signal: actionQueueDepth > 0 ? `${actionQueueDepth} pending` : 'Queue clear',
+        tab: 'transactions' as WorkspaceTab,
+        cta: actionQueueDepth > 0 ? 'Open transaction queue' : 'View transactions',
+        priority: actionQueueDepth > 0 ? 90 : 20,
+        links: [{ label: 'Batch execution', href: '/batchNaming' }],
+      },
+      {
+        key: 'deploy',
+        title: 'Ship new named deployments',
+        description:
+          'Deploy new contracts with identity-ready setup and import them into workspace inventory.',
+        signal: `${orgProjects.length} project${orgProjects.length === 1 ? '' : 's'}`,
+        tab: 'overview' as WorkspaceTab,
+        cta: 'Plan next deployment',
+        priority: 40,
+        links: [{ label: 'Deploy contract', href: '/deploy' }],
+      },
+    ]
+
+    return cards.sort((a, b) => b.priority - a.priority)
+  }, [
+    hasWorkspace,
+    unnamedContractsCount,
+    activeDelegationRoots.length,
+    actionQueueDepth,
+    orgProjects.length,
+  ])
 
   return (
     <Layout>
@@ -1002,7 +1100,69 @@ export default function IdentityWorkspacePage() {
           </Card>
         ) : null}
 
-        <Tabs defaultValue="overview" className="space-y-4">
+        {hasWorkspace ? (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-xl">
+                <Layers className="h-5 w-5" /> Outcome Priority Queue
+              </CardTitle>
+              <CardDescription>
+                Focus on outcomes first. Each workflow is ranked by current
+                workspace state so teams know what to do next.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-3 md:grid-cols-2">
+              {outcomeCards.map((outcome) => (
+                <Card
+                  key={outcome.key}
+                  className="h-full border-slate-200/80 transition-colors"
+                >
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center justify-between gap-3">
+                      <span>{outcome.title}</span>
+                      <Badge
+                        variant={
+                          outcome.priority >= 90
+                            ? 'destructive'
+                            : outcome.priority >= 40
+                              ? 'secondary'
+                              : 'outline'
+                        }
+                      >
+                        {outcome.signal}
+                      </Badge>
+                    </CardTitle>
+                    <CardDescription>{outcome.description}</CardDescription>
+                  </CardHeader>
+                  <CardContent className="pt-0 space-y-2">
+                    <Button
+                      onClick={() => goToTab(outcome.tab)}
+                      className="w-full"
+                    >
+                      {outcome.cta}
+                    </Button>
+                    <div className="flex flex-wrap gap-2">
+                      {outcome.links.map((link) => (
+                        <Button key={link.href} variant="outline" size="sm" asChild>
+                          <Link href={link.href}>
+                            {link.label} <ArrowUpRight className="h-3.5 w-3.5" />
+                          </Link>
+                        </Button>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </CardContent>
+          </Card>
+        ) : null}
+
+        <div ref={tabsAnchorRef}>
+        <Tabs
+          value={activeTab}
+          onValueChange={(value) => setActiveTab(value as WorkspaceTab)}
+          className="space-y-4"
+        >
           <TabsList className="h-auto w-full justify-start overflow-x-auto p-1">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="inventory">Inventory</TabsTrigger>
@@ -1145,6 +1305,13 @@ export default function IdentityWorkspacePage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="outline" size="sm" asChild>
+                    <Link href="/deploy">
+                      Deploy with identity <ArrowUpRight className="h-3.5 w-3.5" />
+                    </Link>
+                  </Button>
+                </div>
                 <form
                   onSubmit={handleCreateProject}
                   className="grid gap-3 md:grid-cols-4"
@@ -1228,6 +1395,18 @@ export default function IdentityWorkspacePage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="outline" size="sm" asChild>
+                    <Link href="/nameContract">
+                      Single naming <ArrowUpRight className="h-3.5 w-3.5" />
+                    </Link>
+                  </Button>
+                  <Button variant="outline" size="sm" asChild>
+                    <Link href="/batchNaming">
+                      Bulk naming <ArrowUpRight className="h-3.5 w-3.5" />
+                    </Link>
+                  </Button>
+                </div>
                 <form
                   onSubmit={handleImportContract}
                   className="grid gap-3 md:grid-cols-4"
@@ -1409,6 +1588,11 @@ export default function IdentityWorkspacePage() {
                   <Button onClick={handleClearCompleted} variant="outline">
                     Clear confirmed
                   </Button>
+                  <Button variant="outline" asChild>
+                    <Link href="/batchNaming">
+                      Open batch execution <ArrowUpRight className="h-3.5 w-3.5" />
+                    </Link>
+                  </Button>
                 </div>
 
                 <Table>
@@ -1546,29 +1730,8 @@ export default function IdentityWorkspacePage() {
             </Card>
           </TabsContent>
         </Tabs>
+        </div>
 
-        <Card className="border-dashed">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Wallet className="h-4 w-4" /> Existing Enscribe tools stay available
-            </CardTitle>
-            <CardDescription>
-              You can keep using the original flows while migrating teams into
-              the identity workspace.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-wrap gap-2">
-            <Button variant="outline" asChild>
-              <Link href="/nameContract">Name Contract</Link>
-            </Button>
-            <Button variant="outline" asChild>
-              <Link href="/batchNaming">Batch Naming</Link>
-            </Button>
-            <Button variant="outline" asChild>
-              <Link href="/deploy">Deploy Contract</Link>
-            </Button>
-          </CardContent>
-        </Card>
       </div>
     </Layout>
   )
