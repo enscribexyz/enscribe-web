@@ -1,0 +1,420 @@
+---
+slug: contract-metadata
+title: "Introducing Contract Metadata: Rich onchain identity for smart contracts"
+description: "Enscribe now supports comprehensive contract metadata through ENS text records, enabling projects to attach rich information to their contracts including logos, descriptions, social links, and more."
+authors: [nischal]
+tags: [enscribe, ens, contract-metadata, ensip, smart-contract-identity]
+keywords: [ENS, Enscribe, contract metadata, text records, smart contract identity, onchain metadata, ENS text records, contract information]
+# image: ./metadata-header.png
+---
+
+Smart contracts are the backbone of Web3, but discovering information about them has always been fragmented. Contract metadata lives across multiple platforms — documentation on one site, audits on another, social links scattered everywhere, and basic information like "what does this contract actually do?" often nowhere to be found.
+
+We're changing that by bringing comprehensive contract metadata onchain through ENS text records.
+
+{/* ![Contract metadata display](./contract-page.png) */}
+
+## The New Contract Metadata Standard
+
+As part of the [Contract Naming Season](/blog/contract-naming-season), we've been working with the ENS community on a draft [ENSIP proposal for contract metadata standards](https://github.com/ensdomains/ensips/pull/50). This proposal defines a standardized set of text records that projects can use to attach rich information to their smart contracts.
+
+The goal is simple: when you look at a contract's ENS name, you should be able to see everything you need to know about it — who built it, what it does, where to find documentation, security audits, and more — all in one place.
+
+## Contract Metadata Fields
+
+The draft ENSIP defines several categories of metadata that contracts can set:
+
+### Basic Information
+- **name**: The display name for the contract (e.g., "Uniswap V3 Router")
+- **alias**: Alternative name or shorter version
+- **description**: What the contract does
+- **url**: Official website or landing page
+- **avatar**: Contract logo or icon (IPFS hash, HTTP URL, or data URI)
+- **header**: Banner or background image for the contract page
+
+### Visual Identity
+Projects can now set both an avatar (circular profile image) and a header image (banner background) for their contracts. The header displays behind contract details with subtle transparency, giving each contract a unique visual identity.
+
+{/* ![Visual identity example](./visual-identity.png) */}
+
+### Social & Community
+- **com.github**: GitHub repository URL
+- **com.twitter**: Twitter/X profile
+- **org.telegram**: Telegram community link
+- **com.linkedin**: LinkedIn company page
+
+These social links appear directly on the contract page with branded icons, making it easy for users to find official channels.
+
+### Documentation & Resources
+- **docs**: Documentation URL
+- **audits**: Security audit reports (can link to a page with multiple audits)
+- **category**: Contract type or category (e.g., "DeFi", "NFT", "Governance")
+- **license**: Software license information
+
+### Technical Information
+- **compiled-metadata**: Compiler metadata and source files (multichain support via cointype)
+
+## Organization-Level vs Contract-Level Metadata
+
+One powerful feature of this system is **metadata inheritance**. You can set metadata at the organization level (the parent ENS name) and have it automatically apply to all contracts under that name.
+
+For example, if you set an avatar and social links on `protocol.eth`, all contracts named under it (`router.protocol.eth`, `factory.protocol.eth`, etc.) will inherit those values — unless they set their own.
+
+### How It Works
+
+```
+protocol.eth (organization)
+├─ avatar: ipfs://QmXyz...
+├─ com.github: github.com/protocol
+├─ com.twitter: twitter.com/protocol
+│
+├─ router.protocol.eth
+│  └─ inherits all metadata from protocol.eth
+│
+├─ factory.protocol.eth
+   ├─ description: "Factory contract for creating pairs"
+   └─ inherits avatar and social links from protocol.eth
+```
+
+This means you can establish your project's identity once at the top level, and all your contracts benefit from it. You only need to set contract-specific details (like descriptions or audit links) for individual contracts.
+
+## The New Contract Explore Page
+
+We've completely redesigned the contract explore page to showcase this metadata.
+
+{/* ![New contract page layout](./new-layout.png) */}
+
+### What's New
+
+**Header & Avatar Section**
+- Circular avatar prominently displayed
+- Header image as a subtle background
+- Contract name and description front and center
+- Social links with branded icons right below
+
+**Clean Layout**
+- Contract details organized in clear sections
+- Management information (owner, manager, parent)
+- Contract deployer and verification status
+- ABI and source code with adaptive sizing
+
+**Metadata Display**
+All text records are now visible in a dedicated metadata section, making it easy to see what information a project has set.
+
+{/* ![Metadata section](./metadata-section.png) */}
+
+## How Contract Metadata is Retrieved
+
+Behind every contract page on Enscribe is a sophisticated metadata retrieval system that intelligently queries ENS records at multiple levels and integrates with external verification services.
+
+### Multi-Level Querying with Fallback
+
+When you view a contract on Enscribe, the system doesn't just look at that specific contract's ENS name. It builds a complete hierarchy and queries each level to find the most specific metadata available.
+
+Here's how it works for a contract named `router.v3.uniswap.eth`:
+
+```
+1. router.v3.uniswap.eth (most specific)
+   ↓ no metadata found
+2. v3.uniswap.eth (parent level)
+   ↓ avatar, name found
+3. uniswap.eth (organization level)
+   ↓ social links, header found
+4. eth (TLD)
+   ↓ stop
+```
+
+{/* ![Metadata inheritance flow](./inheritance-flow.png) */}
+
+The system queries all levels in parallel for maximum speed, then prioritizes the most specific value found for each field. This means:
+
+- A contract can inherit its organization's avatar and social links
+- But override the description with contract-specific details
+- While using the project-level header image
+
+### Intelligent Inheritance Strategy
+
+Different metadata fields have different inheritance behaviors:
+
+**Direct-Only Fields** (no inheritance):
+- `alias` - Contract-specific alternative names
+
+**Fallback Fields** (inherit from parent):
+- `avatar` - Visual identity
+- `name` - Display name
+- `description` - What it does
+- `header` - Banner image
+- `url` - Official website
+- Social links (`com.github`, `com.twitter`, `org.telegram`, `com.linkedin`)
+- Resources (`docs`, `audits`, `category`, `license`)
+
+This inheritance model means organizations can set their identity once at the top level, and all contracts automatically benefit from it unless they explicitly override specific fields.
+
+### Behind the Scenes: The API Flow
+
+When the Contract Metadata API receives a request for `router.v3.uniswap.eth`:
+
+**Step 1: Build the Domain Chain**
+```javascript
+[
+  'router.v3.uniswap.eth',  // most specific
+  'v3.uniswap.eth',
+  'uniswap.eth',            // organization root
+  'eth'                     // TLD (usually no metadata)
+]
+```
+
+**Step 2: Parallel Fetch**
+The API simultaneously queries the ENS resolver for all metadata fields across all domain levels:
+
+```javascript
+// All queries execute in parallel
+Promise.all([
+  getText('router.v3.uniswap.eth', 'avatar'),
+  getText('router.v3.uniswap.eth', 'name'),
+  getText('router.v3.uniswap.eth', 'description'),
+  getText('v3.uniswap.eth', 'avatar'),
+  getText('v3.uniswap.eth', 'name'),
+  // ... and so on for all fields and levels
+])
+```
+
+**Step 3: Priority Resolution**
+For each metadata field, use the value from the most specific domain where it exists:
+
+```javascript
+// If router.v3.uniswap.eth has a description, use it
+// Otherwise check v3.uniswap.eth
+// Otherwise check uniswap.eth
+// Otherwise return undefined
+```
+
+This parallel approach is significantly faster than the sequential "check one level, then the next" pattern, typically reducing API response time from seconds to milliseconds.
+
+### Integrating with Sourcify for Contract Code
+
+In addition to ENS metadata, Enscribe integrates with the [Sourcify API](https://sourcify.dev) to fetch verified contract source code and ABIs.
+
+**The Sourcify Query Flow:**
+
+1. **Check Full Match**: Query Sourcify for a perfect verification match (exact bytecode + metadata)
+2. **Fallback to Partial Match**: If no full match, check for partial matches (source code verified but metadata differs)
+3. **Display Source Files**: Show all Solidity source files with syntax highlighting
+4. **Extract ABI**: Parse the contract's application binary interface for function/event signatures
+5. **Show Compiler Settings**: Display Solidity version, optimization settings, and EVM version
+
+When a contract is verified on Sourcify, users get immediate access to:
+- Complete source code for all contract files
+- Compiled contract ABI
+- Compiler metadata (version, settings)
+- IPFS links to metadata files
+
+{/* ![Sourcify integration showing contract sources and ABI](./sourcify-integration.png) */}
+
+If a contract isn't on Sourcify, Enscribe falls back to Etherscan's API to fetch whatever verification data is available there.
+
+### How Organizations Benefit
+
+This multi-level system creates powerful network effects for organizations managing multiple contracts:
+
+**Set Once, Apply Everywhere**
+
+An organization like Uniswap can set metadata on `uniswap.eth`:
+```json
+{
+  "avatar": "ipfs://QmUniswap...",
+  "header": "ipfs://QmHeader...",
+  "com.github": "https://github.com/Uniswap",
+  "com.twitter": "https://twitter.com/Uniswap",
+  "org.telegram": "https://t.me/uniswap"
+}
+```
+
+Now every contract under the Uniswap namespace automatically displays:
+- The Uniswap logo
+- Official social links
+- Branded header image
+
+**Selective Overrides**
+
+Individual contracts can override specific fields while keeping others:
+
+```
+uniswap.eth
+├─ avatar: [Uniswap logo]
+├─ com.github: [Uniswap GitHub]
+│
+├─ v3-router.uniswap.eth
+│  ├─ description: "Routes swaps through V3 pools"
+│  ├─ docs: "https://docs.uniswap.org/contracts/v3/router"
+│  └─ inherits: avatar, social links, header
+│
+├─ v3-factory.uniswap.eth
+   ├─ description: "Creates and manages V3 liquidity pools"
+   ├─ docs: "https://docs.uniswap.org/contracts/v3/factory"
+   └─ inherits: avatar, social links, header
+```
+
+**Benefits for Large Deployments**
+
+Projects with dozens or hundreds of contracts across multiple chains can:
+
+- **Maintain consistent branding** without updating every single contract
+- **Update organization info once** (e.g., new Twitter handle) and see it reflect everywhere
+- **Minimize transaction costs** by only setting contract-specific details
+- **Scale efficiently** as each new contract deployment inherits existing metadata
+
+**Example: A DeFi Protocol**
+
+```
+protocol.eth (org level)
+├─ Sets: avatar, header, social links, main website
+│
+├─ mainnet.protocol.eth (deployment level)
+│  ├─ Sets: description for mainnet deployment
+│  └─ Inherits: all org metadata
+│  │
+│  ├─ vault.mainnet.protocol.eth
+│  ├─ router.mainnet.protocol.eth
+│  ├─ staking.mainnet.protocol.eth
+│  └─ [All inherit org + deployment metadata]
+│
+├─ base.protocol.eth (deployment level)
+   ├─ Sets: description for Base deployment
+   └─ Inherits: all org metadata
+   │
+   ├─ vault.base.protocol.eth
+   └─ router.base.protocol.eth
+```
+
+{/* ![Organization-level inheritance example](./org-inheritance.png) */}
+
+One organization record, dozens of contracts automatically branded and linked.
+
+## The Contract Metadata API
+
+To make it easy for anyone to access this metadata, we've built a public API endpoint:
+
+```
+https://app.enscribe.xyz/api/v1/contractMetadata/<chain-id>/<ens-name>
+```
+
+### Example Request
+
+```bash
+curl https://app.enscribe.xyz/api/v1/contractMetadata/1/v3-router.uniswap.eth
+```
+
+### Example Response
+
+```json
+{
+  "name": "Uniswap V3 Router",
+  "description": "The Uniswap V3 Router contract handles all swaps through the protocol",
+  "url": "https://uniswap.org",
+  "avatar": "ipfs://QmXyz...",
+  "header": "ipfs://QmAbc...",
+  "docs": "https://docs.uniswap.org/contracts/v3/reference/periphery/SwapRouter",
+  "audits": "https://uniswap.org/audits",
+  "category": "DeFi",
+  "license": "GPL-3.0",
+  "com.github": "https://github.com/Uniswap/v3-periphery",
+  "com.twitter": "https://twitter.com/Uniswap",
+  "org.telegram": "https://t.me/uniswap"
+}
+```
+
+### Features
+
+- **Multichain support**: Works across all chains Enscribe supports (Ethereum, Base, Optimism, Arbitrum, Scroll, Linea, and their testnets)
+- **Fallback resolution**: Automatically checks parent domains for inherited metadata
+- **Fast parallel fetching**: Optimized to fetch all records concurrently
+- **Standard format**: Returns JSON with all available text records
+
+### Use Cases
+
+- **Wallets**: Display rich contract information in transaction confirmations
+- **Block explorers**: Show official metadata alongside contract data
+- **DApp frontends**: Pull verified information about contracts you interact with
+- **Aggregators**: Build indices of contract metadata across the ecosystem
+- **Documentation sites**: Auto-generate contract directories with official info
+
+## Why This Matters
+
+### For Projects
+
+- **Single source of truth**: Set your contract information once, onchain
+- **Discoverability**: Users can find everything about your contracts in one place
+- **Trust signals**: Verified information through ENS name ownership
+- **Flexible updates**: Change metadata as your project evolves
+- **Inheritance**: Set organization identity once, apply to all contracts
+
+### For Users
+
+- **Transparency**: See who's behind a contract before interacting
+- **Verification**: Check official links and documentation easily
+- **Context**: Understand what a contract does at a glance
+- **Security**: Find audit reports directly from contract metadata
+
+### For the Ecosystem
+
+- **Standardization**: Common format for contract metadata across all projects
+- **Composability**: Any tool can read and display this information
+- **Onchain**: No reliance on centralized databases or APIs
+- **Extensible**: Projects can add custom fields as needed
+
+## Getting Started
+
+### 1. Name Your Contracts
+
+If you haven't already, [name your contracts with ENS](https://app.enscribe.xyz). You'll need ENS names to attach metadata.
+
+### 2. Set Organization Metadata
+
+Start by setting metadata on your parent ENS name:
+- Avatar and header images
+- Social links
+- Main website URL
+- GitHub organization
+
+### 3. Add Contract-Specific Details
+
+For each contract, add:
+- Description of what it does
+- Documentation links
+- Audit reports
+- Any contract-specific information
+
+### 4. Keep It Updated
+
+As your project evolves, update the metadata. Change is expected and the system is designed for it.
+
+## What's Next
+
+The draft ENSIP is currently under review by the ENS community. We're gathering feedback and refining the specification based on real-world usage.
+
+We're also working on:
+- **Metadata templates**: Pre-configured sets for common contract types
+- **Verification badges**: Visual indicators for complete metadata
+- **Search by metadata**: Find contracts by category, features, or other metadata
+- **Historical tracking**: See how contract metadata changes over time
+
+## API Documentation
+
+Full API documentation is available at [docs.enscribe.xyz/api/contract-metadata](https://docs.enscribe.xyz/api/contract-metadata).
+
+## Join the Conversation
+
+We'd love to hear your thoughts on contract metadata:
+- What fields would be most useful for your projects?
+- What other information should be standardized?
+- How are you using contract metadata?
+
+Share your feedback in:
+- [Discord](https://discord.gg/8QUMMdS5GY)
+- [Telegram](https://t.me/enscribers)
+- [GitHub Discussion](https://github.com/ensdomains/ensips/pull/50)
+
+Contract metadata is about bringing order to the chaos of onchain information. With a standardized approach to contract identity, we can build better tools, clearer interfaces, and a more transparent Web3.
+
+Happy naming! 🚀
