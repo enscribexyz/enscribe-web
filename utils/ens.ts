@@ -1,6 +1,23 @@
 import { CHAINS, CONTRACTS } from './constants'
 import { ethers } from 'ethers'
 
+const METADATA_TEXT_KEYS = new Set([
+  'alias',
+  'avatar',
+  'name',
+  'description',
+  'header',
+  'url',
+  'category',
+  'license',
+  'docs',
+  'audits',
+  'com.github',
+  'com.twitter',
+  'org.telegram',
+  'com.linkedin',
+])
+
 /**
  * Fetches the primary ENS name (reverse resolution) for an address
  * @param addr - The address to look up
@@ -146,5 +163,84 @@ export const fetchAssociatedNamesCount = async (
   } catch (error) {
     console.error('[fetchAssociatedNamesCount] Error fetching associated ENS names:', error)
     return { count: 0 }
+  }
+}
+
+/**
+ * Fast summary for BS score calculation.
+ * Uses first:2 so we can quickly distinguish 0 / 1 / multiple names.
+ */
+export const fetchForwardNameSummary = async (
+  address: string,
+  chainId: number,
+): Promise<{
+  count: number
+  singleName?: string
+  singleNameHasMetadata: boolean
+}> => {
+  const config = CONTRACTS[chainId]
+
+  if (!address || !config?.SUBGRAPH_API) {
+    return { count: 0, singleNameHasMetadata: false }
+  }
+
+  try {
+    const domainsResponse = await fetch(config.SUBGRAPH_API, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${process.env.NEXT_PUBLIC_GRAPH_API_KEY || ''}`,
+      },
+      body: JSON.stringify({
+        query: `
+          query GetForwardNameSummary($address: String!) {
+            domains(first: 2, where: { resolvedAddress: $address }) {
+              name
+              resolver {
+                texts
+              }
+            }
+          }
+        `,
+        variables: {
+          address: address.toLowerCase(),
+        },
+      }),
+    })
+
+    const domainsData = await domainsResponse.json()
+    const domains = domainsData?.data?.domains
+
+    if (!Array.isArray(domains) || domains.length === 0) {
+      return { count: 0, singleNameHasMetadata: false }
+    }
+
+    if (domains.length > 1) {
+      const names = domains
+        .map((domain) =>
+          typeof domain?.name === 'string' ? domain.name : undefined,
+        )
+        .filter((name): name is string => Boolean(name))
+      return { count: domains.length, singleNameHasMetadata: false }
+    }
+
+    const domain = domains[0]
+    const name = typeof domain?.name === 'string' ? domain.name : undefined
+    const texts = Array.isArray(domain?.resolver?.texts)
+      ? (domain.resolver.texts as string[])
+      : []
+    const singleNameHasMetadata = texts.some((key) => METADATA_TEXT_KEYS.has(key))
+
+    return {
+      count: 1,
+      singleName: name,
+      singleNameHasMetadata,
+    }
+  } catch (error) {
+    console.error(
+      '[fetchForwardNameSummary] Error fetching forward name summary:',
+      error,
+    )
+    return { count: 0, singleNameHasMetadata: false }
   }
 }
