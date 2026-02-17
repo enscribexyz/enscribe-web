@@ -1,35 +1,35 @@
 ---
 slug: contract-metadata
 title: "Contract Metadata: Rich onchain identity for smart contracts"
-description: "Enscribe now supports comprehensive contract metadata through ENS text records, enabling projects to attach rich information to their contracts including logos, descriptions, social links, and more."
+description: "Enscribe supports contract metadata through ENS text records, letting projects attach information to their contracts — logos, descriptions, social links, audits, and documentation."
 authors: [nischal]
 tags: [enscribe, ens, contract-metadata, ensip, smart-contract-identity]
 keywords: [ENS, Enscribe, contract metadata, text records, smart contract identity]
 # image: ./metadata-header.png
 ---
 
-Smart contracts are the backbone of Web3, but discovering information about them has always been fragmented. Contract metadata lives across multiple platforms — documentation on one site, audits on another, social links scattered everywhere, and basic information like "what does this contract actually do?" often nowhere to be found.
+Smart contracts are the backbone of onchain applications, but discovering information about them has always been fragmented. Contract metadata lives across multiple platforms — documentation on one site, audits on another like github, social links scattered everywhere. Basic information like "what does this contract actually do?" is often nowhere to be found.
 
-We're changing that by bringing comprehensive contract metadata onchain through ENS text records.
+Enscribe brings contract metadata onchain through ENS text records.
 
 {/* ![Contract metadata display](./contract-page.png) */}
 
-## The New Contract Metadata Standard
+## The Contract Metadata Standard
 
-As part of the [Contract Naming Season](/blog/contract-naming-season), we've been working on a draft [ENSIP proposal for contract metadata standards](https://github.com/ensdomains/ensips/pull/50). This proposal defines a standardized set of text records that projects can use to attach rich information to their smart contracts.
+As part of the [Contract Naming Season](/blog/contract-naming-season), we've been working on a draft [ENSIP proposal for contract metadata standards](https://github.com/ensdomains/ensips/pull/50). This proposal defines a set of text records that projects can use to attach information to their smart contracts.
 
-The goal is simple: when you look at a contract's ENS name, you should be able to see everything you need to know about it — who built it, what it does, where to find documentation, security audits, and more — all in one place.
+When you look at a contract's ENS name, you can see who built it, what it does, where to find documentation, security audits, and more — all in one place.
 
 ## Contract Metadata Fields
 
-The Contract details page has several categories of text records that contracts or its parent organization can set:
+Contract details pages show several categories of text records that contracts or their parent organizations can set:
 
 ### Basic Information
-- **name**: The display name for the contract (e.g., "Uniswap V3 Router")
+- **name**: Display name for the contract (e.g., "Uniswap V3 Router")
 - **description**: What the contract does
 - **url**: Official website or landing page
 - **avatar**: Contract logo or icon (IPFS hash, HTTP URL, or data URI)
-- **header**: Banner or background image for the contract page
+- **header**: Banner or background image
 
 {/* ![Visual identity example](./visual-identity.png) */}
 
@@ -48,7 +48,7 @@ The Contract details page has several categories of text records that contracts 
 
 ## Organization-Level vs Contract-Level Metadata
 
-One powerful feature of this system is **metadata inheritance**. You can set metadata at the organization level (the parent ENS name) and have it automatically apply to all contracts under that name.
+Metadata inheritance lets you set metadata at the organization level (the parent ENS name) and have it automatically apply to all contracts under that name.
 
 For example, if you set an avatar and social links on `protocol.eth`, all contracts named under it (`router.protocol.eth`, `factory.protocol.eth`, etc.) will inherit those values — unless they set their own.
 
@@ -70,36 +70,33 @@ protocol.eth (organization)
 
 This means you can establish your project's identity once at the top level, and all your contracts benefit from it. You only need to set contract-specific details (like descriptions or audit links) for individual contracts.
 
-## The New Contract Explore Page
+## The Contract Explore Page
 
-We've completely redesigned the contract explore page to showcase this metadata.
+The contract explore page displays this metadata.
 
 {/* ![New contract page layout](./new-layout.png) */}
-
-### What's New
 
 **Header & Avatar Section**
 - Circular avatar prominently displayed
 - Header image as a subtle background
-- Contract name and description front and center
-- Social links with branded icons right below, making it easy for users to find official channels.
-
+- Contract name and description
+- Social links with branded icons, making it easy to find official channels
 
 **Clean Layout**
-- Contract details like docs, audits, category, license, etc. organized in clear sections
-- ENS management and organization information (owner, manager, parent of ENS name)
+- Contract details like docs, audits, category, license organized in clear sections
+- ENS management and organization information (owner, manager, parent)
 - Contract deployer and verification status
-- ABI and source code when the contract is verified on Sourcify
+- ABI and source code when verified on Sourcify
 
-All text records are now visible in a dedicated metadata section, making it easy to see what information a project has set.
+All text records are visible in a dedicated metadata section.
 
 {/* ![Metadata section](./metadata-section.png) */}
 
 ## How Contract Metadata is Retrieved
 
-Behind every contract page on Enscribe is a sophisticated metadata retrieval API that intelligently queries ENS records at multiple levels and integrates with external verification services.
+Behind every contract page on Enscribe is a metadata retrieval API that queries ENS records at multiple levels and integrates with external verification services.
 
-### Multi-Level Querying with Fallback
+### Multi-Level Querying
 
 When you view a contract on Enscribe, the system doesn't just look at that specific contract's ENS name. It builds a complete hierarchy and queries each level to find the most specific metadata available.
 
@@ -118,15 +115,11 @@ When the Contract Metadata API receives a request for `router.v3.uniswap.eth`, h
 
 {/* ![Metadata inheritance flow](./inheritance-flow.png) */}
 
-The system queries all levels in parallel for maximum speed, then prioritizes the most specific value found for each field. This means:
-
-- A contract can inherit its organization's avatar and social links
-- But override the description with contract-specific details
-- While using the project-level header image
+The system queries all levels in parallel for maximum speed, then prioritizes the most specific value found for each field. A contract can inherit its organization's avatar and social links, override the description with contract-specific details, and use the project-level header image — all determined automatically based on what's set at each level.
 
 ## The Contract Metadata API
 
-To make it easy for anyone to access this metadata, we've built a public API endpoint:
+We've built a public API endpoint to access this metadata:
 
 ```
 https://app.enscribe.xyz/api/v1/contractMetadata/<chain-id>/<ens-name>
@@ -157,12 +150,7 @@ curl https://app.enscribe.xyz/api/v1/contractMetadata/1/v3-router.uniswap.eth
 }
 ```
 
-### Features
-
-- **Multichain support**: Works across all chains Enscribe supports (Ethereum, Base, Optimism, Arbitrum, Scroll, Linea, and their testnets)
-- **Fallback resolution**: Automatically checks parent domains for inherited metadata
-- **Fast parallel fetching**: Optimized to fetch all records concurrently
-- **Standard format**: Returns JSON with all available text records
+The API works across all chains Enscribe supports (Ethereum, Base, Optimism, Arbitrum, Scroll, Linea, and their testnets). It automatically checks parent domains for inherited metadata, fetches all records concurrently for speed, and returns a standard JSON format with all available text records.
 
 ### Use Cases
 
@@ -174,27 +162,13 @@ curl https://app.enscribe.xyz/api/v1/contractMetadata/1/v3-router.uniswap.eth
 
 ## Why This Matters
 
-### For Projects
+**Set contract information once, inherit everywhere.** Projects establish a single source of truth through ENS name ownership. Set branding and metadata at the organization level, then all contracts inherit it automatically.
 
-- **Single source of truth**: Set your contract information once, onchain
-- **Discoverability**: Users can find everything about your contracts in one place
-- **Trust signals**: Verified information through ENS name ownership
-- **Flexible updates**: Change metadata as your project evolves
-- **Inheritance**: Set organization identity once, apply to all contracts
+**Users verify before signing.** Check official links, documentation, and audit reports directly from contract metadata. See who's behind a contract and what it does at a glance.
 
-### For Users
+**Onchain, not centralized.** Contract metadata lives onchain through ENS text records. No reliance on external databases or APIs that can go offline.
 
-- **Transparency**: See who's behind a contract before interacting
-- **Verification**: Check official links and documentation easily
-- **Context**: Understand what a contract does at a glance
-- **Security**: Find audit reports directly from contract metadata
-
-### For the Ecosystem
-
-- **Standardization**: Common format for contract metadata across all projects
-- **Composability**: Any tool can read and display this information
-- **Onchain**: No reliance on centralized databases or APIs
-- **Extensible**: Projects can add custom fields as needed
+**Standard format across all projects.** Any tool can read and display contract metadata. The system is extensible — projects can add custom fields beyond the standard set.
 
 ## Join the Conversation
 
@@ -203,8 +177,8 @@ We'd love to hear your thoughts on contract metadata:
 - What other information should be standardized?
 - How are you using contract metadata?
 
-Share your feedback on [Discord](https://discord.gg/8QUMMdS5GY), [Telegram](https://t.me/enscribers) or [X](https://x.com/enscribe_). Or start a discussion on [GitHub](https://github.com/ensdomains/ensips/pull/50).
+Share your feedback on [Discord](https://discord.gg/8QUMMdS5GY), [Telegram](https://t.me/enscribers), or [X](https://x.com/enscribe_). Or start a discussion on [GitHub](https://github.com/ensdomains/ensips/pull/50).
 
-Contract metadata is about bringing order to the chaos of onchain information. With a standardized approach to contract identity, we can build better tools, clearer interfaces, and a more transparent Web3.
+Contract metadata brings order to onchain information. With a standard approach to contract identity, we can build better tools, clearer interfaces, and more transparent onchain interactions.
 
 Happy naming! 🚀
