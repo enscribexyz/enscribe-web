@@ -5,14 +5,14 @@ description: "Name Explorer lets you search any ENS name, browse its parent hier
 authors: [nischal]
 tags: [enscribe, ens, name-explorer, metadata, hierarchy]
 keywords: [ENS, Enscribe, name explorer, ENS metadata, ENS hierarchy, ENS subnames, text records, ENS navigation]
-# image: ./name-explorer-hero.png
+image: ./name-explorer.png
 ---
 
 ENS names form a hierarchical namespace, where names can have parents and children, each with their own metadata and ownership. But exploring this structure and the metadata attached to names has always been really hard and un-intuitive.
 
 Thats why we added **Name Explorer** to Enscribe — a dedicated interface for navigating ENS name hierarchies, viewing metadata, and managing text records all in one place.
 
-{/* ![Name Explorer interface](./name-explorer-hero.png) */}
+![Name Explorer interface](./name-explorer.png)
 
 ## The Problem: ENS Names Are More Than Addresses
 
@@ -37,20 +37,20 @@ Previously, to explore all this information, you'd need to:
 
 Name Explorer is a new page on Enscribe designed specifically for exploring ENS names, their metadata, and their place in the naming hierarchy.
 
-{/* ![Name Explorer main view](./explorer-main.png) */}
+![Name Explorer main view](./enscribe-main.png)
 
 You can access it from:
 - The main navigation: "Name Explorer"
 - Via search results when you search for an ENS name
 - Trhough contract details page
 
-## Two Ways to Explore: Address vs Name
+## Two Ways to Search: Address vs Name
 
 When you search for an ENS name in Enscribe, you now get **two exploration options**:
 
-{/* ![Search modal showing two options](./search-options.png) */}
+![Search modal showing two options](./searchbar.png)
 
-### 1. Explore Address
+### 1. View Address
 
 If the name resolves to an address (forward resolution is set), you can view the **contract or account details** at that address:
 - Contract verification and source code
@@ -74,16 +74,16 @@ This opens the **Name Explorer** view, focused on the ENS name itself:
 
 Name Explorer's **hierarchical navigation** lets you traverse the ENS tree structure. ENS names are organized as a tree, and you can move up to parents or down to subnames with a click.
 
-{/* ![Hierarchy navigation example](./hierarchy-nav.png) */}
-
 ### Parent Hierarchy
+
+![Parent Hierarchy](./parent.png)
 
 Every ENS name (except TLDs) has a parent. Name Explorer shows the complete parent chain:
 
 ```
-v2.app.enscribe.eth
-  ├─ app.enscribe.eth (parent)
-  │   ├─ enscribe.eth (grandparent)
+pool-manager.phoenix.cork.eth
+  ├─ phoenix.cork.eth (parent)
+  │   ├─ cork.eth (grandparent)
   │   │   └─ eth (TLD)
 ```
 
@@ -91,15 +91,18 @@ Each parent name is clickable. Click any parent to instantly navigate up the hie
 
 ### Direct Subnames
 
+![Direct Subnames](./subnames.png)
+
 If a name has subnames beneath it, Name Explorer lists them all:
 
 ```
-giv.eth
-  ├─ v2-router.uniswap.eth
-  ├─ v3-factory.uniswap.eth
-  ├─ v3-router.uniswap.eth
-  ├─ governance.uniswap.eth
-  └─ timelock.uniswap.eth
+phoenix.cork.eth
+  ├─ adapter.phoenix.cork.eth
+  ├─ shares-factory.phoenix.cork.eth
+  ├─ pool-manager.phoenix.cork.eth
+  ├─ controller.phoenix.cork.eth
+  └─ whitelist.phoenix.cork.eth
+  └─ ...
 ```
 
 Click any subname to explore it. You can browse an entire project's naming structure this way.
@@ -117,9 +120,7 @@ Name Explorer shows every text record set on an ENS name. All metadata is displa
 
 If you're the owner or manager of an ENS name, Name Explorer lets you **edit metadata directly**.
 
-{/* ![Edit metadata modal](./edit-metadata.png) */}
-
-### One-Click Access
+![Edit metadata modal](./edit-records.png)
 
 Click the **"Set Metadata"** button next to any ENS name you own to open the metadata editor.
 
@@ -127,7 +128,7 @@ Click the **"Set Metadata"** button next to any ENS name you own to open the met
 
 The editor provides **recommended metadata keys** based on the address type, if it is a contract or an account. Also you manually add other keys related to account or contract or even custom keys if you want to.
 
-**Account Metadata** (for personal names)
+**Account Metadata** (for wallets)
 - email, phone, location
 - Social profiles
 - Personal information
