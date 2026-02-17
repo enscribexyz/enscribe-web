@@ -5,14 +5,14 @@ description: "Enscribe supports contract metadata through ENS text records, lett
 authors: [nischal]
 tags: [enscribe, ens, contract-metadata, ensip, smart-contract-identity]
 keywords: [ENS, Enscribe, contract metadata, text records, smart contract identity]
-# image: ./metadata-header.png
+image: ./contract-page.png
 ---
 
 Smart contracts are the backbone of onchain applications, but discovering information about them has always been fragmented. Contract metadata lives across multiple platforms — documentation on one site, audits on another like github, social links scattered everywhere. Basic information like "what does this contract actually do?" is often nowhere to be found.
 
 Enscribe brings contract metadata onchain through ENS text records.
 
-{/* ![Contract metadata display](./contract-page.png) */}
+![Contract metadata display](./contract-page.png)
 
 ## The Contract Metadata Standard
 
@@ -30,8 +30,6 @@ Contract details pages show several categories of text records that contracts or
 - **url**: Official website or landing page
 - **avatar**: Contract logo or icon (IPFS hash, HTTP URL, or data URI)
 - **header**: Banner or background image
-
-{/* ![Visual identity example](./visual-identity.png) */}
 
 ### Social & Community
 - **com.github**: GitHub repository URL
@@ -74,7 +72,7 @@ This means you can establish your project's identity once at the top level, and 
 
 The contract explore page displays this metadata.
 
-{/* ![New contract page layout](./new-layout.png) */}
+![New contract page layout](./metadata.png)
 
 **Header & Avatar Section**
 - Circular avatar prominently displayed
@@ -89,8 +87,6 @@ The contract explore page displays this metadata.
 - ABI and source code when verified on Sourcify
 
 All text records are visible in a dedicated metadata section.
-
-{/* ![Metadata section](./metadata-section.png) */}
 
 ## How Contract Metadata is Retrieved
 
@@ -113,9 +109,9 @@ When the Contract Metadata API receives a request for `router.v3.uniswap.eth`, h
    ↓ stop
 ```
 
-{/* ![Metadata inheritance flow](./inheritance-flow.png) */}
-
 The system queries all levels in parallel for maximum speed, then prioritizes the most specific value found for each field. A contract can inherit its organization's avatar and social links, override the description with contract-specific details, and use the project-level header image — all determined automatically based on what's set at each level.
+
+![Contract Metadata page demo](./contract-metadata.gif)
 
 ## The Contract Metadata API
 
@@ -128,25 +124,25 @@ https://app.enscribe.xyz/api/v1/contractMetadata/<chain-id>/<ens-name>
 ### Example Request
 
 ```bash
-curl https://app.enscribe.xyz/api/v1/contractMetadata/1/v3-router.uniswap.eth
+curl https://app.enscribe.xyz/api/v1/contractMetadata/1/v2.app.enscribe.eth
 ```
 
 ### Example Response
 
 ```json
 {
-  "name": "Uniswap V3 Router",
-  "description": "The Uniswap V3 Router contract handles all swaps through the protocol",
-  "url": "https://uniswap.org",
-  "avatar": "ipfs://QmXyz...",
-  "header": "ipfs://QmAbc...",
-  "docs": "https://docs.uniswap.org/contracts/v3/reference/periphery/SwapRouter",
-  "audits": "https://uniswap.org/audits",
-  "category": "DeFi",
-  "license": "GPL-3.0",
-  "com.github": "https://github.com/Uniswap/v3-periphery",
-  "com.twitter": "https://twitter.com/Uniswap",
-  "org.telegram": "https://t.me/uniswap"
+    "name": "Enscribe V2 Contract",
+    "avatar": "https://euc.li/enscribe.eth",
+    "description": "Fixing Ethereum UX one smart contract at a time. 🔨 Give your smart contracts an identity at https://app.enscribe.xyz🌟",
+    "header": "https://euc.li/enscribe.eth/h",
+    "url": "https://www.enscribe.xyz/",
+    "category": "Security",
+    "license": "MIT",
+    "docs": "https://enscribe.xyz/docs",
+    "audits": '[{"Cantina":"https://github.com/coinbase/smart-wallet/blob/main/audits/Cantina-December-2023.pdf"}]',
+    "com.github": "enscribexyz/enscribe-contracts",
+    "com.twitter": "enscribe_",
+    "org.telegram": "enscribers"
 }
 ```
 
