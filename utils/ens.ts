@@ -1,5 +1,6 @@
 import { CHAINS, CONTRACTS } from './constants'
 import { ethers } from 'ethers'
+import L2ReverseRegistrarABI from '@/contracts/L2ReverseRegistrar'
 
 const METADATA_TEXT_KEYS = new Set([
   'alias',
@@ -67,21 +68,9 @@ export const getENS = async (addr: string, chainId: number): Promise<string> => 
         return ''
       }
 
-      const nameForAddrABI = [
-        {
-          inputs: [
-            { internalType: 'address', name: 'addr', type: 'address' },
-          ],
-          name: 'nameForAddr',
-          outputs: [{ internalType: 'string', name: 'name', type: 'string' }],
-          stateMutability: 'view',
-          type: 'function',
-        },
-      ]
-
       const rr = new ethers.Contract(
         config.L2_REVERSE_REGISTRAR,
-        nameForAddrABI,
+        L2ReverseRegistrarABI,
         provider,
       )
       const name = (await rr.nameForAddr(addr)) as string

@@ -1,4 +1,6 @@
 import { CHAINS, METRICS_URL, NAME_GEN_URL, TOPIC0 } from '../utils/constants'
+import type { ConstructorArg } from '@/types'
+export type { ConstructorArg } from '@/types'
 import {
   concatHex,
   encodeAbiParameters,
@@ -9,37 +11,41 @@ import {
 } from 'viem'
 
 export async function logMetric(
-  corelationId: String,
+  correlationId: string,
   timestamp: number,
   chainId: number,
-  contractAddress: String,
-  senderAddress: String,
-  name: String,
-  step: String,
-  txnHash: String,
-  contractType: String,
-  opType: String,
+  contractAddress: string,
+  senderAddress: string,
+  name: string,
+  step: string,
+  txnHash: string,
+  contractType: string,
+  opType: string,
 ) {
-  await fetch(METRICS_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': '*',
-    },
-    body: JSON.stringify({
-      co_id: corelationId,
-      contract_address: contractAddress,
-      ens_name: name,
-      deployer_address: senderAddress,
-      network: chainId,
-      timestamp: Math.floor(timestamp / 1000),
-      step: step,
-      txn_hash: txnHash,
-      contract_type: contractType,
-      op_type: opType,
-      source: 'enscribe',
-    }),
-  })
+  try {
+    await fetch(METRICS_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+      },
+      body: JSON.stringify({
+        co_id: correlationId,
+        contract_address: contractAddress,
+        ens_name: name,
+        deployer_address: senderAddress,
+        network: chainId,
+        timestamp: Math.floor(timestamp / 1000),
+        step: step,
+        txn_hash: txnHash,
+        contract_type: contractType,
+        op_type: opType,
+        source: 'enscribe',
+      }),
+    })
+  } catch (err) {
+    console.error('[logMetric] Failed to log metric:', err)
+  }
 }
 
 export const fetchGeneratedName = async () => {
@@ -54,13 +60,6 @@ export const fetchGeneratedName = async () => {
   return ''
 }
 
-export type ConstructorArg = {
-  type: string
-  value: string
-  isCustom: boolean
-  isTuple?: boolean
-  label?: string
-}
 
 export const encodeConstructorArgs = (
   bytecode: string,

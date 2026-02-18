@@ -4,45 +4,19 @@ import Head from 'next/head'
 import Script from 'next/script'
 import { WagmiProvider } from 'wagmi'
 import type { Config } from 'wagmi'
-import {
-  sepolia,
-  lineaSepolia,
-  baseSepolia,
-  mainnet,
-  base,
-  linea,
-  optimism,
-  optimismSepolia,
-  arbitrum,
-  arbitrumSepolia,
-  scroll,
-  scrollSepolia,
-} from 'wagmi/chains'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { TransactionProvider } from 'ethereum-identity-kit'
 import { ThemeProvider } from '@/hooks/useTheme'
 import { ThemeAwareRainbowKit } from '@/components/ThemeAwareRainbowKit'
 import { SafeAutoConnect } from '@/components/SafeAutoConnect'
 import { CONTRACTS, CHAINS } from '@/utils/constants'
+import { WAGMI_CHAINS } from '@/lib/chains'
 import '@rainbow-me/rainbowkit/styles.css'
 import '@/styles/globals.css'
 
 const queryClient = new QueryClient()
 
-const chains = [
-  mainnet,
-  linea,
-  base,
-  optimism,
-  arbitrum,
-  scroll,
-  sepolia,
-  lineaSepolia,
-  baseSepolia,
-  optimismSepolia,
-  arbitrumSepolia,
-  scrollSepolia,
-] as const
+const chains = WAGMI_CHAINS
 
 export default function MyApp({ Component, pageProps }: AppProps) {
   const [wagmiConfig, setWagmiConfig] = React.useState<Config | null>(null)

@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Checkbox } from '@/components/ui/checkbox'
 import { useToast } from '@/hooks/use-toast'
 import { CONTRACTS, CHAINS } from '../utils/constants'
+import { L2_CHAIN_NAMES } from '@/lib/chains'
 import { isAddress, encodeFunctionData, namehash, createPublicClient, http } from 'viem'
 import { readContract, writeContract, waitForTransactionReceipt } from 'viem/actions'
 import * as chains from 'viem/chains'
@@ -35,7 +36,7 @@ interface BatchEntry {
 }
 
 
-const L2_CHAIN_OPTIONS = ['Optimism', 'Arbitrum', 'Scroll', 'Base', 'Linea']
+const L2_CHAIN_OPTIONS = L2_CHAIN_NAMES
 
 export default function BatchNamingForm() {
   const { address: walletAddress, isConnected, chain, connector } = useAccount()

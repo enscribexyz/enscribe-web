@@ -35,18 +35,10 @@ import { getDeployedAddress } from '@/components/componentUtils'
 import { ethers } from 'ethers'
 import reverseRegistrarABI from '../contracts/ReverseRegistrar'
 import publicResolverABI from '../contracts/PublicResolver'
+import { getENS } from '@/utils/ens'
+import type { ContractRecord } from '@/types'
 
-interface Contract {
-  ensName: string
-  contractAddress: string
-  txHash: string
-  contractCreated: string
-  isOwnable: boolean
-  sourcifyVerification?: 'exact_match' | 'match' | 'unverified'
-  etherscanVerification?: 'verified' | 'unverified'
-  blockscoutVerification?: 'exact_match' | 'match' | 'unverified'
-  attestation?: 'audited' | 'unaudited'
-}
+type Contract = ContractRecord
 
 export default function ContractHistory() {
   const { address: walletAddress, isConnected, chain } = useAccount()
@@ -128,7 +120,7 @@ export default function ContractHistory() {
             const blockscoutVerification = result.blockscout_verification
             const attestation = result.audit_status
             // const ensName = result.ens_name
-            const ensName = await getENS(contractAddr)
+            const ensName = await getENS(contractAddr, chainId)
 
             const contract: Contract = {
               ensName,
@@ -183,7 +175,7 @@ export default function ContractHistory() {
               const blockscoutVerification = result.blockscout_verification
               const attestation = result.audit_status
               // const ensName = result.ens_name
-              const ensName = await getENS(deployed)
+              const ensName = await getENS(deployed, chainId)
 
               const contract: Contract = {
                 ensName,
@@ -258,41 +250,6 @@ export default function ContractHistory() {
       return null
     } catch {
       return null
-    }
-  }
-
-  /**
-   * resolves the ENS name for the given `addr`
-   * @param addr
-   */
-  const getENS = async (addr: string): Promise<string> => {
-    const provider = new ethers.BrowserProvider(walletClient!.transport, 'any')
-    const signer = provider.getSigner(walletAddress)
-
-    if (chain?.id === CHAINS.MAINNET || chain?.id === CHAINS.SEPOLIA) {
-      try {
-        return (await (await signer)?.provider.lookupAddress(addr)) || ''
-      } catch {
-        return ''
-      }
-    } else {
-      try {
-        const reverseRegistrarContract = new ethers.Contract(
-          config?.REVERSE_REGISTRAR!,
-          reverseRegistrarABI,
-          (await signer)?.provider,
-        )
-        const reversedNode = await reverseRegistrarContract.node(addr)
-        const resolverContract = new ethers.Contract(
-          config?.PUBLIC_RESOLVER!,
-          publicResolverABI,
-          (await signer)?.provider,
-        )
-        const name = await resolverContract.name(reversedNode)
-        return name || ''
-      } catch (error) {
-        return ''
-      }
     }
   }
 

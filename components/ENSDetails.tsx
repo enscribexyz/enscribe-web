@@ -38,7 +38,9 @@ import {
 import { ProfileCard } from 'ethereum-identity-kit'
 import { FullWidthProfile } from 'ethereum-identity-kit'
 import { checkIfProxy } from '@/utils/proxy'
+import { getENS } from '@/utils/ens'
 import { useToast } from '@/hooks/use-toast'
+import type { ENSDomain, TextRecords, VerificationStatus } from '@/types'
 // import { EnsRainbowApiClient } from '@ensnode/ensrainbow-sdk'
 
 interface ENSDetailsProps {
@@ -58,44 +60,6 @@ interface ENSDetailsProps {
 interface ImplementationDetailsProps {
   implementationAddress: string
   chainId: number
-}
-
-interface ENSDomain {
-  name: string
-  isPrimary?: boolean
-  expiryDate?: number
-  hasLabelhash?: boolean
-  level?: number
-  parent2LD?: string
-}
-
-interface TextRecords {
-  name?: string
-  alias?: string
-  description?: string
-  url?: string
-  avatar?: string
-  header?: string
-  category?: string
-  license?: string
-  docs?: string
-  audits?: string
-  'com.github'?: string
-  'com.twitter'?: string
-  'org.telegram'?: string
-  'com.linkedin'?: string
-}
-
-interface VerificationStatus {
-  sourcify_verification: string
-  etherscan_verification: string
-  blockscout_verification: string
-  audit_status: string
-  attestation_tx_hash: string
-  ens_name: string
-  diligence_audit: string
-  openZepplin_audit: string
-  cyfrin_audit: string
 }
 
 export default function ENSDetails({
@@ -476,7 +440,7 @@ export default function ENSDetails({
       }
 
       // Do reverse lookup (address → ENS name) to get the ACTUAL primary name
-      const primaryENS = await getENS(address, customProvider)
+      const primaryENS = await getENS(address, effectiveChainId!)
 
       if (primaryENS) {
         setPrimaryName(primaryENS)
@@ -936,80 +900,6 @@ export default function ENSDetails({
     fetchUserOwnedDomains,
   ])
 
-  const getENS = async (
-    addr: string,
-    provider: ethers.JsonRpcProvider,
-  ): Promise<string> => {
-    // Use the effectiveChainId instead of chain?.id to ensure we're using the correct chain
-    // for ENS lookups even when the wallet is not connected
-    if (
-      effectiveChainId === CHAINS.MAINNET ||
-      effectiveChainId === CHAINS.SEPOLIA
-    ) {
-      try {
-        console.log(
-          `[ENSDetails] Looking up ENS name for ${addr} on chain ${effectiveChainId}`,
-        )
-        return (await provider.lookupAddress(addr)) || ''
-      } catch (error) {
-        console.error('[ENSDetails] Error looking up ENS name:', error)
-        return ''
-      }
-    } else if (
-      [
-        CHAINS.OPTIMISM,
-        CHAINS.OPTIMISM_SEPOLIA,
-        CHAINS.ARBITRUM,
-        CHAINS.ARBITRUM_SEPOLIA,
-        CHAINS.SCROLL,
-        CHAINS.SCROLL_SEPOLIA,
-        CHAINS.BASE,
-        CHAINS.BASE_SEPOLIA,
-        CHAINS.LINEA,
-        CHAINS.LINEA_SEPOLIA,
-      ].includes((effectiveChainId ?? -1) as CHAINS)
-    ) {
-      try {
-        console.log(
-          `[ENSDetails] Looking up ENS name via nameForAddr for ${addr} on chain ${effectiveChainId}`,
-        )
-
-        if (!config?.L2_REVERSE_REGISTRAR) {
-          console.error(
-            `[ENSDetails] Missing L2 reverse registrar for chain ${effectiveChainId}`,
-          )
-          return ''
-        }
-
-        const nameForAddrABI = [
-          {
-            inputs: [
-              { internalType: 'address', name: 'addr', type: 'address' },
-            ],
-            name: 'nameForAddr',
-            outputs: [{ internalType: 'string', name: 'name', type: 'string' }],
-            stateMutability: 'view',
-            type: 'function',
-          },
-        ]
-
-        const rr = new ethers.Contract(
-          config.L2_REVERSE_REGISTRAR,
-          nameForAddrABI,
-          provider,
-        )
-        const name = (await rr.nameForAddr(addr)) as string
-        console.log(`[ENSDetails] nameForAddr result for ${addr}: ${name}`)
-        if (name && name.length > 0) return name
-      } catch (err) {
-        console.error('[ENSDetails] nameForAddr failed:', err)
-      }
-    }
-
-    // Default fallback
-    return ''
-  }
-
   // Function to fetch text records from API
   const fetchTextRecordsFromAPI = useCallback(
     async (ensName: string) => {
@@ -1102,7 +992,7 @@ export default function ENSDetails({
         try {
           const deployerENS = await getENS(
             contractDeployerAddress,
-            customProvider,
+            effectiveChainId!,
           )
           setDeployerResolved(deployerENS || null)
         } catch (err) {
@@ -1135,7 +1025,7 @@ export default function ENSDetails({
       // Resolve owner to ENS name
       if (owner) {
         try {
-          const ownerENS = await getENS(owner, customProvider)
+          const ownerENS = await getENS(owner, effectiveChainId!)
           setEnsNameOwnerResolved(ownerENS || null)
         } catch (err) {
           console.log(`[ENSDetails] Could not resolve owner ENS name`)
@@ -1146,7 +1036,7 @@ export default function ENSDetails({
       // Resolve manager to ENS name
       if (manager) {
         try {
-          const managerENS = await getENS(manager, customProvider)
+          const managerENS = await getENS(manager, effectiveChainId!)
           setEnsNameManagerResolved(managerENS || null)
         } catch (err) {
           console.log(`[ENSDetails] Could not resolve manager ENS name`)
@@ -1173,7 +1063,7 @@ export default function ENSDetails({
         // Resolve 2LD owner to ENS name
         if (tldOwnerData) {
           try {
-            const tldOwnerENS = await getENS(tldOwnerData, customProvider)
+            const tldOwnerENS = await getENS(tldOwnerData, effectiveChainId!)
             setTldOwnerResolved(tldOwnerENS || null)
           } catch (err) {
             console.log(`[ENSDetails] Could not resolve 2LD owner ENS name`)
@@ -1184,7 +1074,7 @@ export default function ENSDetails({
         // Resolve 2LD manager to ENS name
         if (tldManagerData) {
           try {
-            const tldManagerENS = await getENS(tldManagerData, customProvider)
+            const tldManagerENS = await getENS(tldManagerData, effectiveChainId!)
             setTldManagerResolved(tldManagerENS || null)
           } catch (err) {
             console.log(`[ENSDetails] Could not resolve 2LD manager ENS name`)
@@ -1228,7 +1118,7 @@ export default function ENSDetails({
           // Fetch primary name for the deployer
           if (creatorAddress && customProvider) {
             try {
-              const deployerENS = await getENS(creatorAddress, customProvider)
+              const deployerENS = await getENS(creatorAddress, effectiveChainId!)
               setImplDeployerName(deployerENS || null)
             } catch (err) {
               console.log(

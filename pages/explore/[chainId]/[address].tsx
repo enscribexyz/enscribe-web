@@ -8,6 +8,7 @@ import ENSDetails from '@/components/ENSDetails'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft, ExternalLink } from 'lucide-react'
 import { CHAINS, CONTRACTS, ETHERSCAN_API } from '@/utils/constants'
+import { getENS } from '@/utils/ens'
 import { useAccount } from 'wagmi'
 import { checkIfProxy } from '@/utils/proxy'
 import Link from 'next/link'
@@ -39,79 +40,6 @@ export default function ExploreAddressPage() {
   const [contractDeployerPrimaryName, setContractDeployerPrimaryName] =
     useState<string | null>(null)
   const { chain: walletChain } = useAccount()
-
-  const getENS = async (addr: string, chainId: number): Promise<string> => {
-    const config = CONTRACTS[chainId]
-    const provider = new ethers.JsonRpcProvider(config.RPC_ENDPOINT)
-
-    // Use the effectiveChainId instead of chain?.id to ensure we're using the correct chain
-    // for ENS lookups even when the wallet is not connected
-    if (chainId === CHAINS.MAINNET || chainId === CHAINS.SEPOLIA) {
-      try {
-        console.log(
-          `[address] Looking up ENS name for ${addr} on chain ${chainId}`,
-        )
-        return (await provider.lookupAddress(addr)) || ''
-      } catch (error) {
-        console.error('[address] Error looking up ENS name:', error)
-        return ''
-      }
-    } else if (
-      [
-        CHAINS.OPTIMISM,
-        CHAINS.OPTIMISM_SEPOLIA,
-        CHAINS.ARBITRUM,
-        CHAINS.ARBITRUM_SEPOLIA,
-        CHAINS.SCROLL,
-        CHAINS.SCROLL_SEPOLIA,
-        CHAINS.BASE,
-        CHAINS.BASE_SEPOLIA,
-        CHAINS.LINEA,
-        CHAINS.LINEA_SEPOLIA,
-      ].includes(chainId)
-    ) {
-      // For L2s, use reverse registrar nameForAddr.
-
-      try {
-        console.log(
-          `[address] Looking up ENS name via reverse registrar nameForAddr for ${addr} on chain ${chainId}`,
-        )
-
-        if (!config?.L2_REVERSE_REGISTRAR) {
-          console.error(
-            `[address] Missing reverse registrar for chain ${chainId}`,
-          )
-          return ''
-        }
-
-        const nameForAddrABI = [
-          {
-            inputs: [
-              { internalType: 'address', name: 'addr', type: 'address' },
-            ],
-            name: 'nameForAddr',
-            outputs: [{ internalType: 'string', name: 'name', type: 'string' }],
-            stateMutability: 'view',
-            type: 'function',
-          },
-        ]
-
-        const rr = new ethers.Contract(
-          config.L2_REVERSE_REGISTRAR,
-          nameForAddrABI,
-          provider,
-        )
-        const name = (await rr.nameForAddr(addr)) as string
-        console.log(`[address] nameForAddr result for ${addr}: ${name}`)
-        if (name && name.length > 0) return name
-      } catch (err) {
-        console.error('[address] nameForAddr failed:', err)
-      }
-    }
-
-    // Default fallback
-    return ''
-  }
 
   const fetchPrimaryNameForContractDeployer = async (
     contractDeployerAddress: string,

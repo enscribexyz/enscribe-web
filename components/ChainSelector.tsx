@@ -6,57 +6,14 @@ import {
   SelectTrigger,
 } from '@/components/ui/select'
 import Image from 'next/image'
-import { CHAINS } from '@/utils/constants'
-
-// Chain information with logos
-const CHAIN_OPTIONS = [
-  { id: CHAINS.MAINNET, name: 'Ethereum', logo: '/images/ethereum.svg' },
-  { id: CHAINS.LINEA, name: 'Linea Mainnet', logo: '/images/linea.svg' },
-  { id: CHAINS.BASE, name: 'Base Mainnet', logo: '/images/base.svg' },
-  {
-    id: CHAINS.OPTIMISM,
-    name: 'Optimism Mainnet',
-    logo: '/images/optimism.svg',
-  },
-  {
-    id: CHAINS.ARBITRUM,
-    name: 'Arbitrum Mainnet',
-    logo: '/images/arbitrum.svg',
-  },
-  { id: CHAINS.SCROLL, name: 'Scroll Mainnet', logo: '/images/scroll.svg' },
-  { id: CHAINS.SEPOLIA, name: 'Sepolia Testnet', logo: '/images/ethereum.svg' },
-  {
-    id: CHAINS.LINEA_SEPOLIA,
-    name: 'Linea Sepolia',
-    logo: '/images/linea.svg',
-  },
-  { id: CHAINS.BASE_SEPOLIA, name: 'Base Sepolia', logo: '/images/base.svg' },
-  {
-    id: CHAINS.OPTIMISM_SEPOLIA,
-    name: 'Optimism Sepolia',
-    logo: '/images/optimism.svg',
-  },
-  {
-    id: CHAINS.ARBITRUM_SEPOLIA,
-    name: 'Arbitrum Sepolia',
-    logo: '/images/arbitrum.svg',
-  },
-  {
-    id: CHAINS.SCROLL_SEPOLIA,
-    name: 'Scroll Sepolia',
-    logo: '/images/scroll.svg',
-  },
-]
+import { CHAIN_OPTIONS, getChainOption } from '@/lib/chains'
 
 interface ChainSelectorProps {
   selectedChain: number
   onChainChange: (chainId: number) => void
 }
 
-// Helper function to get chain info by ID
-const getChainById = (id: number) => {
-  return CHAIN_OPTIONS.find((chain) => chain.id === id) || CHAIN_OPTIONS[0]
-}
+const getChainById = (id: number) => getChainOption(id) ?? CHAIN_OPTIONS[0]
 
 export default function ChainSelector({
   selectedChain,

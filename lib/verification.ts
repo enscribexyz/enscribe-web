@@ -4,9 +4,6 @@ import {
   ETHERSCAN_API,
   CHAINS,
 } from '@/utils/constants'
-import { ethers } from 'ethers'
-import reverseRegistrarABI from '@/contracts/ReverseRegistrar'
-import publicResolverABI from '../contracts/PublicResolver'
 
 export async function getVerificationData(chainId: string, address: string) {
   let sourcify_verification = 'unverified'
@@ -147,40 +144,3 @@ export async function triggerVerificationLogic(
   }
 }
 
-// Use ENS admin - namehash
-
-const getENS = async (chainId: string, addr: string): Promise<string> => {
-  const provider = new ethers.JsonRpcProvider(
-    CONTRACTS[Number(chainId)].RPC_ENDPOINT,
-  )
-  const config = chainId ? CONTRACTS[Number(chainId)] : undefined
-
-  if (
-    Number(chainId) === CHAINS.MAINNET ||
-    Number(chainId) === CHAINS.SEPOLIA
-  ) {
-    try {
-      return (await provider.lookupAddress(addr)) || ''
-    } catch {
-      return ''
-    }
-  } else {
-    try {
-      const reverseRegistrarContract = new ethers.Contract(
-        config?.REVERSE_REGISTRAR!,
-        reverseRegistrarABI,
-        provider,
-      )
-      const reversedNode = await reverseRegistrarContract.node(addr)
-      const resolverContract = new ethers.Contract(
-        config?.PUBLIC_RESOLVER!,
-        publicResolverABI,
-        provider,
-      )
-      const name = await resolverContract.name(reversedNode)
-      return name || ''
-    } catch (error) {
-      return ''
-    }
-  }
-}

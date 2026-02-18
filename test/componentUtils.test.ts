@@ -4,7 +4,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import {
   ConstructorArg,
   encodeConstructorArgs,
-  encodeConstructorArgs,
 } from '../components/componentUtils'
 
 describe('encodeConstructorArgsViem', () => {

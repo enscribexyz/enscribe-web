@@ -18,23 +18,7 @@
 import { NextApiRequest, NextApiResponse } from 'next'
 import { ethers } from 'ethers'
 import { CONTRACTS } from '@/utils/constants'
-
-interface TextRecords {
-  name?: string
-  alias?: string
-  description?: string
-  avatar?: string
-  header?: string
-  url?: string
-  category?: string
-  license?: string
-  docs?: string
-  audits?: string
-  'com.github'?: string
-  'com.twitter'?: string
-  'org.telegram'?: string
-  'com.linkedin'?: string
-}
+import type { TextRecords } from '@/types'
 
 // Function to get parent domains up to 2LD
 function getParentDomains(ensName: string): string[] {
