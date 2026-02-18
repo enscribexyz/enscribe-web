@@ -1,7 +1,6 @@
 import React, { memo } from 'react'
 import { Button } from '@/components/ui/button'
-import { Check, Copy } from 'lucide-react'
-import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline'
+import { Check, Copy, ChevronDown, ChevronRight } from 'lucide-react'
 
 interface CallDataPanelProps {
   callDataList: string[]
@@ -30,9 +29,9 @@ export const CallDataPanel = memo(function CallDataPanel({
         className="flex items-center gap-2 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors mb-3"
       >
         {isCallDataOpen ? (
-          <ChevronDownIcon className="w-4 h-4" />
+          <ChevronDown className="w-4 h-4" />
         ) : (
-          <ChevronRightIcon className="w-4 h-4" />
+          <ChevronRight className="w-4 h-4" />
         )}
         <span className="text-sm font-medium">
           Call Data ({callDataList.length} calls)

@@ -1,6 +1,6 @@
 import React, { memo } from 'react'
 import Link from 'next/link'
-import { CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/outline'
+import { CheckCircle2, XCircle } from 'lucide-react'
 
 interface ContractStatusPanelProps {
   isAddressEmpty: boolean
@@ -38,7 +38,7 @@ export const ContractStatusPanel = memo(function ContractStatusPanel({
     <div className="flex flex-col space-y-1 mt-4">
       {!isAddressEmpty && !isContractOwner && isOwnable && (
         <div className="flex items-center">
-          <XCircleIcon className="w-5 h-5 inline text-red-500 cursor-pointer" />
+          <XCircle className="w-5 h-5 inline text-red-500 cursor-pointer" />
           <p className="text-gray-600 inline ml-1 dark:text-gray-300">
             {chainName}: You are not the contract owner and cannot set its
             primary name
@@ -49,7 +49,7 @@ export const ContractStatusPanel = memo(function ContractStatusPanel({
         <div className="space-y-1">
           {isOwnable && (
             <div className="flex items-center">
-              <CheckCircleIcon className="w-5 h-5 text-green-500 mr-1" />
+              <CheckCircle2 className="w-5 h-5 text-green-500 mr-1" />
               <p className="text-gray-700 dark:text-gray-200">
                 {chainName}: Contract implements{' '}
                 <Link
@@ -63,7 +63,7 @@ export const ContractStatusPanel = memo(function ContractStatusPanel({
           )}
           {isReverseClaimable && !isOwnable && (
             <div className="flex items-center">
-              <CheckCircleIcon className="w-5 h-5 text-green-500 mr-1" />
+              <CheckCircle2 className="w-5 h-5 text-green-500 mr-1" />
               <p className="text-gray-700 dark:text-gray-200">
                 {chainName}: Contract is{' '}
                 <Link
@@ -105,7 +105,7 @@ export const ContractStatusPanel = memo(function ContractStatusPanel({
 function OwnableRow({ network }: { network: string }) {
   return (
     <div className="flex items-center">
-      <CheckCircleIcon className="w-5 h-5 text-green-500 mr-1" />
+      <CheckCircle2 className="w-5 h-5 text-green-500 mr-1" />
       <p className="text-gray-700 dark:text-gray-200">
         Contract implements{' '}
         <Link

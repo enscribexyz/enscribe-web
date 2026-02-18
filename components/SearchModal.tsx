@@ -1,8 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/router'
 import { usePublicClient, useAccount } from 'wagmi'
-import { ethers, isAddress } from 'ethers'
-import { createPublicClient, http, parseAbi, toCoinType } from 'viem'
+import { createPublicClient, http, parseAbi, toCoinType, isAddress } from 'viem'
 import { Input } from '@/components/ui/input'
 import { CHAINS, CONTRACTS } from '@/utils/constants'
 import { useAccount as useWagmiAccount } from 'wagmi'
@@ -90,14 +89,12 @@ export default function SearchModal({
     }
   }, [isOpen, onClose])
 
-  const getProvider = useCallback((chainId: number) => {
+  const getEnsClient = useCallback((chainId: number) => {
     const config = CONTRACTS[chainId as keyof typeof CONTRACTS]
     if (!config) {
       throw new Error(`Unsupported chain ID: ${chainId}`)
     }
-
-
-    return new ethers.JsonRpcProvider(config.RPC_ENDPOINT)
+    return createPublicClient({ transport: http(config.RPC_ENDPOINT) })
   }, [])
 
   const handleSearch = useCallback(async () => {
@@ -211,8 +208,9 @@ export default function SearchModal({
           // If Base resolution failed or not on Base, try mainnet/sepolia ENS
           if (!resolvedAddress) {
             try {
-              const mainnetProvider = getProvider(ensChainId)
-              resolvedAddress = await mainnetProvider.resolveName(ensName)
+              const { getEnsAddress } = await import('viem/actions')
+              const ensClient = getEnsClient(ensChainId)
+              resolvedAddress = await getEnsAddress(ensClient, { name: ensName })
             } catch (resolveError: any) {
               console.error(
                 'Error resolving ENS name on mainnet/sepolia:',
@@ -296,7 +294,7 @@ export default function SearchModal({
     } finally {
       setIsLoading(false)
     }
-  }, [searchQuery, selectedChain, propSetManuallyChanged, getProvider])
+  }, [searchQuery, selectedChain, propSetManuallyChanged, getEnsClient])
 
   // Auto-search with debounce when user stops typing
   useEffect(() => {

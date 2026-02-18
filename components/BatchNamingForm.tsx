@@ -11,8 +11,7 @@ import { L2_CHAIN_NAMES } from '@/lib/chains'
 import { isAddress, encodeFunctionData, namehash, createPublicClient, http } from 'viem'
 import { readContract, writeContract, waitForTransactionReceipt } from 'viem/actions'
 import * as chains from 'viem/chains'
-import { X, Copy, Check, Info } from 'lucide-react'
-import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline'
+import { X, Copy, Check, Info, ChevronDown, ChevronRight } from 'lucide-react'
 import {
   Tooltip,
   TooltipContent,
@@ -2207,9 +2206,9 @@ export default function BatchNamingForm() {
           className="flex items-center gap-2 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors"
         >
           {isAdvancedOpen ? (
-            <ChevronDownIcon className="w-5 h-5" />
+            <ChevronDown className="w-5 h-5" />
           ) : (
-            <ChevronRightIcon className="w-5 h-5" />
+            <ChevronRight className="w-5 h-5" />
           )}
           <span className="text-lg font-medium">Advanced Options</span>
         </button>

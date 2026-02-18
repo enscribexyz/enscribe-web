@@ -1,5 +1,6 @@
 import { CHAINS, CONTRACTS } from './constants'
-import { ethers } from 'ethers'
+import { createPublicClient, http } from 'viem'
+import { getEnsName, readContract } from 'viem/actions'
 import L2ReverseRegistrarABI from '@/contracts/L2ReverseRegistrar'
 
 const METADATA_TEXT_KEYS = new Set([
@@ -35,12 +36,12 @@ export const getENS = async (addr: string, chainId: number): Promise<string> => 
     return ''
   }
 
-  const provider = new ethers.JsonRpcProvider(config.RPC_ENDPOINT)
+  const client = createPublicClient({ transport: http(config.RPC_ENDPOINT) })
 
   // For mainnet and sepolia, use standard ENS reverse resolution
   if (chainId === CHAINS.MAINNET || chainId === CHAINS.SEPOLIA) {
     try {
-      return (await provider.lookupAddress(addr)) || ''
+      return (await getEnsName(client, { address: addr as `0x${string}` })) || ''
     } catch (error) {
       console.error('[getENS] Error looking up ENS name:', error)
       return ''
@@ -68,12 +69,12 @@ export const getENS = async (addr: string, chainId: number): Promise<string> => 
         return ''
       }
 
-      const rr = new ethers.Contract(
-        config.L2_REVERSE_REGISTRAR,
-        L2ReverseRegistrarABI,
-        provider,
-      )
-      const name = (await rr.nameForAddr(addr)) as string
+      const name = (await readContract(client, {
+        address: config.L2_REVERSE_REGISTRAR as `0x${string}`,
+        abi: L2ReverseRegistrarABI,
+        functionName: 'nameForAddr',
+        args: [addr as `0x${string}`],
+      })) as string
       if (name && name.length > 0) return name
     } catch (err) {
       console.error('[getENS] nameForAddr failed:', err)

@@ -16,7 +16,8 @@
  */
 
 import { NextApiRequest, NextApiResponse } from 'next'
-import { ethers } from 'ethers'
+import { createPublicClient, http } from 'viem'
+import { getEnsText } from 'viem/actions'
 import { CONTRACTS } from '@/utils/constants'
 import type { TextRecords } from '@/types'
 
@@ -35,24 +36,12 @@ function getParentDomains(ensName: string): string[] {
 
 // Function to fetch text record from a specific ENS name
 async function fetchTextRecord(
-  provider: ethers.JsonRpcProvider,
-  resolverCache: Map<string, ethers.EnsResolver | null>,
+  client: ReturnType<typeof createPublicClient>,
   ensName: string,
   key: string,
 ): Promise<string | null> {
   try {
-    // Check resolver cache for this specific ENS name
-    let resolver = resolverCache.get(ensName)
-
-    if (resolver === undefined) {
-      // Not cached yet, fetch it
-      resolver = await provider.getResolver(ensName)
-      resolverCache.set(ensName, resolver)
-    }
-
-    if (!resolver) return null
-
-    const value = await resolver.getText(key)
+    const value = await getEnsText(client, { name: ensName, key })
     return value || null
   } catch (error) {
     return null
@@ -61,13 +50,10 @@ async function fetchTextRecord(
 
 // Function to fetch text records with parent fallback (OPTIMIZED - All parallel)
 async function fetchTextRecordsWithFallback(
-  provider: ethers.JsonRpcProvider,
+  client: ReturnType<typeof createPublicClient>,
   ensName: string,
 ): Promise<TextRecords> {
   const records: TextRecords = {}
-
-  // Resolver cache scoped to this request only
-  const resolverCache = new Map<string, ethers.EnsResolver | null>()
 
   try {
     // Build domain chain (from most specific to least specific)
@@ -101,7 +87,7 @@ async function fetchTextRecordsWithFallback(
     // Fetch direct keys only from the specific ENS name
     for (const key of directKeys) {
       allPromises.push(
-        fetchTextRecord(provider, resolverCache, ensName, key).then(
+        fetchTextRecord(client, ensName, key).then(
           (value) => ({
             domain: ensName,
             key,
@@ -115,7 +101,7 @@ async function fetchTextRecordsWithFallback(
     for (const key of fallbackKeys) {
       for (const domain of domainChain) {
         allPromises.push(
-          fetchTextRecord(provider, resolverCache, domain, key).then(
+          fetchTextRecord(client, domain, key).then(
             (value) => ({
               domain,
               key,
@@ -190,11 +176,11 @@ export default async function handler(
       return res.status(400).json({ error: 'Unsupported chain' })
     }
 
-    // Initialize provider with paid RPC endpoint from env/config
-    const provider = new ethers.JsonRpcProvider(config.RPC_ENDPOINT)
+    // Initialize viem client with configured RPC endpoint
+    const client = createPublicClient({ transport: http(config.RPC_ENDPOINT) })
 
     // Fetch text records with parent fallback
-    const records = await fetchTextRecordsWithFallback(provider, name)
+    const records = await fetchTextRecordsWithFallback(client, name)
 
     return res.status(200).json(records)
   } catch (error) {

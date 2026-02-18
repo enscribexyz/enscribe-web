@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react'
-import { ethers } from 'ethers'
+import { createPublicClient, http } from 'viem'
+import { readContract } from 'viem/actions'
 import { useAccount } from 'wagmi'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -145,7 +146,7 @@ export default function ENSDetails({
   const [implDeployerName, setImplDeployerName] = useState<string | null>(null)
   const { chain, isConnected } = useAccount()
   const [customProvider, setCustomProvider] =
-    useState<ethers.JsonRpcProvider | null>(null)
+    useState<ReturnType<typeof createPublicClient> | null>(null)
   const { toast } = useToast()
 
   // Use provided chainId if available, otherwise use connected wallet's chain
@@ -319,8 +320,7 @@ export default function ENSDetails({
   useEffect(() => {
     if (effectiveChainId && config?.RPC_ENDPOINT) {
       try {
-        // Initialize ethers provider
-        const provider = new ethers.JsonRpcProvider(config.RPC_ENDPOINT)
+        const provider = createPublicClient({ transport: http(config.RPC_ENDPOINT) })
         setCustomProvider(provider)
       } catch (err) {
         console.error('[ENSDetails] Error initializing provider:', err)
@@ -563,13 +563,14 @@ export default function ENSDetails({
           // Fallback: If manager is not available, check ENS Registry contract directly
           if (!manager && config.ENS_REGISTRY && customProvider) {
             try {
-              const nameNode = ethers.namehash(ensName)
-              const registryContract = new ethers.Contract(
-                config.ENS_REGISTRY,
-                ensRegistryABI,
-                customProvider,
-              )
-              manager = await registryContract.owner(nameNode)
+              const { namehash: computeNamehash } = await import('viem/ens')
+              const nameNode = computeNamehash(ensName)
+              manager = await readContract(customProvider, {
+                address: config.ENS_REGISTRY as `0x${string}`,
+                abi: ensRegistryABI,
+                functionName: 'owner',
+                args: [nameNode],
+              }) as string
             } catch (registryError) {
               console.error(
                 `[ENSDetails] Error fetching from ENS Registry:`,
@@ -585,13 +586,14 @@ export default function ENSDetails({
         let manager = null
         if (config.ENS_REGISTRY && customProvider) {
           try {
-            const nameNode = ethers.namehash(ensName)
-            const registryContract = new ethers.Contract(
-              config.ENS_REGISTRY,
-              ensRegistryABI,
-              customProvider,
-            )
-            manager = await registryContract.owner(nameNode)
+            const { namehash: computeNamehash } = await import('viem/ens')
+            const nameNode = computeNamehash(ensName)
+            manager = await readContract(customProvider, {
+              address: config.ENS_REGISTRY as `0x${string}`,
+              abi: ensRegistryABI,
+              functionName: 'owner',
+              args: [nameNode],
+            }) as string
           } catch (registryError) {
             console.error(
               `[ENSDetails] Error fetching from ENS Registry:`,
@@ -2005,7 +2007,8 @@ export default function ENSDetails({
                     onNavigateToDomain={async (domainName) => {
                       try {
                         if (customProvider) {
-                          const resolvedAddress = await customProvider.resolveName(domainName)
+                          const { getEnsAddress: resolveEnsName } = await import('viem/actions')
+                          const resolvedAddress = await resolveEnsName(customProvider, { name: domainName })
                           if (resolvedAddress) {
                             window.location.href = `/explore/${effectiveChainId}/${resolvedAddress}`
                           } else {

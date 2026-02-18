@@ -12,7 +12,6 @@ import { getENS } from '@/utils/ens'
 import { useAccount } from 'wagmi'
 import { checkIfProxy } from '@/utils/proxy'
 import Link from 'next/link'
-import { ethers } from 'ethers'
 import reverseRegistrarABI from '@/contracts/ReverseRegistrar'
 import ensRegistryABI from '@/contracts/ENSRegistry'
 import publicResolverABI from '@/contracts/PublicResolver'
@@ -150,10 +149,9 @@ export default function ExploreAddressPage() {
 
         const ensChainId = isTestnet ? CHAINS.SEPOLIA : CHAINS.MAINNET
         const ensConfig = CONTRACTS[ensChainId]
-        const provider = new ethers.JsonRpcProvider(ensConfig.RPC_ENDPOINT)
-
-
-        resolvedAddress = await provider.resolveName(normalizedName)
+        const { getEnsAddress: resolveEnsName } = await import('viem/actions')
+        const ensClient = createPublicClient({ transport: http(ensConfig.RPC_ENDPOINT) })
+        resolvedAddress = await resolveEnsName(ensClient, { name: normalizedName })
       } catch (error) {
 
         // Handle L2-specific errors

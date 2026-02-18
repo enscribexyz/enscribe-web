@@ -18,7 +18,7 @@ import { useToast } from '@/hooks/use-toast'
 import parseJson from 'json-parse-safe'
 import { CHAINS, CONTRACTS } from '../utils/constants'
 import SetNameStepsModal, { Step } from './SetNameStepsModal'
-import { CheckCircleIcon } from '@heroicons/react/24/outline'
+import { CheckCircle2 } from 'lucide-react'
 import Link from 'next/link'
 import { v4 as uuid } from 'uuid'
 import {
@@ -1959,7 +1959,7 @@ export default function DeployForm() {
             <div className="justify-between">
               {isOwnable && (
                 <>
-                  <CheckCircleIcon className="w-5 h-5 inline text-green-500 ml-2 cursor-pointer" />
+                  <CheckCircle2 className="w-5 h-5 inline text-green-500 ml-2 cursor-pointer" />
                   <p className="ml-1 text-gray-700 dark:text-gray-300 inline">
                     Contract implements{' '}
                     <Link
@@ -1973,7 +1973,7 @@ export default function DeployForm() {
               )}
               {isReverseClaimable && (
                 <>
-                  <CheckCircleIcon className="w-5 h-5 inline text-green-500 ml-2 cursor-pointer" />
+                  <CheckCircle2 className="w-5 h-5 inline text-green-500 ml-2 cursor-pointer" />
                   <p className="ml-1 text-gray-700 dark:text-gray-300 inline">
                     Contract is either{' '}
                     <Link

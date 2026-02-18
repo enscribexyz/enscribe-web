@@ -18,16 +18,9 @@ import {
   extractLabelhash,
   healLabelhash,
 } from '../utils/labelhashMapping'
-import {
-  ChevronDownIcon,
-  ChevronUpIcon,
-  PlusIcon,
-  ChevronRightIcon,
-} from '@heroicons/react/24/outline'
-import { Loader2, X, Search, ExternalLink } from 'lucide-react'
+import { Loader2, X, Search, ExternalLink, ChevronDown, ChevronUp, Plus, ChevronRight } from 'lucide-react'
 import SearchModal from './SearchModal'
 import { useRouter } from 'next/router'
-import { ethers } from 'ethers'
 import {
   writeContract,
   waitForTransactionReceipt,
@@ -943,8 +936,9 @@ export default function NameMetadata({ initialName }: NameMetadataProps) {
       if (!resolvedAddress) {
         try {
           const ensConfig = CONTRACTS[ensChainId]
-          const provider = new ethers.JsonRpcProvider(ensConfig.RPC_ENDPOINT)
-          resolvedAddress = await provider.resolveName(name)
+          const { getEnsAddress: resolveEnsName } = await import('viem/actions')
+          const ensClient = createPublicClient({ transport: http(ensConfig.RPC_ENDPOINT) })
+          resolvedAddress = await resolveEnsName(ensClient, { name })
         } catch (resolveError: any) {
           console.error(
             'Error resolving ENS name on mainnet/sepolia:',
@@ -1628,9 +1622,9 @@ export default function NameMetadata({ initialName }: NameMetadataProps) {
                 className="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
               >
                 {showAllMetadata ? (
-                  <ChevronDownIcon className="w-4 h-4" />
+                  <ChevronDown className="w-4 h-4" />
                 ) : (
-                  <ChevronRightIcon className="w-4 h-4" />
+                  <ChevronRight className="w-4 h-4" />
                 )}
                 Show All Metadata
               </button>
@@ -1646,9 +1640,9 @@ export default function NameMetadata({ initialName }: NameMetadataProps) {
                       className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 mb-2"
                     >
                       {showAccountMetadata ? (
-                        <ChevronDownIcon className="w-3.5 h-3.5" />
+                        <ChevronDown className="w-3.5 h-3.5" />
                       ) : (
-                        <ChevronRightIcon className="w-3.5 h-3.5" />
+                        <ChevronRight className="w-3.5 h-3.5" />
                       )}
                       Account Metadata
                     </button>
@@ -1687,9 +1681,9 @@ export default function NameMetadata({ initialName }: NameMetadataProps) {
                       className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 mb-2"
                     >
                       {showContractMetadata ? (
-                        <ChevronDownIcon className="w-3.5 h-3.5" />
+                        <ChevronDown className="w-3.5 h-3.5" />
                       ) : (
-                        <ChevronRightIcon className="w-3.5 h-3.5" />
+                        <ChevronRight className="w-3.5 h-3.5" />
                       )}
                       Contract Metadata
                     </button>
@@ -1751,7 +1745,7 @@ export default function NameMetadata({ initialName }: NameMetadataProps) {
                         size="sm"
                         className="whitespace-nowrap border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
                       >
-                        <PlusIcon className="w-4 h-4 mr-1" />
+                        <Plus className="w-4 h-4 mr-1" />
                         Add
                       </Button>
                     </div>
@@ -1838,9 +1832,9 @@ function ParentHierarchyNode({
             className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
           >
             {node.expanded ? (
-              <ChevronUpIcon className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              <ChevronUp className="w-5 h-5 text-gray-600 dark:text-gray-400" />
             ) : (
-              <ChevronDownIcon className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              <ChevronDown className="w-5 h-5 text-gray-600 dark:text-gray-400" />
             )}
           </button>
           <button
@@ -1905,9 +1899,9 @@ function SubnameHierarchyNode({
             className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
           >
             {node.expanded ? (
-              <ChevronUpIcon className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              <ChevronUp className="w-5 h-5 text-gray-600 dark:text-gray-400" />
             ) : (
-              <ChevronDownIcon className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              <ChevronDown className="w-5 h-5 text-gray-600 dark:text-gray-400" />
             )}
           </button>
           <button

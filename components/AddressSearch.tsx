@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
 import { usePublicClient, useAccount } from 'wagmi'
-import { ethers, isAddress } from 'ethers'
-import { createPublicClient, http, parseAbi, toCoinType } from 'viem'
+import { createPublicClient, http, parseAbi, toCoinType, isAddress } from 'viem'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Search } from 'lucide-react'
@@ -45,14 +44,12 @@ export default function AddressSearch({
     }
   }, [chain?.id, manuallyChanged])
 
-  const getProvider = (chainId: number) => {
+  const getEnsClient = (chainId: number) => {
     const config = CONTRACTS[chainId as keyof typeof CONTRACTS]
     if (!config) {
       throw new Error(`Unsupported chain ID: ${chainId}`)
     }
-
-
-    return new ethers.JsonRpcProvider(config.RPC_ENDPOINT)
+    return createPublicClient({ transport: http(config.RPC_ENDPOINT) })
   }
 
   const handleSearch = async () => {
@@ -123,9 +120,9 @@ export default function AddressSearch({
             }) as `0x${string}`
             resolvedAddress = address
           } else {
-            const mainnetProvider = getProvider(ensChainId)
-            resolvedAddress =
-              await mainnetProvider.resolveName(cleanedQuery)
+            const { getEnsAddress } = await import('viem/actions')
+            const ensClient = getEnsClient(ensChainId)
+            resolvedAddress = await getEnsAddress(ensClient, { name: cleanedQuery })
           }
 
           if (resolvedAddress) {

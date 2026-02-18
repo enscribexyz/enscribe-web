@@ -39,8 +39,7 @@ import { getENS, fetchAssociatedNamesCount } from '../utils/ens'
 import Link from 'next/link'
 import Image from 'next/image'
 import SetNameStepsModal, { Step } from './SetNameStepsModal'
-import { CheckCircleIcon, XCircleIcon, ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline'
-import { Copy, Check, Info } from 'lucide-react'
+import { Copy, Check, Info, CheckCircle2, XCircle, ChevronDown, ChevronRight } from 'lucide-react'
 import { Checkbox } from '@/components/ui/checkbox'
 import { v4 as uuid } from 'uuid'
 import {
@@ -2619,9 +2618,9 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
               className="flex items-center gap-2 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors"
             >
               {isAdvancedOpen ? (
-                <ChevronDownIcon className="w-5 h-5" />
+                <ChevronDown className="w-5 h-5" />
               ) : (
-                <ChevronRightIcon className="w-5 h-5" />
+                <ChevronRight className="w-5 h-5" />
               )}
               <span className="text-lg font-medium">Advanced Options</span>
             </button>
@@ -2749,9 +2748,9 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
                        className="flex items-center gap-2 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors mb-2"
                      >
                        {isCallDataOpen ? (
-                         <ChevronDownIcon className="w-4 h-4" />
+                         <ChevronDown className="w-4 h-4" />
                        ) : (
-                         <ChevronRightIcon className="w-4 h-4" />
+                         <ChevronRight className="w-4 h-4" />
                        )}
                        <span className="text-sm font-medium">Call data</span>
                        <span className="text-xs text-gray-500 dark:text-gray-400">
