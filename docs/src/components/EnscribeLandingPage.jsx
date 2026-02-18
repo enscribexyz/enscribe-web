@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react"
 import Link from "@docusaurus/Link"
 import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
-import { FaGithub, FaTelegram, FaDiscord } from "react-icons/fa"
+import { FaGithub, FaYoutube, FaTelegram, FaDiscord } from "react-icons/fa"
 import { FaXTwitter } from "react-icons/fa6"
 import { SiFarcaster } from "react-icons/si";
 import { HiArrowRight, HiMenu, HiX, HiChevronDown } from "react-icons/hi"
@@ -764,6 +764,7 @@ export default function EnscribeLandingPage() {
                 {[
                   { to: "https://x.com/enscribe_", icon: <FaXTwitter className="h-4 w-4" />, label: "X" },
                   { to: "https://github.com/enscribexyz/enscribe", icon: <FaGithub className="h-4 w-4" />, label: "GitHub" },
+                  { to: "https://www.youtube.com/@enscribexyz", icon: <FaYoutube className="h-4 w-4" />, label: "GitHub" },
                   { to: "https://t.me/enscribers", icon: <FaTelegram className="h-4 w-4" />, label: "Telegram" },
                   { to: "https://discord.gg/8QUMMdS5GY", icon: <FaDiscord className="h-4 w-4" />, label: "Discord" },
                   { to: "https://warpcast.com/enscribe", icon: <SiFarcaster className="h-4 w-4" />, label: "Farcaster" },

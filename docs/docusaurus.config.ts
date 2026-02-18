@@ -216,6 +216,10 @@ const config = {
                 href: "https://x.com/enscribe_",
               },
               {
+                label: "YouTube",
+                href: "https://www.youtube.com/@enscribexyz",
+              },
+              {
                 label: "Farcaster",
                 href: "https://warpcast.com/enscribe",
               },
