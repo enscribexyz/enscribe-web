@@ -46,7 +46,6 @@ export function ThemeToggle() {
 
   // Debug logging
   React.useEffect(() => {
-    console.log('Theme toggle - Current theme:', theme, 'isDark:', isDark)
   }, [theme, isDark])
 
   return (

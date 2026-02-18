@@ -42,23 +42,15 @@ export const labelhashMap: Record<string, string> = {
  * @returns The healed label if found, otherwise the original labelhash
  */
 export function healLabelhash(labelhash: string): string {
-  console.log('[healLabelhash] Input hash:', labelhash)
 
   // Normalize the labelhash by ensuring it has 0x prefix
   const normalizedHash = labelhash.startsWith('0x')
     ? labelhash
     : `0x${labelhash}`
 
-  console.log('[healLabelhash] Normalized hash:', normalizedHash)
-  console.log(
-    '[healLabelhash] Lowercase for lookup:',
-    normalizedHash.toLowerCase(),
-  )
-  console.log('[healLabelhash] Available mappings:', Object.keys(labelhashMap))
 
   // Look up in the mapping
   const healedLabel = labelhashMap[normalizedHash.toLowerCase()]
-  console.log('[healLabelhash] Lookup result:', healedLabel)
 
   // Return healed label if found, otherwise return original
   return healedLabel || labelhash

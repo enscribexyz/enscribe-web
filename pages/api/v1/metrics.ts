@@ -24,7 +24,6 @@ export default async function handler(
       contract_type,
     } = req.body
 
-    console.log('saving in db: ' + contract_address)
 
     try {
       const { error } = await supabase.from('ens_named_contracts').insert({
@@ -42,14 +41,11 @@ export default async function handler(
       })
 
       if (error) {
-        console.log('error occurred: ' + error.details)
-        console.log(error.message)
         return res.status(500).json({ status: error.message })
       } else {
         return res.status(200).json({ status: 'success' })
       }
     } catch (error) {
-      console.log('error occurred: ' + error)
       return res.status(500).json({ status: 'error while logging' })
     }
   }

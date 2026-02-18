@@ -9,7 +9,6 @@ export async function getVerificationData(chainId: string, address: string) {
   let sourcify_verification = 'unverified'
 
   try {
-    console.log('sourcify-api - ', SOURCIFY_API + chainId + '/' + address)
     const res = await fetch(
       `${SOURCIFY_API}${chainId}/${address.toLowerCase()}`,
     )
@@ -27,7 +26,6 @@ export async function getVerificationData(chainId: string, address: string) {
 
   try {
     const etherscanApi = `${ETHERSCAN_API}&chainid=${chainId}&module=contract&action=getabi&address=${address}`
-    console.log('etherscan-api - ', etherscanApi)
     const res = await fetch(etherscanApi)
     const data = await res.json()
     if (data.message === 'OK') {
@@ -42,7 +40,6 @@ export async function getVerificationData(chainId: string, address: string) {
 
   try {
     const blockscoutApi = `${config?.BLOCKSCOUT_URL}api/v2/smart-contracts/${address}`
-    console.log('blockscout-api - ', blockscoutApi)
     const res = await fetch(blockscoutApi)
     const data = await res.json()
     if (data.is_verified === true) {

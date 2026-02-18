@@ -4,13 +4,6 @@ import { namehash, normalize } from 'viem/ens'
 import ensRegistryABI from '../contracts/ENSRegistry'
 import nameWrapperABI from '../contracts/NameWrapper'
 import { useAccount, useWalletClient } from 'wagmi'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -36,7 +29,7 @@ import {
   logMetric,
   checkIfSafe,
 } from '@/components/componentUtils'
-import { string } from 'postcss-selector-parser'
+import { DeployENSDomainModal } from '@/components/naming/DeployENSDomainModal'
 import {
   getEnsAddress,
   readContract,
@@ -75,7 +68,6 @@ const checkIfOwnable = (bytecode: string): boolean => {
 }
 
 const checkIfReverseClaimable = (bytecode: string): boolean => {
-  console.log('bytecode is rc? ' + bytecode.includes(ADDR_REVERSE_NODE))
   return bytecode.includes(ADDR_REVERSE_NODE)
 }
 
@@ -236,7 +228,6 @@ export default function DeployForm() {
       const { value: parsed, error } = parseJson(text)
 
       if (error || !parsed) {
-        console.log('Invalid ABI')
         setArgs([])
         setError('Invalid ABI JSON. Please paste a valid ABI array.')
       } else {
@@ -462,25 +453,15 @@ export default function DeployForm() {
         // Filter based on chain
         if (chain?.id === CHAINS.BASE) {
           // For Base chain, only keep .base.eth names
-          console.log(
-            '[DeployForm] Filtering owned domains for Base chain - only keeping .base.eth names',
-          )
           chainFilteredDomains = sortedDomains.filter((domain) =>
             domain.endsWith('.base.eth'),
           )
         } else if (chain?.id === CHAINS.BASE_SEPOLIA) {
           // For Base Sepolia, don't show any names
-          console.log(
-            '[DeployForm] Base Sepolia detected - not showing any owned ENS names',
-          )
           chainFilteredDomains = []
         }
 
         setUserOwnedDomains(chainFilteredDomains)
-        console.log(
-          'Fetched and processed user owned domains:',
-          chainFilteredDomains,
-        )
       }
     } catch (error) {
       console.error("Error fetching user's owned ENS domains:", error)
@@ -583,7 +564,6 @@ export default function DeployForm() {
         })) as boolean
         if (isWrapped) {
           // Wrapped Names
-          console.log(`Wrapped detected.`)
           return (await readContract(walletClient, {
             address: config.NAME_WRAPPER as `0x${string}`,
             abi: nameWrapperABI,
@@ -592,7 +572,6 @@ export default function DeployForm() {
           })) as boolean
         } else {
           //Unwrapped Names
-          console.log(`Unwrapped detected.`)
           return (await readContract(walletClient, {
             address: config.ENS_REGISTRY as `0x${string}`,
             abi: ensRegistryABI,
@@ -625,14 +604,6 @@ export default function DeployForm() {
         const approved = await checkOperatorAccess(parentName)
         setOperatorAccess(approved)
         
-        console.log(
-          'Auto-check for',
-          parentName,
-          '- Record exists:',
-          exist,
-          '- Operator access:',
-          approved,
-        )
       } catch (err) {
         console.error('Error checking parent name access:', err)
         setRecordExists(false)
@@ -899,7 +870,6 @@ export default function DeployForm() {
 
   const deployContract = async () => {
     if (!walletClient || !walletAddress) {
-      console.log('wallet not connected')
       return
     }
     if (isUnsupportedL2Chain) {
@@ -949,7 +919,6 @@ export default function DeployForm() {
       setError('Unsupported network')
     } else {
       setError('')
-      console.log('Using Enscribe contract:', config.ENSCRIBE_CONTRACT)
     }
 
     let deployedAddr = ''
@@ -972,9 +941,6 @@ export default function DeployForm() {
       const finalBytecode = encodeConstructorArgs(bytecode, args, setError)
       const steps: Step[] = []
 
-      console.log('label - ', labelNormalized)
-      console.log('parentName - ', parentNameNormalized)
-      console.log('parentNode - ', parentNode)
 
       const txCost = (await readContract(walletClient, {
         address: config?.ENSCRIBE_CONTRACT as `0x${string}`,
@@ -983,7 +949,6 @@ export default function DeployForm() {
         args: [],
       })) as bigint
 
-      console.log('txCost - ', txCost)
       let name = `${labelNormalized}.${parentNameNormalized}`
 
       // Check if connected wallet is a Safe wallet
@@ -1025,7 +990,6 @@ export default function DeployForm() {
                   'Ownable',
                   opType,
                 )} catch (err) {
-                  console.log('err ' + err)
                   setError('Failed to log metric')
                 }
                 return txn
@@ -1065,7 +1029,6 @@ export default function DeployForm() {
                     'Ownable',
                     opType,
                   )} catch (err) {
-                    console.log('err ' + err)
                     setError('Failed to log metric')
                   }
                 }
@@ -1109,7 +1072,6 @@ export default function DeployForm() {
                     'Ownable',
                     opType,
                   )} catch (err) {
-                    console.log('err ' + err)
                     setError('Failed to log metric')
                   }
                   return txn
@@ -1139,7 +1101,6 @@ export default function DeployForm() {
                     'Ownable',
                     opType,
                   )} catch (err) {
-                    console.log('err ' + err)
                     setError('Failed to log metric')
                   }
                   return txn
@@ -1178,7 +1139,6 @@ export default function DeployForm() {
                   'Ownable',
                   opType,
                 )} catch (err) {
-                  console.log('err ' + err)
                   setError('Failed to log metric')
                 }
                 return txn
@@ -1217,7 +1177,6 @@ export default function DeployForm() {
                     'Ownable',
                     opType,
                   )} catch (err) {
-                    console.log('err ' + err)
                     setError('Failed to log metric')
                   }
                 }
@@ -1226,7 +1185,6 @@ export default function DeployForm() {
             },
           })
         } else {
-          console.log("User's parent deployment type")
           const isWrapped = (await readContract(walletClient, {
             address: config?.NAME_WRAPPER as `0x${string}`,
             abi: nameWrapperABI,
@@ -1236,7 +1194,6 @@ export default function DeployForm() {
 
           if (isWrapped) {
             // Wrapped Names
-            console.log(`Wrapped detected.`)
             const isApprovedForAll = (await readContract(walletClient, {
               address: config?.NAME_WRAPPER as `0x${string}`,
               abi: nameWrapperABI,
@@ -1244,7 +1201,6 @@ export default function DeployForm() {
               args: [walletAddress, config?.ENSCRIBE_CONTRACT],
             })) as boolean
 
-            console.log('isApprovedForAll - ', isApprovedForAll)
             if (!isApprovedForAll) {
               steps.push({
                 title: 'Give operator access',
@@ -1270,7 +1226,6 @@ export default function DeployForm() {
                       'Ownable',
                       opType,
                     )} catch (err) {
-                      console.log('err ' + err)
                       setError('Failed to log metric')
                     }
                     return txn
@@ -1300,7 +1255,6 @@ export default function DeployForm() {
                       'Ownable',
                       opType,
                     )} catch (err) {
-                      console.log('err ' + err)
                       setError('Failed to log metric')
                     }
                     return txn
@@ -1310,7 +1264,6 @@ export default function DeployForm() {
             }
           } else {
             //Unwrapped Names
-            console.log(`Unwrapped detected.`)
             const isApprovedForAll = (await readContract(walletClient, {
               address: config?.ENS_REGISTRY as `0x${string}`,
               abi: ensRegistryABI,
@@ -1318,7 +1271,6 @@ export default function DeployForm() {
               args: [walletAddress, config?.ENSCRIBE_CONTRACT],
             })) as boolean
 
-            console.log('isApprovedForAll - ', isApprovedForAll)
             if (!isApprovedForAll) {
               steps.push({
                 title: 'Give operator access',
@@ -1344,7 +1296,6 @@ export default function DeployForm() {
                       'Ownable',
                       opType,
                     )} catch (err) {
-                      console.log('err ' + err)
                       setError('Failed to log metric')
                     }
                     return txn
@@ -1374,7 +1325,6 @@ export default function DeployForm() {
                       'Ownable',
                       opType,
                     )} catch (err) {
-                      console.log('err ' + err)
                       setError('Failed to log metric')
                     }
                     return txn
@@ -1414,7 +1364,6 @@ export default function DeployForm() {
                   'Ownable',
                   opType,
                 )} catch (err) {
-                  console.log('err ' + err)
                   setError('Failed to log metric')
                 }
                 return txn
@@ -1453,7 +1402,6 @@ export default function DeployForm() {
                     'Ownable',
                     opType,
                   )} catch (err) {
-                    console.log('err ' + err)
                     setError('Failed to log metric')
                   }
                 }
@@ -1483,7 +1431,6 @@ export default function DeployForm() {
 
           if (isWrapped) {
             // Wrapped Names
-            console.log(`Wrapped detected.`)
             const isApprovedForAll = (await readContract(walletClient, {
               address: config?.NAME_WRAPPER as `0x${string}`,
               abi: nameWrapperABI,
@@ -1516,7 +1463,6 @@ export default function DeployForm() {
                       'ReverseSetter',
                       opType,
                     )} catch (err) {
-                      console.log('err ' + err)
                       setError('Failed to log metric')
                     }
                     return txn
@@ -1546,7 +1492,6 @@ export default function DeployForm() {
                       'ReverseSetter',
                       opType,
                     )} catch (err) {
-                      console.log('err ' + err)
                       setError('Failed to log metric')
                     }
                     return txn
@@ -1556,7 +1501,6 @@ export default function DeployForm() {
             }
           } else {
             //Unwrapped Names
-            console.log(`Unwrapped detected.`)
             const isApprovedForAll = (await readContract(walletClient, {
               address: config?.ENS_REGISTRY as `0x${string}`,
               abi: ensRegistryABI,
@@ -1589,7 +1533,6 @@ export default function DeployForm() {
                       'ReverseSetter',
                       opType,
                     )} catch (err) {
-                      console.log('err ' + err)
                       setError('Failed to log metric')
                     }
                     return txn
@@ -1620,7 +1563,6 @@ export default function DeployForm() {
                       'ReverseSetter',
                       opType,
                     )} catch (err) {
-                      console.log('err ' + err)
                       setError('Failed to log metric')
                     }
                     return txn
@@ -1661,7 +1603,6 @@ export default function DeployForm() {
                   'ReverseSetter',
                   opType,
                 )} catch (err) {
-                  console.log('err ' + err)
                   setError('Failed to log metric')
                 }
                 return txn
@@ -1703,7 +1644,6 @@ export default function DeployForm() {
                     'ReverseSetter',
                     opType,
                   )} catch (err) {
-                    console.log('err ' + err)
                     setError('Failed to log metric')
                   }
                 }
@@ -1723,7 +1663,6 @@ export default function DeployForm() {
 
           if (isWrapped) {
             // Wrapped Names
-            console.log(`Wrapped detected.`)
             const isApprovedForAll = (await readContract(walletClient, {
               address: config?.NAME_WRAPPER as `0x${string}`,
               abi: nameWrapperABI,
@@ -1756,7 +1695,6 @@ export default function DeployForm() {
                       'ReverseClaimer',
                       opType,
                     )} catch (err) {
-                      console.log('err ' + err)
                       setError('Failed to log metric')
                     }
                     return txn
@@ -1786,7 +1724,6 @@ export default function DeployForm() {
                       'ReverseClaimer',
                       opType,
                     )} catch (err) {
-                      console.log('err ' + err)
                       setError('Failed to log metric')
                     }
                     return txn
@@ -1796,7 +1733,6 @@ export default function DeployForm() {
             }
           } else {
             //Unwrapped Names
-            console.log(`Unwrapped detected.`)
             const isApprovedForAll = (await readContract(walletClient, {
               address: config?.ENS_REGISTRY as `0x${string}`,
               abi: ensRegistryABI,
@@ -1829,7 +1765,6 @@ export default function DeployForm() {
                       'ReverseClaimer',
                       opType,
                     )} catch (err) {
-                      console.log('err ' + err)
                       setError('Failed to log metric')
                     }
                     return txn
@@ -1860,7 +1795,6 @@ export default function DeployForm() {
                       'ReverseClaimer',
                       opType,
                     )} catch (err) {
-                      console.log('err ' + err)
                       setError('Failed to log metric')
                     }
                     return txn
@@ -1901,7 +1835,6 @@ export default function DeployForm() {
                   'ReverseClaimer',
                   opType,
                 )} catch (err) {
-                  console.log('err ' + err)
                   setError('Failed to log metric')
                 }
                 return txn
@@ -1943,7 +1876,6 @@ export default function DeployForm() {
                     'ReverseClaimer',
                     opType,
                   )} catch (err) {
-                    console.log('err ' + err)
                     setError('Failed to log metric')
                   }
                 }
@@ -2252,12 +2184,6 @@ export default function DeployForm() {
                   setRecordExists(exist)
 
                   const approved = await checkOperatorAccess(parentName)
-                  console.log(
-                    'Operator check for ',
-                    parentName,
-                    ' is ',
-                    approved,
-                  )
                   setOperatorAccess(approved)
                 }}
                 placeholder="mydomain.eth"
@@ -2327,163 +2253,20 @@ export default function DeployForm() {
         )}
       </div>
 
-      {/* Add ENS Selection Modal */}
-      <Dialog open={showENSModal} onOpenChange={setShowENSModal}>
-        <DialogContent className="max-w-3xl bg-white dark:bg-gray-900 shadow-lg rounded-lg">
-          <DialogHeader className="mb-4">
-            <DialogTitle className="text-xl font-semibold text-gray-900 dark:text-white">
-              Choose Your ENS Parent
-            </DialogTitle>
-            <DialogDescription className="text-sm text-gray-600 dark:text-gray-300 mt-1">
-              Choose one of your owned ENS domains or enter manually.
-            </DialogDescription>
-          </DialogHeader>
-
-          {fetchingENS ? (
-            <div className="flex justify-center items-center p-6">
-              <svg
-                className="animate-spin h-5 w-5 mr-3 text-indigo-600 dark:text-indigo-400"
-                viewBox="0 0 24 24"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                ></circle>
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8v8H4z"
-                ></path>
-              </svg>
-              <p className="text-gray-700 dark:text-gray-300">
-                Fetching your ENS domains...
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-4 px-1">
-              {userOwnedDomains.length > 0 ? (
-                <div className="max-h-[50vh] overflow-y-auto pr-1">
-                  {(() => {
-                    // Function to get the 2LD for a domain
-                    const get2LD = (domain: string): string => {
-                      const parts = domain.split('.')
-                      if (parts.length < 2) return domain
-                      return `${parts[parts.length - 2]}.${parts[parts.length - 1]}`
-                    }
-
-                    // Separate domains with labelhashes
-                    const domainsWithLabelhash = userOwnedDomains.filter(
-                      (domain) => domain.includes('[') && domain.includes(']'),
-                    )
-                    const regularDomains = userOwnedDomains.filter(
-                      (domain) =>
-                        !(domain.includes('[') && domain.includes(']')),
-                    )
-
-                    // Group regular domains by 2LD
-                    const domainGroups: { [key: string]: string[] } = {}
-
-                    regularDomains.forEach((domain) => {
-                      const parent2LD = get2LD(domain)
-                      if (!domainGroups[parent2LD]) {
-                        domainGroups[parent2LD] = []
-                      }
-                      domainGroups[parent2LD].push(domain)
-                    })
-
-                    // Sort 2LDs alphabetically
-                    const sorted2LDs = Object.keys(domainGroups).sort()
-
-                    return (
-                      <div className="space-y-4">
-                        {/* Regular domains grouped by 2LD */}
-                        {sorted2LDs.map((parent2LD) => (
-                          <div
-                            key={parent2LD}
-                            className="border-b border-gray-200 dark:border-gray-700 pb-4 last:border-0"
-                          >
-                            <div className="flex flex-wrap gap-2">
-                              {domainGroups[parent2LD].map((domain, index) => (
-                                <div
-                                  key={domain}
-                                  className={`px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-full cursor-pointer transition-colors inline-flex items-center ${index === 0 ? 'bg-gray-100 hover:bg-gray-200 dark:bg-gray-800' : 'bg-white dark:bg-gray-900 hover:bg-gray-200 dark:hover:bg-gray-800'}`}
-                                  onClick={() => {
-                                    setParentName(domain)
-                                    setShowENSModal(false)
-                                  }}
-                                >
-                                  <span className="text-gray-800 dark:text-gray-200 font-medium whitespace-nowrap">
-                                    {domain}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        ))}
-
-                        {/* Domains with labelhashes at the end */}
-                        {domainsWithLabelhash.length > 0 && (
-                          <div className="pt-2">
-                            <div className="flex flex-wrap gap-2">
-                              {domainsWithLabelhash.map((domain) => (
-                                <div
-                                  key={domain}
-                                  className="px-4 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-full cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors inline-flex items-center"
-                                  onClick={() => {
-                                    setParentName(domain)
-                                    setShowENSModal(false)
-                                  }}
-                                >
-                                  <span className="text-gray-800 dark:text-gray-200 font-medium whitespace-nowrap">
-                                    {domain}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })()}
-                </div>
-              ) : (
-                <div className="text-center py-6 bg-gray-50 dark:bg-gray-800 rounded-md">
-                  <p className="text-gray-500 dark:text-gray-400">
-                    No ENS domains found for your address.
-                  </p>
-                </div>
-              )}
-
-              <div className="flex justify-end gap-3 mt-6">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setParentName('')
-                    setShowENSModal(false)
-                  }}
-                  className="hover:bg-gray-200 text-black"
-                >
-                  Enter manually
-                </Button>
-                <Button
-                  onClick={() => {
-                    setShowENSModal(false)
-                  }}
-                  className="bg-gray-900 hover:bg-gray-800 text-white"
-                >
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      <DeployENSDomainModal
+        open={showENSModal}
+        onOpenChange={setShowENSModal}
+        fetchingENS={fetchingENS}
+        userOwnedDomains={userOwnedDomains}
+        onSelectDomain={(domain) => {
+          setParentName(domain)
+          setShowENSModal(false)
+        }}
+        onEnterManually={() => {
+          setParentName('')
+          setShowENSModal(false)
+        }}
+      />
 
       <Button
         onClick={deployContract}

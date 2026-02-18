@@ -141,13 +141,11 @@ export const checkIfSafe = async (connector: any): Promise<boolean> => {
     // Method 1: Check if connector is the Safe connector from wagmi (@wagmi/connectors)
     // The Safe connector has id 'safe'
     if (connector.id === 'safe') {
-      console.log('Safe connector detected via Safe SDK')
       return true
     }
 
     // Method 2: Check if Safe Apps SDK is available (indicates we're in Safe environment)
     if (typeof window !== 'undefined' && (window as any).__SAFE_APPS_SDK__) {
-      console.log('Safe Apps SDK detected - we are inside Safe environment')
       return true
     }
 
@@ -160,13 +158,11 @@ export const checkIfSafe = async (connector: any): Promise<boolean> => {
             parentHostname.includes('safe.global') ||
             parentHostname.includes('app.safe.global')
           ) {
-            console.log('Safe iframe context detected')
             return true
           }
         } catch (crossOriginError) {
           // Cross-origin access blocked - this indicates we're in a secure iframe (likely Safe)
           if (crossOriginError instanceof DOMException && crossOriginError.name === 'SecurityError') {
-            console.log('Cross-origin SecurityError detected (definitely Safe!)')
             return true
           }
         }
@@ -178,20 +174,15 @@ export const checkIfSafe = async (connector: any): Promise<boolean> => {
     // Method 4: Check WalletConnect session metadata (existing method for WalletConnect-based Safe)
     const connectorProvider: any = await connector?.getProvider()
     if (!connectorProvider) {
-      console.log('No connector provider available')
       return false
     }
 
     const session = connectorProvider?.session
     if (!session) {
-      console.log('No session available')
       return false
     }
 
     const { name: peerName } = session.peer.metadata
-    console.log(
-      `peerName.startsWith('Safe'): ${peerName.startsWith('Safe')} ${peerName}`,
-    )
     return peerName.startsWith('Safe')
   } catch (error) {
     console.error('Error detecting Safe wallet:', error)

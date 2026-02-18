@@ -11,6 +11,7 @@ import { ThemeAwareRainbowKit } from '@/components/ThemeAwareRainbowKit'
 import { SafeAutoConnect } from '@/components/SafeAutoConnect'
 import { CONTRACTS, CHAINS } from '@/utils/constants'
 import { WAGMI_CHAINS } from '@/lib/chains'
+import { ChainProvider } from '@/hooks/useSelectedChain'
 import '@rainbow-me/rainbowkit/styles.css'
 import '@/styles/globals.css'
 
@@ -107,9 +108,11 @@ export default function MyApp({ Component, pageProps }: AppProps) {
         <WagmiProvider config={wagmiConfig}>
           <ThemeAwareRainbowKit>
             <SafeAutoConnect />
-            <TransactionProvider>
-              <Component {...pageProps} />
-            </TransactionProvider>
+            <ChainProvider>
+              <TransactionProvider>
+                <Component {...pageProps} />
+              </TransactionProvider>
+            </ChainProvider>
           </ThemeAwareRainbowKit>
         </WagmiProvider>
       </QueryClientProvider>

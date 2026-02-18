@@ -46,7 +46,6 @@ export default function SearchModal({
   // Update local state when prop changes
   useEffect(() => {
     if (propSelectedChain !== undefined) {
-      console.log('Using chain from Layout:', propSelectedChain)
       setSelectedChain(propSelectedChain)
     }
   }, [propSelectedChain])
@@ -54,7 +53,6 @@ export default function SearchModal({
   // Sync with wallet chain if connected and not manually changed
   useEffect(() => {
     if (chain?.id && !manuallyChanged) {
-      console.log('Wallet connected to chain:', chain.id, chain.name)
       setSelectedChain(chain.id)
     }
   }, [chain?.id, manuallyChanged])
@@ -62,13 +60,8 @@ export default function SearchModal({
   // Also sync selectedChain when wallet connects/disconnects
   useEffect(() => {
     if (chain?.id) {
-      console.log('SearchModal: Using wallet chain:', chain.id)
       setSelectedChain(chain.id)
     } else if (propSelectedChain) {
-      console.log(
-        'SearchModal: Using selected chain from props:',
-        propSelectedChain,
-      )
       setSelectedChain(propSelectedChain)
     }
   }, [chain?.id, propSelectedChain])
@@ -103,7 +96,6 @@ export default function SearchModal({
       throw new Error(`Unsupported chain ID: ${chainId}`)
     }
 
-    console.log(`Using RPC endpoint for chain ${chainId}:`, config.RPC_ENDPOINT)
 
     return new ethers.JsonRpcProvider(config.RPC_ENDPOINT)
   }, [])
@@ -124,10 +116,6 @@ export default function SearchModal({
       const isValidAddress = isAddress(cleanedQuery)
       const containsDot = cleanedQuery.includes('.')
 
-      console.log('Search query:', cleanedQuery)
-      console.log('Is valid address:', isValidAddress)
-      console.log('Contains dot (possible ENS):', containsDot)
-      console.log('Using chain for search:', selectedChain)
 
       // Make sure Layout knows this chain selection is intentional
       if (propSetManuallyChanged) {
@@ -149,11 +137,6 @@ export default function SearchModal({
         // Not a valid address but contains a dot - try ENS resolution
         try {
           const ensName = cleanedQuery as string
-          console.log(
-            'Input contains a dot, trying to resolve as ENS name:',
-            ensName,
-          )
-          console.log('Using chain for exploration:', selectedChain)
 
           // Validate ENS name format before attempting resolution
           // Check for common invalid patterns
@@ -182,11 +165,6 @@ export default function SearchModal({
           // Use mainnet for mainnets, sepolia for testnets for ENS resolution
           const ensChainId = isTestnet ? CHAINS.SEPOLIA : CHAINS.MAINNET
 
-          console.log(
-            'Using chain for ENS resolution:',
-            ensChainId,
-            isTestnet ? '(testnet)' : '(mainnet)',
-          )
 
           let resolvedAddress: string | null = null
 
@@ -217,7 +195,6 @@ export default function SearchModal({
                 functionName: 'addr',
                 args: [namehash(ensName)],
               })) as `0x${string}`
-              console.log('Base resolver address:', address)
               // Check if address is not zero address
               if (
                 address &&
@@ -373,10 +350,8 @@ export default function SearchModal({
     type: 'explore' | 'nameMetadata'
   }) => {
     if (result.type === 'nameMetadata') {
-      console.log('Navigating to Name Metadata page')
       window.location.href = `/nameMetadata?name=${encodeURIComponent(result.name)}`
     } else {
-      console.log('Using hard redirect to ensure proper contract detection')
       window.location.href = `/explore/${selectedChain}/${result.name}`
     }
     onClose()

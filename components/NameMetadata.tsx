@@ -58,6 +58,7 @@ import {
 import publicResolverABI from '../contracts/PublicResolver'
 import { useToast } from '@/hooks/use-toast'
 import Image from 'next/image'
+import { useSelectedChain } from '@/hooks/useSelectedChain'
 
 interface TextRecord {
   key: string
@@ -178,14 +179,11 @@ interface TextRecordInput {
 }
 
 interface NameMetadataProps {
-  selectedChain?: number
-  initialName?: string // Accept initial name as prop
+  initialName?: string
 }
 
-export default function NameMetadata({
-  selectedChain,
-  initialName,
-}: NameMetadataProps) {
+export default function NameMetadata({ initialName }: NameMetadataProps) {
+  const { selectedChain } = useSelectedChain()
   const { chain, address: walletAddress, connector } = useAccount()
   const { data: walletClient } = useWalletClient()
   const { toast } = useToast()
@@ -288,7 +286,6 @@ export default function NameMetadata({
     
     // If URL has a name and it's different from current name, fetch it (for browser back/forward)
     if (urlName && urlName !== currentName && config?.SUBGRAPH_API && !loading) {
-      console.log(`[NameMetadata] URL changed to: ${urlName}, fetching metadata`)
       setSearchName(urlName)
       handleSearchForName(urlName)
     }
@@ -898,11 +895,6 @@ export default function NameMetadata({
       // Use mainnet for mainnets, sepolia for testnets
       const ensChainId = isTestnet ? CHAINS.SEPOLIA : CHAINS.MAINNET
 
-      console.log(
-        'Using chain for ENS resolution:',
-        ensChainId,
-        isTestnet ? '(testnet)' : '(mainnet)',
-      )
 
       // For Base chains, use their public resolver
       if (
@@ -933,7 +925,6 @@ export default function NameMetadata({
             args: [namehash(name)],
           })) as `0x${string}`
 
-          console.log('Base resolver address:', address)
 
           // Check if address is not zero address
           if (

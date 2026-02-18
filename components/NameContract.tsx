@@ -62,6 +62,9 @@ import { createPublicClient, http, toCoinType } from 'viem'
 import enscribeContractABI from '../contracts/Enscribe'
 import ownableContractABI from '@/contracts/Ownable'
 import { useSearchParams } from 'next/navigation'
+import { ContractStatusPanel } from '@/components/naming/ContractStatusPanel'
+import { SubmitButton } from '@/components/naming/SubmitButton'
+import { L2ChainPickerDialog } from '@/components/naming/L2ChainPickerDialog'
 
 export default function NameContract() {
   const router = useRouter()
@@ -188,7 +191,6 @@ export default function NameContract() {
   useEffect(() => {
     // Don't reset form if modal is open (to prevent closing during Optimism transaction)
     if (modalOpen) {
-      console.log('Modal is open, skipping form reset to prevent interruption')
       return
     }
 
@@ -356,7 +358,6 @@ export default function NameContract() {
       // Populate form only when wallet is connected
       if (!walletClient) return
 
-      console.log(`wallet name: ${walletClient.name}`)
       setExistingContractAddress(addr)
       isAddressValid(addr)
       await checkIfOwnable(addr)
@@ -454,7 +455,6 @@ export default function NameContract() {
       try {
         labelNormalized = normalize(label)
       } catch (error) {
-        console.log('Invalid label:', label, error)
         setCallDataList([])
         setAllCallData('')
         return
@@ -474,7 +474,6 @@ export default function NameContract() {
             try {
               parentNameNormalized = normalize(trimmedParent)
             } catch (error) {
-              console.log('Invalid parent name:', trimmedParent, error)
               parentNameNormalized = ''
             }
           }
@@ -520,7 +519,6 @@ export default function NameContract() {
                  args: [parentNode],
                })) as boolean
              } catch (error) {
-               console.log('Error checking if wrapped:', error)
                isWrapped = false
              }
            }
@@ -853,10 +851,6 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
         let chainFilteredDomains = sortedDomains
 
         setUserOwnedDomains(chainFilteredDomains)
-        console.log(
-          'Fetched and processed user owned domains:',
-          chainFilteredDomains,
-        )
       }
     } catch (error) {
       console.error("Error fetching user's owned ENS domains:", error)
@@ -875,12 +869,6 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
 
     // Validate label and parent name before checking
     // Only require parentName for "Create New Name" flow
-    console.log(
-      'checkENSReverseResolution - selectedAction:',
-      selectedAction,
-      'parentName:',
-      parentName,
-    )
     
     // In "use existing name" flow, validate that the name contains dots (full ENS name)
     if (selectedAction === 'pick') {
@@ -959,14 +947,11 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
       })
 
       if (code && code !== '0x') {
-        console.log('Contract exists on L1')
         setIsContractExists(true)
       } else {
-        console.log('Contract does not exist on L1')
         setIsContractExists(false)
       }
     } catch (err) {
-      console.log('Error checking contract existence:', err)
       setIsContractExists(false)
     }
   }
@@ -990,14 +975,10 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
         functionName: 'owner',
         args: [],
       })) as `0x${string}`
-      console.log(
-        `ownerAddress: ${ownerAddress.toLowerCase()} signer: ${walletAddress}`,
-      )
       setIsContractOwner(
         ownerAddress.toLowerCase() == walletAddress.toLowerCase(),
       )
     } catch (err) {
-      console.log('err ' + err)
       const addrLabel = address.slice(2).toLowerCase()
       const reversedNode = namehash(addrLabel + '.' + 'addr.reverse')
       const resolvedAddr = (await readContract(walletClient, {
@@ -1007,9 +988,6 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
         args: [reversedNode],
       })) as string
 
-      console.log(
-        `resolvedAddr: ${resolvedAddr.toLowerCase()} signer: ${walletAddress}`,
-      )
       setIsContractOwner(
         resolvedAddr.toLowerCase() == walletAddress.toLowerCase(),
       )
@@ -1034,12 +1012,10 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
         args: [],
       })) as `0x${string}`
 
-      console.log('contract ownable')
       setIsOwnable(true)
       setIsAddressInvalid(false)
       setError('')
     } catch (err) {
-      console.log('err ' + err)
       setIsAddressEmpty(false)
       setIsAddressInvalid(false)
       setIsOwnable(false)
@@ -1063,7 +1039,6 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
 
     // Only check L2 ownable if we're on L1 chains (mainnet or sepolia)
     if (chain?.id !== CHAINS.MAINNET && chain?.id !== CHAINS.SEPOLIA) {
-      console.log('Not on L1 chain, skipping L2 ownable checks')
       // Reset all L2 ownable states
       setIsOwnableOptimism(null)
       setIsOwnableArbitrum(null)
@@ -1105,13 +1080,6 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
       },
     ]
 
-    console.log(
-      `Checking ownable status on all L2 ${isL1Mainnet ? 'mainnet' : 'testnet'} chains in parallel...`,
-    )
-    console.log(
-      'L2 chains to check:',
-      l2Chains.map((c) => `${c.name} (${c.chainId})`),
-    )
 
     type OwnableResult = { name: string; isOwnable: boolean; error?: string }
 
@@ -1146,10 +1114,8 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
             args: [],
           })) as `0x${string}`
 
-          console.log(`${l2Chain.name} contract ownable`)
           return { name: l2Chain.name, isOwnable: true }
         } catch (err) {
-          console.log(`${l2Chain.name} contract not ownable: ${err}`)
           return { name: l2Chain.name, isOwnable: false }
         }
       }),
@@ -1163,7 +1129,6 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
       }
     })
 
-    console.log('L2 ownable checks completed:', results)
   }
 
   const checkIfReverseClaimable = async (address: string) => {
@@ -1187,20 +1152,16 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
         functionName: 'owner',
         args: [reversedNode],
       })) as `0x${string}`
-      console.log('resolvedaddr is ' + resolvedAddr)
 
       if (resolvedAddr.toLowerCase() === walletAddress.toLowerCase()) {
-        console.log('contract implements reverseclaimable')
         setIsReverseClaimable(true)
       } else {
-        console.log('contract DOES NOT implement reverseclaimable')
         setIsReverseClaimable(false)
       }
 
       setIsAddressInvalid(false)
       setError('')
     } catch (err) {
-      console.log('err ' + err)
       setIsAddressEmpty(false)
       setIsAddressInvalid(false)
       setIsReverseClaimable(false)
@@ -1238,9 +1199,6 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
 
     // Force clear error for "Use Existing Name" flow
     if (selectedAction === 'pick') {
-      console.log(
-        'setPrimaryName - Use Existing Name flow detected, clearing any existing errors',
-      )
       setError('')
     }
 
@@ -1292,23 +1250,7 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
     }
 
     // Only require parentName for "Create New Name" flow
-    console.log(
-      'setPrimaryName - selectedAction:',
-      selectedAction,
-      'parentName:',
-      parentName,
-    )
-    console.log(
-      'setPrimaryName - selectedAction !== "pick":',
-      selectedAction !== 'pick',
-    )
-    console.log('setPrimaryName - !parentName.trim():', !parentName.trim())
-    console.log(
-      'setPrimaryName - condition result:',
-      selectedAction !== 'pick' && !parentName.trim(),
-    )
     if (selectedAction !== 'pick' && !parentName.trim()) {
-      console.log('setPrimaryName - Setting error: Parent name cannot be empty')
       setError('Parent name cannot be empty')
       return
     }
@@ -1341,16 +1283,6 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
         // Remove any trailing dots before normalizing
         const cleanedLabel = label.replace(/\.$/, '')
         name = normalize(cleanedLabel)
-        console.log(
-          'Use Existing Name flow - label:',
-          label,
-          'cleanedLabel:',
-          cleanedLabel,
-          'labelNormalized:',
-          labelNormalized,
-          'name:',
-          name,
-        )
       } else {
         // Create New Name flow: construct from label and parent
         labelNormalized = normalize(label)
@@ -1359,20 +1291,6 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
         const constructedName =
           `${labelNormalized}.${parentNameNormalized}`.replace(/\.$/, '')
         name = normalize(constructedName)
-        console.log(
-          'Create New Name flow - label:',
-          label,
-          'parentName:',
-          parentName,
-          'labelNormalized:',
-          labelNormalized,
-          'parentNameNormalized:',
-          parentNameNormalized,
-          'constructedName:',
-          constructedName,
-          'name:',
-          name,
-        )
       }
       const chainId = chain?.id!
 
@@ -1445,7 +1363,6 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
 
       // Check balances on all selected L2 chains using RPC calls (in parallel)
       if (l2ChainsForBalanceCheck.length > 0) {
-        console.log('Checking balances on all selected L2 chains...')
 
         type BalanceResult = { name: string; balance?: bigint; error?: string }
 
@@ -1481,7 +1398,6 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
               }
 
               const balance = BigInt(data.result)
-              console.log(`Balance on ${l2Chain.name}: ${balance} wei`)
               return { name: l2Chain.name, balance }
             } catch (e: any) {
               return {
@@ -1519,7 +1435,6 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
           return
         }
 
-        console.log('All L2 chain balances verified successfully!')
       }
 
       const steps: Step[] = []
@@ -1537,11 +1452,6 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
       //   setError('Failed to get public resolver')
       // }
 
-      console.log('label - ', labelNormalized)
-      console.log('label hash - ', labelHash)
-      console.log('parentName - ', parentNameNormalized)
-      console.log('parentNode - ', parentNode)
-      console.log('name node - ', node)
 
       const txCost = (await readContract(walletClient, {
         address: config.ENSCRIBE_CONTRACT as `0x${string}`,
@@ -1550,7 +1460,6 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
         args: [],
       })) as bigint
 
-      console.log('txCost - ', txCost)
 
       const titleFirst =
         parentType === 'web3labs'
@@ -1567,7 +1476,6 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
           title: titleFirst,
           chainId: chainId, // Add chainId for L1 transaction
           action: async () => {
-            console.log(`nameExist is ${nameExist} parentType is ${parentType}`)
             if (parentType === 'web3labs') {
               const currentAddr = (await readContract(walletClient, {
                 address: publicResolverAddress,
@@ -1580,9 +1488,6 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
                 currentAddr.toLowerCase() !==
                 existingContractAddress.toLowerCase()
               ) {
-                console.log(
-                  'create subname::writeContract calling setName on ENSCRIBE_CONTRACT',
-                )
                 let txn
 
                 if (isSafeWallet) {
@@ -1631,14 +1536,12 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
                       opType,
                     )
                   } catch (err) {
-                    console.log('err ' + err)
                     setError('Failed to log metric')
                   }
                 }
                 return txn
               } else {
                 setError('Forward resolution already set')
-                console.log('Forward resolution already set')
               }
             } else if (chainId === CHAINS.BASE || chainId === CHAINS.BASE_SEPOLIA) {
               const ensRegistryAbi = parseAbi([
@@ -1668,7 +1571,6 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
                     opType,
                   )
                 } catch (err) {
-                  console.log('err ' + err)
                   setError('Failed to log metric')
                 }
               }
@@ -1680,12 +1582,8 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
                 functionName: 'isWrapped',
                 args: [parentNode],
               })
-              console.log(`nameExist is ${nameExist}`)
               if (!nameExist) {
                 if (isWrapped) {
-                  console.log(
-                    'create subname::writeContract calling setSubnodeRecord on NAME_WRAPPER',
-                  )
                   let txn
 
                   if (isSafeWallet) {
@@ -1738,15 +1636,11 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
                         opType,
                       )
                     } catch (err) {
-                      console.log('err ' + err)
                       setError('Failed to log metric')
                     }
                   }
                   return txn
                 } else {
-                  console.log(
-                    'create subname::writeContract calling setSubnodeRecord on ENS_REGISTRY',
-                  )
                   let txn
 
                   if (isSafeWallet) {
@@ -1795,7 +1689,6 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
                         opType,
                       )
                     } catch (err) {
-                      console.log('err ' + err)
                       setError('Failed to log metric')
                     }
                   }
@@ -1816,11 +1709,9 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
           functionName: 'resolver',
           args: [node],
         }) as `0x${string}`
-        console.log('using resolverAddr for forward resolution: ', resolverAddr)
 
         if (resolverAddr === '0x0000000000000000000000000000000000000000' || resolverAddr === null || resolverAddr === undefined) {
           setError('No resolver found for this name')
-          console.log('No resolver found for this name')
           return '';
         }
       } else { // setting forward resolution for a new name
@@ -1852,10 +1743,8 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
                 args: [node],
               })) as `0x${string}`
             }
-            console.log('currentAddr returned from PUBLIC_RESOLVER::addr - ', currentAddr)
 
             if (currentAddr.toLowerCase() !== existingContractAddress.toLowerCase()) {
-              console.log('set fwdres::writeContract calling setAddr on PUBLIC_RESOLVER')
               let txn
 
               if (chainId === CHAINS.BASE || chainId === CHAINS.BASE_SEPOLIA) {
@@ -1888,7 +1777,6 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
                       opType,
                     )
                   } catch (err) {
-                    console.log('err ' + err)
                     setError('Failed to log metric')
                   }
                 }
@@ -1928,7 +1816,6 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
                       opType,
                     )
                   } catch (err) {
-                    console.log('err ' + err)
                     setError('Failed to log metric')
                   }
                 }
@@ -1936,7 +1823,6 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
               }
             } else {
               setError('Forward resolution already set')
-              console.log('Forward resolution already set')
             }
           },
         })
@@ -1949,9 +1835,6 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
           title: 'Set reverse resolution',
           chainId: chainId, // Add chainId for L1 transaction
           action: async () => {
-            console.log(
-              'set revres::writeContract calling setNameForAddr on REVERSE_REGISTRAR',
-            )
             let txn
 
             if (chainId === CHAINS.BASE || chainId === CHAINS.BASE_SEPOLIA) {
@@ -1977,7 +1860,6 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
 
               if (existingName.toLowerCase() === name.toLowerCase()) {
                 setError('Reverse resolution already set')
-                console.log('Reverse resolution already set')
                 return '';
               }
 
@@ -2020,7 +1902,6 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
                     opType,
                   )
                 } catch (err) {
-                  console.log('err ' + err)
                   setError('Failed to log metric')
                 }
               }
@@ -2028,10 +1909,8 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
               return txn
             } else {
               const existingEnsName = await getEnsName(walletClient, {address: existingContractAddress as `0x${string}`});
-              console.log('ens name is ' + existingEnsName)
               if (existingEnsName && existingEnsName.toLowerCase() === name.toLowerCase()) {
                 setError('Reverse resolution already set')
-                console.log('Reverse resolution already set')
                 return '';
               }
 
@@ -2079,7 +1958,6 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
                     opType,
                   )
                 } catch (err) {
-                  console.log('err ' + err)
                   setError('Failed to log metric')
                 }
               }
@@ -2095,9 +1973,6 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
           title: 'Set reverse resolution',
           chainId: chainId, // Add chainId for L1 transaction
           action: async () => {
-            console.log(
-              'set revres::writeContract calling setName on PUBLIC_RESOLVER',
-            )
 
             let txn
 
@@ -2135,7 +2010,6 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
                   opType,
                 )
               } catch (err) {
-                console.log('err ' + err)
                 setError('Failed to log metric')
               }
             }
@@ -2243,14 +2117,12 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
                       opType,
                     )
                   } catch (err) {
-                    console.log('err ' + err)
                     setError('Failed to log metric')
                   }
                 }
                 return txn
               } else {
                 setError('Forward resolution already set on this chain')
-                console.log('Forward resolution already set on this chain')
               }
             },
           })
@@ -2300,29 +2172,19 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
             title: `Switch to ${l2Chain.name} and set L2 primary name`,
             chainId: l2Chain.chainId, // Add chainId for L2 transaction
             action: async () => {
-              console.log(`Starting ${l2Chain.name} L2 primary name step...`)
 
-              console.log(
-                `Switching to ${l2Chain.name} (chain ID: ${l2Chain.chainId})...`,
-              )
 
               // Switch to L2 chain
               await switchChain({ chainId: l2Chain.chainId })
 
               // Wait a moment for the chain switch to complete
-              console.log('Waiting for chain switch to complete...')
               await new Promise((resolve) => setTimeout(resolve, 3000))
 
               // Wait for the chain to actually change
-              console.log('Waiting for chain to actually change...')
               let attempts = 0
               while (attempts < 10) {
                 const currentChain = await walletClient.getChainId()
-                console.log(
-                  `Current chain ID: ${currentChain}, Target: ${l2Chain.chainId}`,
-                )
                 if (currentChain === l2Chain.chainId) {
-                  console.log('Chain switch confirmed!')
                   break
                 }
                 await new Promise((resolve) => setTimeout(resolve, 1000))
@@ -2336,13 +2198,6 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
               }
 
               // Now execute the reverse resolution transaction on L2
-              console.log(`Executing reverse resolution on ${l2Chain.name}...`)
-              console.log(
-                'L2 Reverse Registrar:',
-                l2Config.L2_REVERSE_REGISTRAR,
-              )
-              console.log('Contract Address:', existingContractAddress)
-              console.log('ENS Name:', skipSubnameCreation ? label : name)
 
               // Perform reverse resolution on L2
               let txn
@@ -2409,7 +2264,6 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
                 })
               }
 
-              console.log(`${l2Chain.name} transaction submitted:`, txn)
 
               // Log the L2 transaction
               if (!isTestNet(l2Chain.chainId)) {
@@ -2427,7 +2281,6 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
                     opType,
                   )
                 } catch (err) {
-                  console.log('err ' + err)
                   setError('Failed to log metric')
                 }
               }
@@ -2507,135 +2360,20 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
           className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200}`}
         />
 
-        {/* Contract Status Information */}
-        {((!isAddressEmpty && !isContractOwner) ||
-          isOwnable ||
-          (isReverseClaimable && !isOwnable)) && (
-          <div className="flex flex-col space-y-1 mt-4">
-            {!isAddressEmpty && !isContractOwner && isOwnable && (
-              <div className="flex items-center">
-                <XCircleIcon className="w-5 h-5 inline text-red-500 cursor-pointer" />
-                <p className="text-gray-600 inline ml-1 dark:text-gray-300">
-                  {chain?.name}: You are not the contract owner and cannot set
-                  its primary name
-                </p>
-              </div>
-            )}
-            {(isOwnable || (isReverseClaimable && !isOwnable)) && (
-              <div className="space-y-1">
-                {isOwnable && (
-                  <div className="flex items-center">
-                    <CheckCircleIcon className="w-5 h-5 text-green-500 mr-1" />
-                    <p className="text-gray-700 dark:text-gray-200">
-                      {chain?.name}: Contract implements{' '}
-                      <Link
-                        href="https://docs.openzeppelin.com/contracts/access-control#ownership-and-ownable"
-                        className="text-blue-600 hover:underline dark:text-blue-400 dark:hover:text-blue-300"
-                      >
-                        Ownable
-                      </Link>
-                    </p>
-                  </div>
-                )}
-                {isReverseClaimable && !isOwnable && (
-                  <div className="flex items-center">
-                    <CheckCircleIcon className="w-5 h-5 text-green-500 mr-1" />
-                    <p className="text-gray-700 dark:text-gray-200">
-                      {chain?.name}: Contract is{' '}
-                      <Link
-                        href="https://docs.ens.domains/web/naming-contracts#reverseclaimersol"
-                        className="text-blue-600 hover:underline dark:text-blue-400 dark:hover:text-blue-300"
-                      >
-                        ReverseClaimable
-                      </Link>
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
 
-            {/* L2 Ownable Information */}
-            {!isAddressEmpty && (
-              <div className="space-y-1">
-                {isOwnableOptimism === true && (
-                  <div className="flex items-center">
-                    <CheckCircleIcon className="w-5 h-5 text-green-500 mr-1" />
-                    <p className="text-gray-700 dark:text-gray-200">
-                      Contract implements{' '}
-                      <Link
-                        href="https://docs.openzeppelin.com/contracts/access-control#ownership-and-ownable"
-                        className="text-blue-600 hover:underline dark:text-blue-400 dark:hover:text-blue-300"
-                      >
-                        Ownable
-                      </Link>{' '}
-                      on Optimism
-                    </p>
-                  </div>
-                )}
-                {isOwnableArbitrum === true && (
-                  <div className="flex items-center">
-                    <CheckCircleIcon className="w-5 h-5 text-green-500 mr-1" />
-                    <p className="text-gray-700 dark:text-gray-200">
-                      Contract implements{' '}
-                      <Link
-                        href="https://docs.openzeppelin.com/contracts/access-control#ownership-and-ownable"
-                        className="text-blue-600 hover:underline dark:text-blue-400 dark:hover:text-blue-300"
-                      >
-                        Ownable
-                      </Link>{' '}
-                      on Arbitrum
-                    </p>
-                  </div>
-                )}
-                {isOwnableScroll === true && (
-                  <div className="flex items-center">
-                    <CheckCircleIcon className="w-5 h-5 text-green-500 mr-1" />
-                    <p className="text-gray-700 dark:text-gray-200">
-                      Contract implements{' '}
-                      <Link
-                        href="https://docs.openzeppelin.com/contracts/access-control#ownership-and-ownable"
-                        className="text-blue-600 hover:underline dark:text-blue-400 dark:hover:text-blue-300"
-                      >
-                        Ownable
-                      </Link>{' '}
-                      on Scroll
-                    </p>
-                  </div>
-                )}
-                {isOwnableBase === true && (
-                  <div className="flex items-center">
-                    <CheckCircleIcon className="w-5 h-5 text-green-500 mr-1" />
-                    <p className="text-gray-700 dark:text-gray-200">
-                      Contract implements{' '}
-                      <Link
-                        href="https://docs.openzeppelin.com/contracts/access-control#ownership-and-ownable"
-                        className="text-blue-600 hover:underline dark:text-blue-400 dark:hover:text-blue-300"
-                      >
-                        Ownable
-                      </Link>{' '}
-                      on Base
-                    </p>
-                  </div>
-                )}
-                {isOwnableLinea === true && (
-                  <div className="flex items-center">
-                    <CheckCircleIcon className="w-5 h-5 text-green-500 mr-1" />
-                    <p className="text-gray-700 dark:text-gray-200">
-                      Contract implements{' '}
-                      <Link
-                        href="https://docs.openzeppelin.com/contracts/access-control#ownership-and-ownable"
-                        className="text-blue-600 hover:underline dark:text-blue-400 dark:hover:text-blue-300"
-                      >
-                        Ownable
-                      </Link>{' '}
-                      on Linea
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
+        {/* Contract Status Information */}
+        <ContractStatusPanel
+          isAddressEmpty={isAddressEmpty}
+          isContractOwner={isContractOwner}
+          isOwnable={isOwnable}
+          isReverseClaimable={isReverseClaimable}
+          isOwnableOptimism={isOwnableOptimism}
+          isOwnableArbitrum={isOwnableArbitrum}
+          isOwnableScroll={isOwnableScroll}
+          isOwnableBase={isOwnableBase}
+          isOwnableLinea={isOwnableLinea}
+          chainName={chain?.name}
+        />
 
         {/* Error message for invalid Ownable/ReverseClaimable bytecode */}
         {/* Only show error after L2 checks are complete (not null) when on L1 chains */}
@@ -2689,7 +2427,6 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
                 setSldAsPrimary(false) // Reset to subname mode
                 setError('') // Clear any existing errors
                 // TODO: Implement create subname functionality
-                console.log('Create New Name selected')
               }
             }}
           >
@@ -3418,81 +3155,21 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
         </DialogContent>
       </Dialog>
 
+
       {/* L2 Selection Modal */}
-      <Dialog open={showL2Modal} onOpenChange={setShowL2Modal}>
-        <DialogContent className="max-w-3xl bg-white dark:bg-gray-900 shadow-lg rounded-lg">
-          <DialogHeader className="mb-4">
-            <DialogTitle className="text-xl font-semibold text-gray-900 dark:text-white">
-              Choose L2 Chains
-            </DialogTitle>
-            <DialogDescription className="text-sm text-gray-600 dark:text-gray-300 mt-1">
-              Select one or more L2 chains.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {L2_CHAIN_OPTIONS.map((chainName) => {
-              const isSelected = selectedL2ChainNames.includes(chainName)
-              const disabled = false
-              const logoSrc =
-                chainName === 'Optimism'
-                  ? '/images/optimism.svg'
-                  : chainName === 'Arbitrum'
-                    ? '/images/arbitrum.svg'
-                    : chainName === 'Scroll'
-                      ? '/images/scroll.svg'
-                      : chainName === 'Base'
-                        ? '/images/base.svg'
-                        : '/images/linea.svg'
-              return (
-                <button
-                  key={chainName}
-                  type="button"
-                  disabled={disabled}
-                  onClick={() => {
-                    if (isSelected) {
-                      setSelectedL2ChainNames((prev) =>
-                        prev.filter((n) => n !== chainName),
-                      )
-                    } else {
-                      setSelectedL2ChainNames((prev) => [...prev, chainName])
-                    }
-                  }}
-                  className={`flex items-center gap-3 p-3 border rounded-lg text-left transition-colors ${
-                    isSelected
-                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                      : 'border-gray-200 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800'
-                  }`}
-                >
-                  <Image
-                    src={logoSrc}
-                    alt={`${chainName} logo`}
-                    width={24}
-                    height={24}
-                  />
-                  <span className="text-gray-800 dark:text-gray-200">
-                    {chainName}
-                  </span>
-                  {isSelected && (
-                    <span className="ml-auto text-xs px-2 py-0.5 rounded-full bg-blue-600 text-white">
-                      Selected
-                    </span>
-                  )}
-                </button>
-              )
-            })}
-          </div>
-
-          <div className="flex justify-end gap-3 mt-6">
-            <Button
-              onClick={() => setShowL2Modal(false)}
-              className="bg-gray-900 text-white dark:bg-blue-700 dark:hover:bg-gray-800 dark:text-white"
-            >
-              Done
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <L2ChainPickerDialog
+        open={showL2Modal}
+        onClose={() => setShowL2Modal(false)}
+        chainOptions={L2_CHAIN_OPTIONS}
+        selectedChains={selectedL2ChainNames}
+        onToggleChain={(chainName) => {
+          if (selectedL2ChainNames.includes(chainName)) {
+            setSelectedL2ChainNames((prev) => prev.filter((n) => n !== chainName))
+          } else {
+            setSelectedL2ChainNames((prev) => [...prev, chainName])
+          }
+        }}
+      />
 
       {/* Register New Name Dialog */}
       <Dialog open={showRegisterDialog} onOpenChange={setShowRegisterDialog}>
@@ -3535,64 +3212,20 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
         </DialogContent>
       </Dialog>
 
-      <div className="flex gap-4 mt-6">
-        <Button
-          onClick={() => setPrimaryName()}
-          disabled={
-            !isConnected ||
-            loading ||
-            isAddressEmpty ||
-            isAddressInvalid ||
-            (isEmpty(label) && !(selectedAction === 'pick' && ensNameChosen)) ||
-            isUnsupportedL2Chain ||
-            parentType === 'register'
-          }
-          className="relative overflow-hidden w-full py-6 text-lg font-medium transition-all duration-300 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-600 hover:shadow-lg hover:shadow-blue-500/30 hover:-translate-y-0.5 focus:ring-4 focus:ring-blue-500/30 group"
-          style={{
-            backgroundSize: '200% 100%',
-          }}
-        >
-          {/* Background animation elements */}
-          <span className="absolute top-0 left-0 w-full h-full bg-white/10 transform -skew-x-12 group-hover:animate-shimmer pointer-events-none"></span>
-          <span className="absolute bottom-0 right-0 w-12 h-12 bg-white/20 rounded-full blur-xl group-hover:animate-pulse pointer-events-none"></span>
 
-          {loading ? (
-            <div className="flex items-center justify-center relative z-10">
-              <svg
-                className="animate-spin h-6 w-6 mr-3 text-white"
-                viewBox="0 0 24 24"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                ></circle>
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8v8H4z"
-                ></path>
-              </svg>
-              <span className="animate-pulse">Processing...</span>
-            </div>
-          ) : (
-            <div className="flex items-center justify-center relative z-10">
-              <span className="group-hover:scale-105 transition-transform duration-300 dark:text-white">
-                Name Your Contract
-              </span>
-              <span className="ml-2 inline-block animate-rocket">🚀</span>
-            </div>
-          )}
-
-          {/* Edge glow effect – only on hover */}
-          <span className="absolute inset-0 h-full w-full bg-gradient-to-r from-blue-500/0 via-blue-500/40 to-blue-500/0 opacity-0 group-hover:opacity-100 group-hover:animate-shine pointer-events-none"></span>
-        </Button>
-      </div>
+      <SubmitButton
+        loading={loading}
+        disabled={
+          !isConnected ||
+          loading ||
+          isAddressEmpty ||
+          isAddressInvalid ||
+          (isEmpty(label) && !(selectedAction === 'pick' && ensNameChosen)) ||
+          isUnsupportedL2Chain ||
+          parentType === 'register'
+        }
+        onClick={() => setPrimaryName()}
+      />
 
       {error && (
         <div className="mt-4 bg-red-50 dark:bg-red-900 border border-red-300 dark:border-red-700 text-red-700 dark:text-red-300 text-sm rounded-md p-3 break-words max-w-full overflow-hidden">
@@ -3603,7 +3236,6 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
       <SetNameStepsModal
         open={modalOpen}
         onClose={(result) => {
-          console.log('Modal closed with result:', result)
           setModalOpen(false)
           if (result?.startsWith('ERROR')) {
             // Extract the actual error message (remove 'ERROR: ' prefix)
@@ -3617,7 +3249,6 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
               'Steps not completed. Please complete all steps before closing.',
             )
           } else {
-            console.log('Success - resetting form')
             // setDeployedAddress(existingContractAddress)
             // Reset form after successful naming
             setExistingContractAddress('')

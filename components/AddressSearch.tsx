@@ -34,7 +34,6 @@ export default function AddressSearch({
   // Update local state when prop changes
   useEffect(() => {
     if (propSelectedChain !== undefined) {
-      console.log('Using chain from Layout:', propSelectedChain)
       setSelectedChain(propSelectedChain)
     }
   }, [propSelectedChain])
@@ -42,7 +41,6 @@ export default function AddressSearch({
   // Sync with wallet chain if connected and not manually changed
   useEffect(() => {
     if (chain?.id && !manuallyChanged) {
-      console.log('Wallet connected to chain:', chain.id, chain.name)
       setSelectedChain(chain.id)
     }
   }, [chain?.id, manuallyChanged])
@@ -53,7 +51,6 @@ export default function AddressSearch({
       throw new Error(`Unsupported chain ID: ${chainId}`)
     }
 
-    console.log(`Using RPC endpoint for chain ${chainId}:`, config.RPC_ENDPOINT)
 
     return new ethers.JsonRpcProvider(config.RPC_ENDPOINT)
   }
@@ -73,10 +70,6 @@ export default function AddressSearch({
       const isValidAddress = isAddress(cleanedQuery)
       const containsDot = cleanedQuery.includes('.')
 
-      console.log('Search query:', cleanedQuery)
-      console.log('Is valid address:', isValidAddress)
-      console.log('Contains dot (possible ENS):', containsDot)
-      console.log('Using chain for search:', selectedChain)
 
       // Make sure Layout knows this chain selection is intentional
       if (propSetManuallyChanged) {
@@ -88,15 +81,10 @@ export default function AddressSearch({
         // It's a valid Ethereum address, redirect to explore page
         // Always use window.location for a full refresh to ensure contract status is re-checked
         // Add a timestamp parameter to prevent caching issues
-        console.log('Using hard redirect to ensure proper contract detection')
         window.location.href = `/explore/${selectedChain}/${cleanedQuery}`
       } else if (containsDot) {
         // Not a valid address but contains a dot - try ENS resolution
         try {
-          console.log(
-            'Input contains a dot, trying to resolve as ENS name:',
-            cleanedQuery,
-          )
 
           // Determine if we're on a testnet
           const isTestnet = [
@@ -108,11 +96,6 @@ export default function AddressSearch({
           // Use mainnet for mainnets, sepolia for testnets
           const ensChainId = isTestnet ? CHAINS.SEPOLIA : CHAINS.MAINNET
 
-          console.log(
-            'Using chain for ENS resolution:',
-            ensChainId,
-            isTestnet ? '(testnet)' : '(mainnet)',
-          )
 
           let resolvedAddress: string | null = null
 
@@ -138,7 +121,6 @@ export default function AddressSearch({
               functionName: 'addr',
               args: [namehash(cleanedQuery), toCoinType(selectedChain)],
             }) as `0x${string}`
-            console.log('address: ', address)
             resolvedAddress = address
           } else {
             const mainnetProvider = getProvider(ensChainId)
@@ -148,9 +130,6 @@ export default function AddressSearch({
 
           if (resolvedAddress) {
             // Always use window.location for a full refresh to ensure contract status is re-checked
-            console.log(
-              'Using hard redirect for resolved ENS to ensure proper contract detection',
-            )
             window.location.href = `/explore/${selectedChain}/${cleanedQuery}`
           } else {
             setError("ENS name doesn't resolve to any address")

@@ -66,7 +66,6 @@ export default function ContractHistory() {
 
   useEffect(() => {
     // if (!isConnected || !walletAddress || !walletClient) return
-    console.log(`use effect called, chain: ${chainId}`)
     const controller = new AbortController()
     const signal = controller.signal
     let isMounted = true
@@ -80,7 +79,6 @@ export default function ContractHistory() {
       try {
         // const url = `${etherscanApi}&action=txlist&address=${address}`
 
-        console.log('etherscan api - ', etherscanApi)
         const res = await fetch(etherscanApi, { signal })
         const data = await res.json()
 
@@ -88,9 +86,6 @@ export default function ContractHistory() {
 
         for (const tx of data.result || []) {
           if (signal.aborted || !isMounted || !walletClient) {
-            console.log(
-              `signal aborted: ${signal.aborted}, isMounted: ${isMounted}, walletClient: ${walletClient}`,
-            )
             break
           }
 
@@ -138,7 +133,6 @@ export default function ContractHistory() {
 
             if (isMounted) {
               if (ensName) {
-                console.log(`setWithENS`)
                 setWithENS((prev) => {
                   const alreadyExists = prev.some(
                     (c) => c.contractAddress === contract.contractAddress,
@@ -146,7 +140,6 @@ export default function ContractHistory() {
                   return alreadyExists ? prev : [contract, ...prev]
                 })
               } else {
-                console.log(`setWithoutENS`)
                 setWithoutENS((prev) => {
                   const alreadyExists = prev.some(
                     (c) => c.contractAddress === contract.contractAddress,
@@ -155,7 +148,6 @@ export default function ContractHistory() {
                 })
               }
             } else {
-              console.log('not mounted')
             }
           } else if (
             ['0xacd71554', '0x04917062', '0x7ed7e08c', '0x5a0dac49'].includes(
@@ -189,7 +181,6 @@ export default function ContractHistory() {
                 attestation,
               }
 
-              console.log('contract - ', contract)
 
               if (isMounted) {
                 if (ensName) {
@@ -285,7 +276,6 @@ export default function ContractHistory() {
 
       return resolvedAddr === walletAddress
     } catch (err) {
-      console.log('err ' + err)
       return false
     }
   }
