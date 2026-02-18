@@ -1,6 +1,7 @@
 import React from 'react'
 import type { AppProps } from 'next/app'
 import Head from 'next/head'
+import Script from 'next/script'
 import { WagmiProvider } from 'wagmi'
 import type { Config } from 'wagmi'
 import {
@@ -47,40 +48,34 @@ export default function MyApp({ Component, pageProps }: AppProps) {
   const [wagmiConfig, setWagmiConfig] = React.useState<Config | null>(null)
 
   React.useEffect(() => {
-    // Initialize wagmi config on client side only
     const initWagmi = async () => {
       const rainbowkit = await import('@rainbow-me/rainbowkit')
       const { safe } = await import('@wagmi/connectors')
       const { createConfig, http, createStorage } = await import('wagmi')
 
-      // Get RainbowKit connector functions
       const { connectors } = rainbowkit.getDefaultWallets({
         appName: 'enscribe',
-        projectId: '6dfc28e3bd034be8e0d5ceaf0ee5c224',
+        projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? '',
       })
 
-      // Create Safe connector
       const safeConnector = safe({
         allowedDomains: [/app.safe.global$/, /safe.global$/],
         debug: false,
       })
 
-      // Create wagmi config with all connectors + localStorage for reconnection
-      // Use explicit RPC endpoints to avoid eth.merkle.io rate limiting
       const config = createConfig({
         chains,
         connectors: [...connectors, safeConnector],
         transports: chains.reduce(
           (acc, chain) => {
-            // Get RPC endpoint from CONTRACTS config
             const chainConfig = CONTRACTS[chain.id as CHAINS]
             const rpcUrl = chainConfig?.RPC_ENDPOINT
-            
+
             if (rpcUrl) {
               acc[chain.id] = http(rpcUrl)
             } else {
               console.warn(`No RPC endpoint configured for chain ${chain.id}`)
-              acc[chain.id] = http() // Fallback to default
+              acc[chain.id] = http()
             }
             return acc
           },
@@ -97,17 +92,43 @@ export default function MyApp({ Component, pageProps }: AppProps) {
     initWagmi()
   }, [])
 
-  // Don't render until wagmi config is ready
   if (!wagmiConfig) {
-    return null
+    return (
+      <div className="flex min-h-screen bg-background">
+        {/* Sidebar skeleton */}
+        <div className="hidden lg:flex lg:w-64 lg:flex-col bg-gray-900 dark:bg-gray-950" />
+        {/* Main content skeleton */}
+        <div className="flex flex-1 flex-col">
+          {/* Header skeleton */}
+          <div className="h-16 border-b border-border bg-background" />
+          {/* Page skeleton */}
+          <div className="flex flex-1 items-center justify-center">
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
     <ThemeProvider defaultTheme="system" storageKey="enscribe-theme">
       <Head>
-        <title>Give your smart contracts on Ethereum an identity with Enscribe. Powered by ENS.</title>
+        <title>
+          Give your smart contracts on Ethereum an identity with Enscribe. Powered by ENS.
+        </title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
+      {/* GA4 — loaded after page is interactive */}
+      <Script
+        src="https://www.googletagmanager.com/gtag/js?id=G-ZP0CQ3RP8K"
+        strategy="lazyOnload"
+      />
+      <Script id="ga-init" strategy="lazyOnload">{`
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-ZP0CQ3RP8K');
+      `}</Script>
       <QueryClientProvider client={queryClient}>
         <WagmiProvider config={wagmiConfig}>
           <ThemeAwareRainbowKit>

@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main, claude-refactor]
+  pull_request:
+    branches: [main]
+
+jobs:
+  ci:
+    name: Typecheck, Lint, Test, Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm run test
+
+      - name: Build
+        run: npm run build
+        env:
+          # Provide empty env vars so build doesn't fail on missing config
+          NEXT_PUBLIC_ENABLE_TESTNETS: 'false'
+          NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID: 'ci-placeholder'
