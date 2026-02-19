@@ -1,12 +1,10 @@
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/router'
-import { usePublicClient, useAccount } from 'wagmi'
+import { useAccount } from 'wagmi'
 import { createPublicClient, http, parseAbi, toCoinType, isAddress } from 'viem'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Search } from 'lucide-react'
 import { CHAINS, CONTRACTS } from '@/utils/constants'
-import { useAccount as useWagmiAccount } from 'wagmi'
 import { readContract } from 'viem/actions'
 import { namehash } from 'viem/ens'
 
@@ -27,8 +25,7 @@ export default function AddressSearch({
   )
   const [manuallyChanged, setManuallyChanged] = useState(false)
 
-  const router = useRouter()
-  const { chain } = useWagmiAccount()
+  const { chain } = useAccount()
 
   // Update local state when prop changes
   useEffect(() => {

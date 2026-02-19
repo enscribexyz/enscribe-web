@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { useRouter } from 'next/router'
+import { useRouter, useSearchParams } from 'next/navigation'
 import contractABI from '../contracts/Enscribe'
 import ensRegistryABI from '../contracts/ENSRegistry'
 import nameWrapperABI from '../contracts/NameWrapper'
@@ -60,13 +60,13 @@ import { isAddress, keccak256, toBytes, encodeFunctionData, parseAbi, encodePack
 import { createPublicClient, http, toCoinType } from 'viem'
 import enscribeContractABI from '../contracts/Enscribe'
 import ownableContractABI from '@/contracts/Ownable'
-import { useSearchParams } from 'next/navigation'
 import { ContractStatusPanel } from '@/components/naming/ContractStatusPanel'
 import { SubmitButton } from '@/components/naming/SubmitButton'
 import { L2ChainPickerDialog } from '@/components/naming/L2ChainPickerDialog'
 
 export default function NameContract() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { address: walletAddress, isConnected, chain } = useAccount()
   const { connector } = useAccount()
   const { data: walletClient } = useWalletClient()
@@ -323,20 +323,22 @@ export default function NameContract() {
 
   useEffect(() => {
     const run = async () => {
-      if (!router.isReady || !router.query.contract || !isAddress(router.query.contract as string)) {
+      const contractParam = searchParams.get('contract')
+      if (!contractParam || !isAddress(contractParam)) {
         return
       }
 
-      const addr = router.query.contract as string
+      const addr = contractParam
 
       // Blockscout redirect: run even when wallet is disconnected (use URL chainId when no wallet)
-      const urlChainId = router.query.chainId != null ? Number(router.query.chainId) : null
+      const chainIdParam = searchParams.get('chainId')
+      const urlChainId = chainIdParam != null ? Number(chainIdParam) : null
       const redirectChainId =
         urlChainId != null && !Number.isNaN(urlChainId) && CONTRACTS[urlChainId]
           ? urlChainId
           : chain?.id
 
-      if (router.query.utm === 'blockscout' && redirectChainId) {
+      if (searchParams.get('utm') === 'blockscout' && redirectChainId) {
         try {
           const primaryName = await getENS(addr, redirectChainId)
           if (primaryName && primaryName.length > 0) {
@@ -363,10 +365,8 @@ export default function NameContract() {
       await checkIfReverseClaimable(addr)
     }
 
-    if (router.isReady) {
-      run()
-    }
-  }, [router.query.contract, router.query.chainId, router.query.utm, router.isReady, walletClient, chain?.id])
+    run()
+  }, [searchParams, walletClient, chain?.id])
 
   useEffect(() => {
     if (parentType === 'web3labs' && config?.ENSCRIBE_DOMAIN) {

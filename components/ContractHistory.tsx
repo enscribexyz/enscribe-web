@@ -28,6 +28,7 @@ import {
 } from '../utils/constants'
 import ensRegistryABI from '../contracts/ENSRegistry'
 import { CircleAlert, Info, ShieldCheck } from 'lucide-react'
+import { Skeleton } from '@/components/ui/skeleton'
 import { getEnsName, namehash } from 'viem/ens'
 import { readContract, waitForTransactionReceipt } from 'viem/actions'
 import type { Address } from 'viem'
@@ -588,11 +589,16 @@ export default function ContractHistory() {
                   )}
 
                   {processing && (
-                    <TableRow>
-                      <TableCell colSpan={4} className="text-center py-4">
-                        <div className="w-6 h-6 mx-auto border-4 border-gray-300 border-t-black rounded-full animate-spin"></div>
-                      </TableCell>
-                    </TableRow>
+                    <>
+                      {[...Array(3)].map((_, i) => (
+                        <TableRow key={`skel-without-${i}`}>
+                          <TableCell><Skeleton className="h-4 w-40" /></TableCell>
+                          <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                          <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+                          <TableCell><Skeleton className="h-8 w-28 mx-auto" /></TableCell>
+                        </TableRow>
+                      ))}
+                    </>
                   )}
                 </TableBody>
               </Table>
@@ -903,11 +909,16 @@ export default function ContractHistory() {
                   )}
 
                   {processing && (
-                    <TableRow>
-                      <TableCell colSpan={4} className="text-center py-4">
-                        <div className="w-6 h-6 mx-auto border-4 border-gray-300 border-t-black rounded-full animate-spin"></div>
-                      </TableCell>
-                    </TableRow>
+                    <>
+                      {[...Array(3)].map((_, i) => (
+                        <TableRow key={`skel-with-${i}`}>
+                          <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                          <TableCell><Skeleton className="h-4 w-40" /></TableCell>
+                          <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+                          <TableCell><Skeleton className="h-8 w-48 mx-auto" /></TableCell>
+                        </TableRow>
+                      ))}
+                    </>
                   )}
                 </TableBody>
               </Table>

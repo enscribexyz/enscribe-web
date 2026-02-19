@@ -23,7 +23,7 @@ import { EnscribeLogo } from './EnscribeLogo'
 import { ConnectErrorBoundary } from './ConnectErrorBoundary'
 import { SidebarNav } from './navigation/SidebarNav'
 import { useAccount } from 'wagmi'
-import { useRouter } from 'next/router'
+import { useRouter, usePathname, useParams, useSearchParams } from 'next/navigation'
 import { useSelectedChain } from '@/hooks/useSelectedChain'
 
 interface LayoutProps {
@@ -46,6 +46,9 @@ export default function Layout({ children }: LayoutProps) {
   const [prevConnected, setPrevConnected] = useState(false)
   const [prevChain, setPrevChain] = useState<number | undefined>()
   const router = useRouter()
+  const pathname = usePathname()
+  const params = useParams()
+  const searchParams = useSearchParams()
 
   const navigation = useMemo(
     () => [
@@ -69,28 +72,25 @@ export default function Layout({ children }: LayoutProps) {
 
   // Initialize selectedChain from URL on first load only
   useEffect(() => {
-    if (
-      router.isReady &&
-      router.query.chainId &&
-      typeof router.query.chainId === 'string' &&
-      !manuallyChanged
-    ) {
-      const chainIdFromUrl = parseInt(router.query.chainId)
+    const chainIdParam = params?.chainId
+    if (chainIdParam && typeof chainIdParam === 'string' && !manuallyChanged) {
+      const chainIdFromUrl = parseInt(chainIdParam)
       if (!isNaN(chainIdFromUrl)) {
         setSelectedChain(chainIdFromUrl)
       }
     }
-  }, [router.isReady, router.query.chainId, manuallyChanged, setSelectedChain])
+  }, [params?.chainId, manuallyChanged, setSelectedChain])
 
   useEffect(() => {
-    const isExplorePage = router.pathname.startsWith('/explore')
-    const isNameContractPage = router.pathname === '/nameContract'
+    const isExplorePage = pathname?.startsWith('/explore')
+    const isNameContractPage = pathname === '/nameContract'
 
     if (!isExplorePage || isNameContractPage) return
 
+    const chainIdParam = params?.chainId
     const urlChainId =
-      router.query.chainId && typeof router.query.chainId === 'string'
-        ? parseInt(router.query.chainId)
+      chainIdParam && typeof chainIdParam === 'string'
+        ? parseInt(chainIdParam)
         : undefined
 
     if (isConnected && !prevConnected && urlChainId && connector?.switchChain) {
@@ -103,14 +103,15 @@ export default function Layout({ children }: LayoutProps) {
       router.push('/')
     }
 
+    const addressParam = params?.address
     if (
       isConnected &&
       chain?.id &&
       prevChain !== undefined &&
       chain.id !== prevChain &&
-      router.query.address
+      addressParam
     ) {
-      const address = router.query.address as string
+      const address = addressParam as string
       window.location.href = `/explore/${chain.id}/${address}`
     }
 
@@ -119,16 +120,16 @@ export default function Layout({ children }: LayoutProps) {
   }, [
     isConnected,
     chain?.id,
-    router.pathname,
-    router.query.chainId,
-    router.query.address,
+    pathname,
+    params?.chainId,
+    params?.address,
     connector,
     prevConnected,
     prevChain,
   ])
 
   return (
-    <div className="flex min-h-screen bg-gray-100 dark:bg-gray-200 transition-colors duration-200">
+    <div className="flex min-h-screen bg-background transition-colors duration-200">
       {/* Desktop Sidebar - Fixed */}
       <aside className="hidden lg:flex lg:flex-col lg:fixed lg:inset-y-0 lg:left-0 lg:w-66 bg-gray-900 dark:bg-gray-800 text-white shadow-md z-10">
         <div className="flex-1 overflow-y-auto">
@@ -260,8 +261,8 @@ export default function Layout({ children }: LayoutProps) {
                 onChainChange={(chainId) => {
                   setManuallyChanged(true)
                   setSelectedChain(chainId)
-                  if (router.query.chainId && router.query.address) {
-                    const address = router.query.address as string
+                  if (params?.chainId && params?.address) {
+                    const address = params.address as string
                     window.location.href = `/explore/${chainId}/${address}`
                   }
                 }}

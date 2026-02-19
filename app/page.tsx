@@ -13,6 +13,7 @@ import { FileText, Layers, Rocket, History, Wallet, Search } from 'lucide-react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import SearchModal from '../components/SearchModal'
+import { motion } from 'framer-motion'
 import { useAccount } from 'wagmi'
 
 const ConnectButton = dynamic(
@@ -95,11 +96,26 @@ export default function Home() {
         </div>
 
         {/* Feature Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-6xl mb-12">
+        <motion.div
+          className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-6xl mb-12"
+          initial="hidden"
+          animate="visible"
+          variants={{
+            hidden: {},
+            visible: { transition: { staggerChildren: 0.1 } },
+          }}
+        >
           {features.map((feature, index) => {
             const Icon = feature.icon
             return (
-              <Link href={feature.href} key={index}>
+              <motion.div
+                key={index}
+                variants={{
+                  hidden: { opacity: 0, y: 24 },
+                  visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: 'easeOut' } },
+                }}
+              >
+              <Link href={feature.href}>
                 <Card className="h-full transition-all duration-300 hover:shadow-xl hover:scale-105 cursor-pointer border-2 border-border hover:border-ring">
                   <CardHeader>
                     <div className="flex items-start space-x-4">
@@ -118,9 +134,10 @@ export default function Home() {
                   </CardHeader>
                 </Card>
               </Link>
+              </motion.div>
             )
           })}
-        </div>
+        </motion.div>
 
         {/* Action Buttons */}
         <div className="flex flex-col items-center gap-6 w-full max-w-lg mb-12">

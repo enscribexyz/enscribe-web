@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button'
 import { CheckCircle, Loader2, XCircle, Clock, ChevronDown, ChevronUp } from 'lucide-react'
 import { CONTRACTS, TOPIC0 } from '../utils/constants'
 import { useAccount, useWalletClient } from 'wagmi'
-import { useRouter } from 'next/router'
+import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { X } from 'lucide-react'
 import {

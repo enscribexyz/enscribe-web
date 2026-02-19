@@ -2,24 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
-}
-
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -49,6 +31,7 @@ body {
     --radius: 0.5rem;
   }
   .dark {
+    color-scheme: dark;
     --background: 0 0% 15%;
     --foreground: 0 0% 98%;
     --card: 0 0% 20%;
@@ -82,40 +65,6 @@ body {
   }
   body {
     @apply bg-background text-foreground;
+    font-family: Arial, Helvetica, sans-serif;
   }
-}
-
-/* Force dark mode styles to take precedence */
-.dark {
-  color-scheme: dark;
-}
-
-.dark body {
-  background-color: hsl(0 0% 15%);
-  color: hsl(0 0% 98%);
-}
-
-/* Ensure dark mode classes work properly - but exclude theme toggle button */
-.dark .bg-white:not([data-theme-toggle]) {
-  background-color: hsl(0 0% 20%) !important;
-}
-
-.dark .text-gray-900 {
-  color: hsl(0 0% 98%) !important;
-}
-
-/* Additional dark mode overrides for better compatibility */
-.dark .bg-gray-100 {
-  background-color: hsl(0 0% 15%) !important;
-}
-
-.dark .bg-gray-50 {
-  background-color: hsl(0 0% 20%) !important;
-}
-
-/* Ensure transitions work smoothly */
-* {
-  transition-property: background-color, border-color, color, fill, stroke;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 150ms;
 }

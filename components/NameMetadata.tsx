@@ -20,7 +20,8 @@ import {
 } from '../utils/labelhashMapping'
 import { Loader2, X, Search, ExternalLink, ChevronDown, ChevronUp, Plus, ChevronRight } from 'lucide-react'
 import SearchModal from './SearchModal'
-import { useRouter } from 'next/router'
+import { useRouter } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import {
   writeContract,
   waitForTransactionReceipt,
@@ -181,6 +182,7 @@ export default function NameMetadata({ initialName }: NameMetadataProps) {
   const { data: walletClient } = useWalletClient()
   const { toast } = useToast()
   const router = useRouter()
+  const searchParams = useSearchParams()
 
   const [searchName, setSearchName] = useState(initialName || '')
   const [currentName, setCurrentName] = useState('')
@@ -264,7 +266,7 @@ export default function NameMetadata({ initialName }: NameMetadataProps) {
 
   // Handle URL changes - for browser back/forward and sidebar clicks
   useEffect(() => {
-    const urlName = typeof router.query.name === 'string' ? router.query.name : ''
+    const urlName = searchParams.get('name') ?? ''
     
     // If URL has no name and we have current name, reset to home
     if (!urlName && currentName) {
@@ -282,7 +284,7 @@ export default function NameMetadata({ initialName }: NameMetadataProps) {
       setSearchName(urlName)
       handleSearchForName(urlName)
     }
-  }, [router.query.name, currentName, config?.SUBGRAPH_API, loading])
+  }, [searchParams, currentName, config?.SUBGRAPH_API, loading])
 
   // Auto-fetch metadata if initialName is provided
   useEffect(() => {
@@ -862,7 +864,7 @@ export default function NameMetadata({ initialName }: NameMetadataProps) {
     setSearchName(name)
     handleSearchForName(name)
     // Update URL to reflect the current name
-    router.push(`/nameMetadata?name=${encodeURIComponent(name)}`, undefined, { shallow: true })
+    router.push(`/nameMetadata?name=${encodeURIComponent(name)}`)
   }
 
   const handleExploreAddress = async (name: string) => {

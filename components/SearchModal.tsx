@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useRouter } from 'next/router'
-import { usePublicClient, useAccount } from 'wagmi'
-import { createPublicClient, http, parseAbi, toCoinType, isAddress } from 'viem'
+import { motion, AnimatePresence } from 'framer-motion'
+import { useAccount } from 'wagmi'
+import { createPublicClient, http, parseAbi, isAddress } from 'viem'
 import { Input } from '@/components/ui/input'
+import { Skeleton } from '@/components/ui/skeleton'
 import { CHAINS, CONTRACTS } from '@/utils/constants'
-import { useAccount as useWagmiAccount } from 'wagmi'
 import { readContract } from 'viem/actions'
 import { namehash } from 'viem/ens'
 
@@ -39,8 +39,7 @@ export default function SearchModal({
   >([])
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
 
-  const router = useRouter()
-  const { chain } = useWagmiAccount()
+  const { chain } = useAccount()
 
   // Update local state when prop changes
   useEffect(() => {
@@ -367,18 +366,27 @@ export default function SearchModal({
     }
   }
 
-  if (!isOpen) return null
-
   return (
+    <AnimatePresence>
+      {isOpen && (
     <div className="fixed inset-0 z-[100] flex items-start justify-center pt-20 px-4">
       {/* Backdrop */}
-      <div
+      <motion.div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
         onClick={onClose}
       />
 
       {/* Modal */}
-      <div className="relative w-full max-w-2xl bg-card rounded-2xl shadow-2xl overflow-hidden border border-border">
+      <motion.div
+        className="relative w-full max-w-2xl bg-card rounded-2xl shadow-2xl overflow-hidden border border-border"
+        initial={{ opacity: 0, y: -20, scale: 0.97 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: -10, scale: 0.97 }}
+        transition={{ duration: 0.2, ease: 'easeOut' }}
+      >
         {/* Header */}
         {/* <div className="flex items-center justify-between p-6 border-b border-border"> */}
         {/* <h2 className="text-2xl font-bold text-card-foreground">
@@ -469,12 +477,22 @@ export default function SearchModal({
 
           {/* Loading State */}
           {isLoading && (
-            <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-green-500"></div>
+            <div className="mt-6 space-y-4">
+              {[...Array(2)].map((_, i) => (
+                <div key={i} className="flex items-center space-x-4 p-4 rounded-xl border border-border">
+                  <Skeleton className="h-12 w-12 rounded-full flex-shrink-0" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-4 w-48" />
+                    <Skeleton className="h-3 w-64" />
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
-      </div>
+      </motion.div>
     </div>
+      )}
+    </AnimatePresence>
   )
 }

@@ -2,7 +2,6 @@ import type { Config } from 'tailwindcss'
 
 export default {
   content: [
-    './pages/**/*.{js,ts,jsx,tsx,mdx}',
     './components/**/*.{js,ts,jsx,tsx,mdx}',
     './app/**/*.{js,ts,jsx,tsx,mdx}',
     './node_modules/@shadcn/ui/**/*.{js,ts,jsx,tsx}',
@@ -15,17 +14,14 @@ export default {
         foreground: 'hsl(var(--foreground))',
         primary: {
           DEFAULT: 'hsl(var(--primary))',
-          dark: '#4F46E5',
           foreground: 'hsl(var(--primary-foreground))',
         },
         secondary: {
           DEFAULT: 'hsl(var(--secondary))',
-          dark: '#0D9488',
           foreground: 'hsl(var(--secondary-foreground))',
         },
         accent: {
           DEFAULT: 'hsl(var(--accent))',
-          dark: '#CA8A04',
           foreground: 'hsl(var(--accent-foreground))',
         },
         muted: {

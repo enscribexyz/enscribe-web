@@ -11,6 +11,7 @@ import { SafeAutoConnect } from '@/components/SafeAutoConnect'
 import { CONTRACTS, CHAINS } from '@/utils/constants'
 import { WAGMI_CHAINS } from '@/lib/chains'
 import { ChainProvider } from '@/hooks/useSelectedChain'
+import { Skeleton } from '@/components/ui/skeleton'
 
 const queryClient = new QueryClient()
 const chains = WAGMI_CHAINS
@@ -67,14 +68,27 @@ export function Providers({ children }: { children: React.ReactNode }) {
     return (
       <div className="flex min-h-screen bg-background">
         {/* Sidebar skeleton */}
-        <div className="hidden lg:flex lg:w-64 lg:flex-col bg-gray-900 dark:bg-gray-950" />
+        <div className="hidden lg:flex lg:w-64 lg:flex-col bg-muted p-4 space-y-3">
+          <Skeleton className="h-8 w-32" />
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-4/5" />
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-3/5" />
+        </div>
         {/* Main content skeleton */}
         <div className="flex flex-1 flex-col">
           {/* Header skeleton */}
-          <div className="h-16 border-b border-border bg-background" />
+          <div className="h-16 border-b border-border bg-background flex items-center px-6 gap-4">
+            <Skeleton className="h-8 w-48" />
+            <div className="flex-1" />
+            <Skeleton className="h-8 w-24" />
+          </div>
           {/* Page skeleton */}
-          <div className="flex flex-1 items-center justify-center">
-            <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          <div className="flex-1 p-6 space-y-4">
+            <Skeleton className="h-8 w-64" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-5/6" />
+            <Skeleton className="h-4 w-4/6" />
           </div>
         </div>
       </div>
