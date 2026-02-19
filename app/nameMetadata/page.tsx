@@ -1,11 +1,11 @@
 'use client'
 
-import React from 'react'
+import React, { Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Layout from '../../components/Layout'
 import NameMetadata from '@/components/NameMetadata'
 
-export default function NameMetadataPage() {
+function NameMetadataContent() {
   const searchParams = useSearchParams()
   const name = searchParams.get('name') ?? undefined
 
@@ -13,5 +13,13 @@ export default function NameMetadataPage() {
     <Layout>
       <NameMetadata initialName={name} />
     </Layout>
+  )
+}
+
+export default function NameMetadataPage() {
+  return (
+    <Suspense>
+      <NameMetadataContent />
+    </Suspense>
   )
 }

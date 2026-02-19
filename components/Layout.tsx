@@ -23,7 +23,7 @@ import { EnscribeLogo } from './EnscribeLogo'
 import { ConnectErrorBoundary } from './ConnectErrorBoundary'
 import { SidebarNav } from './navigation/SidebarNav'
 import { useAccount } from 'wagmi'
-import { useRouter, usePathname, useParams, useSearchParams } from 'next/navigation'
+import { useRouter, usePathname, useParams } from 'next/navigation'
 import { useSelectedChain } from '@/hooks/useSelectedChain'
 
 interface LayoutProps {
@@ -48,7 +48,6 @@ export default function Layout({ children }: LayoutProps) {
   const router = useRouter()
   const pathname = usePathname()
   const params = useParams()
-  const searchParams = useSearchParams()
 
   const navigation = useMemo(
     () => [

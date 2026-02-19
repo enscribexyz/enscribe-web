@@ -1,14 +1,18 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import Script from 'next/script'
 import { Providers } from './providers'
 import '@rainbow-me/rainbowkit/styles.css'
 import '@/styles/globals.css'
 
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+}
+
 export const metadata: Metadata = {
   title: 'Give your smart contracts on Ethereum an identity with Enscribe. Powered by ENS.',
   description: 'Easily name your Ethereum smart contracts with ENS names using Enscribe. Live on Ethereum, Base, and Linea networks.',
   keywords: 'smart, contract, naming, naming smart contracts, web3, blockchain, ens, Ethereum Name Service, Ethereum, smart contracts, Enscribe, UX, smart contract deployment',
-  viewport: 'width=device-width, initial-scale=1',
   icons: { icon: '/favicon.ico' },
   openGraph: {
     title: 'Enscribe - Name your smart contracts',
