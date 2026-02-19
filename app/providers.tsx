@@ -18,51 +18,73 @@ const chains = WAGMI_CHAINS
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [wagmiConfig, setWagmiConfig] = React.useState<Config | null>(null)
+  const [initError, setInitError] = React.useState(false)
 
   React.useEffect(() => {
     const initWagmi = async () => {
-      const rainbowkit = await import('@rainbow-me/rainbowkit')
-      const { safe } = await import('@wagmi/connectors')
-      const { createConfig, http, createStorage } = await import('wagmi')
+      try {
+        const rainbowkit = await import('@rainbow-me/rainbowkit')
+        const { safe } = await import('@wagmi/connectors')
+        const { createConfig, http, createStorage } = await import('wagmi')
 
-      const { connectors } = rainbowkit.getDefaultWallets({
-        appName: 'enscribe',
-        projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? '',
-      })
+        const { connectors } = rainbowkit.getDefaultWallets({
+          appName: 'enscribe',
+          projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? '',
+        })
 
-      const safeConnector = safe({
-        allowedDomains: [/app.safe.global$/, /safe.global$/],
-        debug: false,
-      })
+        const safeConnector = safe({
+          allowedDomains: [/app.safe.global$/, /safe.global$/],
+          debug: false,
+        })
 
-      const config = createConfig({
-        chains,
-        connectors: [...connectors, safeConnector],
-        transports: chains.reduce(
-          (acc, chain) => {
-            const chainConfig = CONTRACTS[chain.id as CHAINS]
-            const rpcUrl = chainConfig?.RPC_ENDPOINT
+        const config = createConfig({
+          chains,
+          connectors: [...connectors, safeConnector],
+          transports: chains.reduce(
+            (acc, chain) => {
+              const chainConfig = CONTRACTS[chain.id as CHAINS]
+              const rpcUrl = chainConfig?.RPC_ENDPOINT
 
-            if (rpcUrl) {
-              acc[chain.id] = http(rpcUrl)
-            } else {
-              console.warn(`No RPC endpoint configured for chain ${chain.id}`)
-              acc[chain.id] = http()
-            }
-            return acc
-          },
-          {} as Record<number, ReturnType<typeof http>>,
-        ),
-        storage: createStorage({
-          storage: window.localStorage,
-        }),
-      })
+              if (rpcUrl) {
+                acc[chain.id] = http(rpcUrl)
+              } else {
+                console.warn(`No RPC endpoint configured for chain ${chain.id}`)
+                acc[chain.id] = http()
+              }
+              return acc
+            },
+            {} as Record<number, ReturnType<typeof http>>,
+          ),
+          storage: createStorage({
+            storage: window.localStorage,
+          }),
+        })
 
-      setWagmiConfig(config)
+        setWagmiConfig(config)
+      } catch (err) {
+        console.error('Wagmi init failed:', err)
+        setInitError(true)
+      }
     }
 
     initWagmi()
   }, [])
+
+  if (initError) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="text-center space-y-4 p-8">
+          <p className="text-foreground font-medium">Failed to initialize wallet connection.</p>
+          <button
+            className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm"
+            onClick={() => window.location.reload()}
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   if (!wagmiConfig) {
     return (

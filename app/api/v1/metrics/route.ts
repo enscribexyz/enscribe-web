@@ -3,9 +3,8 @@ import { createClient } from '@supabase/supabase-js'
 import { SUPABASE_KEY, SUPABASE_URL } from '@/utils/constants'
 import { Database } from '@/types/supabase'
 
-const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_KEY)
-
 export async function POST(req: NextRequest) {
+  const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_KEY)
   try {
     const {
       contract_address,
