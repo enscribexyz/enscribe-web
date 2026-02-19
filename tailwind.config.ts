@@ -1,4 +1,5 @@
 import type { Config } from 'tailwindcss'
+import { fontFamily } from 'tailwindcss/defaultTheme'
 
 export default {
   content: [
@@ -43,6 +44,14 @@ export default {
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',
         ring: 'hsl(var(--ring))',
+        sidebar: {
+          DEFAULT: 'hsl(var(--sidebar-bg))',
+          foreground: 'hsl(var(--sidebar-fg))',
+          'foreground-active': 'hsl(var(--sidebar-fg-active))',
+          hover: 'hsl(var(--sidebar-hover))',
+          border: 'hsl(var(--sidebar-border))',
+          active: 'hsl(var(--sidebar-active))',
+        },
         chart: {
           '1': 'hsl(var(--chart-1))',
           '2': 'hsl(var(--chart-2))',
@@ -64,6 +73,9 @@ export default {
         lg: 'var(--radius)',
         md: 'calc(var(--radius) - 2px)',
         sm: 'calc(var(--radius) - 4px)',
+      },
+      fontFamily: {
+        sans: ['var(--font-inter)', ...fontFamily.sans],
       },
       fontSize: {
         sm: ['0.875rem', '1.5rem'],

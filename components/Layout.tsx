@@ -127,154 +127,134 @@ export default function Layout({ children }: LayoutProps) {
     prevChain,
   ])
 
+  const sidebarContent = (
+    <>
+      <div className="flex-1 overflow-y-auto">
+        {/* Logo */}
+        <div className="px-5 h-14 flex items-center border-b border-sidebar-border shrink-0">
+          <Link href="/" className="flex items-center gap-2.5 min-w-0">
+            <EnscribeLogo size={28} />
+            <span className="text-base font-semibold text-sidebar-foreground-active truncate">
+              Enscribe
+            </span>
+          </Link>
+        </div>
+
+        {/* Nav */}
+        <nav className="px-3 py-4">
+          <SidebarNav items={navigation} />
+        </nav>
+      </div>
+
+      {/* Footer links */}
+      <div className="px-3 py-3 border-t border-sidebar-border flex gap-1 shrink-0">
+        <Link
+          href={productLink || '/'}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-2 flex-1 px-3 py-2 text-sm text-sidebar-foreground hover:text-sidebar-foreground-active hover:bg-sidebar-hover rounded-md transition-colors"
+        >
+          <Info className="w-4 h-4 shrink-0" />
+          About
+        </Link>
+        <Link
+          href={`${productLink}/docs`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-2 flex-1 px-3 py-2 text-sm text-sidebar-foreground hover:text-sidebar-foreground-active hover:bg-sidebar-hover rounded-md transition-colors"
+        >
+          <File className="w-4 h-4 shrink-0" />
+          Docs
+        </Link>
+      </div>
+    </>
+  )
+
   return (
-    <div className="flex min-h-screen bg-background transition-colors duration-200">
-      {/* Desktop Sidebar - Fixed */}
-      <aside className="hidden lg:flex lg:flex-col lg:fixed lg:inset-y-0 lg:left-0 lg:w-66 bg-gray-900 dark:bg-gray-800 text-white shadow-md z-10">
-        <div className="flex-1 overflow-y-auto">
-          <div className="px-6 py-4 flex items-center space-x-2 border-b border-gray-700 dark:border-white">
-            <Link href="/" className="flex items-center space-x-2">
-              <EnscribeLogo size={32} />
-              <h2 className="text-2xl font-bold text-white">Enscribe</h2>
-            </Link>
-          </div>
-
-          <nav className="px-4 py-6">
-            <SidebarNav items={navigation} />
-          </nav>
-        </div>
-
-        <div className="px-4 py-4 flex space-x-4 bg-gray-900 dark:bg-gray-800 shadow-inner">
-          <Link
-            href={productLink || '/'}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center justify-center w-1/2 text-gray-300 hover:bg-gray-800 dark:hover:bg-gray-900 p-3 rounded-md transition-colors"
-          >
-            <Info className="w-5 h-5 mr-3 text-gray-400" />
-            About
-          </Link>
-          <Link
-            href={`${productLink}/docs`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center justify-center w-1/2 text-gray-300 hover:bg-gray-800 dark:hover:bg-gray-900 p-3 rounded-md transition-colors"
-          >
-            <File className="w-5 h-5 mr-3 text-gray-400" />
-            Docs
-          </Link>
-        </div>
+    <div className="flex min-h-screen bg-background">
+      {/* Desktop Sidebar — fixed */}
+      <aside className="hidden lg:flex lg:flex-col lg:fixed lg:inset-y-0 lg:left-0 lg:w-64 bg-sidebar z-20">
+        {sidebarContent}
       </aside>
 
       {/* Mobile Sidebar Backdrop */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
       {/* Mobile Sidebar Drawer */}
       <div
-        className={`fixed inset-y-0 left-0 z-50 w-66 bg-gray-900 dark:bg-gray-800 text-white transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform lg:hidden flex flex-col h-full`}
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-sidebar flex flex-col transform transition-transform duration-300 ease-in-out lg:hidden ${
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
       >
-        <div className="px-6 py-4 flex items-center justify-between border-b border-gray-700 dark:border-gray-800">
-          <Link href="/" className="flex items-center space-x-2">
-            <EnscribeLogo size={32} />
-            <h2 className="text-2xl font-bold text-white">Enscribe</h2>
-          </Link>
-          <button onClick={() => setSidebarOpen(false)}>
-            <X className="w-6 h-6 text-white" />
+        <div className="absolute top-3 right-3">
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="p-1.5 rounded-md text-sidebar-foreground hover:bg-sidebar-hover transition-colors"
+          >
+            <X className="w-5 h-5" />
           </button>
         </div>
-
-        <nav className="px-4 py-6 flex-grow">
-          <SidebarNav
-            items={navigation}
-            linkClassName="flex items-center p-3 text-gray-300 hover:bg-gray-800 dark:hover:bg-gray-700 rounded-md transition-colors"
-          />
-        </nav>
-
-        <div className="mt-auto px-4 py-4 flex space-x-4">
-          <Link
-            href={productLink || '/'}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center justify-center w-1/2 text-gray-300 hover:bg-gray-800 dark:hover:bg-gray-700 p-3 rounded-md transition-colors"
-          >
-            <Info className="w-5 h-5 mr-3 text-gray-400" />
-            About
-          </Link>
-          <Link
-            href={`${productLink}/docs`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center justify-center w-1/2 text-gray-300 hover:bg-gray-800 dark:hover:bg-gray-700 p-3 rounded-md transition-colors"
-          >
-            <File className="w-5 h-5 mr-3 text-gray-400" />
-            Docs
-          </Link>
-        </div>
+        {sidebarContent}
       </div>
 
-      {/* Static placeholder to reserve space for fixed sidebar */}
-      <div className="hidden lg:block lg:min-w-[240px] lg:w-66 flex-shrink-0" />
+      {/* Spacer for fixed sidebar */}
+      <div className="hidden lg:block lg:w-64 shrink-0" />
 
       {/* Main content area */}
-      <div className="flex flex-1 flex-col">
+      <div className="flex flex-1 flex-col min-w-0">
         {/* Top Navbar */}
-        <header className="flex items-center p-4 bg-white dark:bg-gray-200 shadow-md">
-          <div className="lg:hidden">
-            <button onClick={() => setSidebarOpen(true)}>
-              <Menu className="w-6 h-6 text-gray-900 dark:text-white" />
-            </button>
-          </div>
+        <header className="sticky top-0 z-10 flex items-center gap-3 px-4 h-14 bg-card/80 backdrop-blur-md border-b border-border">
+          {/* Mobile hamburger */}
+          <button
+            className="lg:hidden p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            onClick={() => setSidebarOpen(true)}
+          >
+            <Menu className="w-5 h-5" />
+          </button>
 
-          {/* Logo for medium screens */}
-          <div className="hidden md:flex lg:hidden items-center ml-2 mr-4">
+          {/* Logo on mobile/tablet only */}
+          <div className="hidden md:flex lg:hidden items-center">
             <Link href="/">
               <EnscribeLogo size={24} />
             </Link>
           </div>
 
-          {/* Search trigger */}
-          <div className="flex-1 max-w-none sm:max-w-md mr-2">
-            <button
-              onClick={() => setIsSearchModalOpen(true)}
-              className="w-full flex items-center space-x-2 px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:border-gray-400 dark:hover:border-gray-500 transition-colors text-left"
-            >
-              <Search className="w-5 h-5 text-gray-400" />
-              <span className="text-gray-500 dark:text-gray-400 text-sm">
-                Search address or ENS name
-              </span>
-            </button>
-          </div>
+          {/* Search bar */}
+          <button
+            onClick={() => setIsSearchModalOpen(true)}
+            className="flex items-center gap-2 flex-1 max-w-sm px-3 py-2 text-sm text-muted-foreground bg-muted hover:bg-accent hover:text-accent-foreground rounded-lg border border-border hover:border-ring transition-colors text-left"
+          >
+            <Search className="w-4 h-4 shrink-0" />
+            <span className="truncate">Search address or ENS name…</span>
+          </button>
 
-          <div className="hidden sm:block flex-1" />
+          <div className="flex-1" />
 
-          {/* Chain selector — only when wallet is not connected */}
+          {/* Chain selector — only when not connected */}
           {!isConnected && (
-            <div className="mr-2">
-              <ChainSelector
-                selectedChain={selectedChain}
-                onChainChange={(chainId) => {
-                  setManuallyChanged(true)
-                  setSelectedChain(chainId)
-                  if (params?.chainId && params?.address) {
-                    const address = params.address as string
-                    window.location.href = `/explore/${chainId}/${address}`
-                  }
-                }}
-              />
-            </div>
+            <ChainSelector
+              selectedChain={selectedChain}
+              onChainChange={(chainId) => {
+                setManuallyChanged(true)
+                setSelectedChain(chainId)
+                if (params?.chainId && params?.address) {
+                  const address = params.address as string
+                  window.location.href = `/explore/${chainId}/${address}`
+                }
+              }}
+            />
           )}
 
-          <div className="mr-2">
-            <ThemeToggle />
-          </div>
+          <ThemeToggle />
 
           <ConnectErrorBoundary>
             <div className="relative">
+              {/* Mobile compact connect */}
               {!isConnected && (
                 <button
                   onClick={() => {
@@ -283,16 +263,9 @@ export default function Layout({ children }: LayoutProps) {
                     ) as HTMLButtonElement | null
                     rkButton?.click()
                   }}
-                  className="sm:hidden flex flex-col items-center justify-center px-3 py-2 bg-[#0E76FD] hover:bg-[#0E76FD]/90 text-white rounded-xl text-xs font-semibold transition-all duration-200 min-w-[64px] h-10 shadow-sm border border-transparent"
-                  style={{
-                    background:
-                      'linear-gradient(0deg, rgba(0, 0, 0, 0.2) 0%, rgba(0, 0, 0, 0) 100%),rgb(56, 152, 255)',
-                    boxShadow:
-                      '0px 2px 2px rgba(0, 0, 0, 0), inset 0px 1px 0px rgba(255, 255, 255, 0.1)',
-                  }}
+                  className="sm:hidden flex items-center justify-center px-3 h-9 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg text-sm font-medium transition-colors"
                 >
-                  <span className="leading-tight">Connect</span>
-                  <span className="leading-tight">Wallet</span>
+                  Connect
                 </button>
               )}
               <div className={!isConnected ? 'hidden sm:block' : ''}>
@@ -306,7 +279,7 @@ export default function Layout({ children }: LayoutProps) {
           </ConnectErrorBoundary>
         </header>
 
-        <main className="flex-1 p-6 bg-white dark:bg-gray-100 transition-colors duration-200">
+        <main className="flex-1 p-6 bg-background">
           {children}
         </main>
         <Toaster />

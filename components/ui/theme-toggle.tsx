@@ -50,15 +50,11 @@ export function ThemeToggle() {
 
   return (
     <Button
-      variant="outline"
+      variant="ghost"
       size="sm"
       onClick={toggleTheme}
       data-theme-toggle="true"
-      className={`h-9 w-9 p-0 transition-colors ${
-        isDark
-          ? '!bg-white !border-gray-300 hover:!bg-gray-100 !text-gray-900'
-          : '!bg-gray-800 !border-gray-600 hover:!bg-gray-700 !text-white'
-      }`}
+      className="h-9 w-9 p-0 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
       title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
     >
       {isDark ? (

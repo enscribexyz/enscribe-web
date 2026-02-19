@@ -21,18 +21,18 @@ interface SidebarNavProps {
  */
 export const SidebarNav = memo(function SidebarNav({
   items,
-  linkClassName = 'flex items-center p-3 text-gray-300 hover:bg-gray-800 dark:hover:bg-gray-900 rounded-md transition-colors',
+  linkClassName = 'flex items-center gap-3 px-3 py-2 text-sm text-sidebar-foreground hover:text-sidebar-foreground-active hover:bg-sidebar-hover rounded-md transition-colors',
 }: SidebarNavProps) {
   const group1 = items.slice(0, 3)
   const group2 = items.slice(3, 4)
   const group3 = items.slice(4)
 
   return (
-    <ul className="space-y-2">
+    <ul className="space-y-1">
       {group1.map((item) => (
         <li key={item.name}>
           <Link href={item.href} className={linkClassName}>
-            <item.icon className="w-5 h-5 mr-3 text-gray-400" />
+            <item.icon className="w-4 h-4 shrink-0 opacity-70" />
             {item.name}
           </Link>
         </li>
@@ -40,14 +40,14 @@ export const SidebarNav = memo(function SidebarNav({
 
       {items.length > 3 && (
         <li className="py-2">
-          <div className="border-t border-gray-700 dark:border-gray-600" />
+          <div className="border-t border-sidebar-border" />
         </li>
       )}
 
       {group2.map((item) => (
         <li key={item.name}>
           <Link href={item.href} className={linkClassName}>
-            <item.icon className="w-5 h-5 mr-3 text-gray-400" />
+            <item.icon className="w-4 h-4 shrink-0 opacity-70" />
             {item.name}
           </Link>
         </li>
@@ -55,14 +55,14 @@ export const SidebarNav = memo(function SidebarNav({
 
       {items.length > 4 && (
         <li className="py-2">
-          <div className="border-t border-gray-700 dark:border-gray-600" />
+          <div className="border-t border-sidebar-border" />
         </li>
       )}
 
       {group3.map((item) => (
         <li key={item.name}>
           <Link href={item.href} className={linkClassName}>
-            <item.icon className="w-5 h-5 mr-3 text-gray-400" />
+            <item.icon className="w-4 h-4 shrink-0 opacity-70" />
             {item.name}
           </Link>
         </li>

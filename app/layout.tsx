@@ -1,8 +1,15 @@
 import type { Metadata, Viewport } from 'next'
 import Script from 'next/script'
+import { Inter } from 'next/font/google'
 import { Providers } from './providers'
 import '@rainbow-me/rainbowkit/styles.css'
 import '@/styles/globals.css'
+
+const inter = Inter({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-inter',
+})
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -35,7 +42,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning className={inter.variable}>
       <head>
         <link rel="preconnect" href="https://www.enscribe.xyz/" />
         <script
@@ -52,7 +59,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="antialiased">
+      <body className="antialiased font-sans">
         {/* GA4 — loaded after page is interactive */}
         <Script
           src="https://www.googletagmanager.com/gtag/js?id=G-ZP0CQ3RP8K"
