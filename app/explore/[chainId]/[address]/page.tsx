@@ -4,6 +4,7 @@ import { useParams } from 'next/navigation'
 import { useState, useEffect, useCallback } from 'react'
 import { isAddress, parseAbi } from 'viem/utils'
 import { createPublicClient, http, toCoinType } from 'viem'
+import { mainnet, sepolia } from 'viem/chains'
 import { normalize } from 'viem/ens'
 import Layout from '@/components/Layout'
 import ENSDetails from '@/components/ENSDetails'
@@ -147,7 +148,7 @@ export default function ExploreAddressPage() {
         const ensChainId = isTestnet ? CHAINS.SEPOLIA : CHAINS.MAINNET
         const ensConfig = CONTRACTS[ensChainId]
         const { getEnsAddress: resolveEnsName } = await import('viem/actions')
-        const ensClient = createPublicClient({ transport: http(ensConfig.RPC_ENDPOINT) })
+        const ensClient = createPublicClient({ chain: ensChainId === CHAINS.MAINNET ? mainnet : sepolia, transport: http(ensConfig.RPC_ENDPOINT) })
         resolvedAddress = await resolveEnsName(ensClient, { name: normalizedName })
       } catch (error) {
         if (

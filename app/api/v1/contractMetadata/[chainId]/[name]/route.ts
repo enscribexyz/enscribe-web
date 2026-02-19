@@ -17,9 +17,39 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createPublicClient, http } from 'viem'
+import type { Chain } from 'viem'
+import {
+  mainnet,
+  sepolia,
+  base,
+  baseSepolia,
+  linea,
+  lineaSepolia,
+  optimism,
+  optimismSepolia,
+  arbitrum,
+  arbitrumSepolia,
+  scroll,
+  scrollSepolia,
+} from 'viem/chains'
 import { getEnsText } from 'viem/actions'
-import { CONTRACTS } from '@/utils/constants'
+import { CHAINS, CONTRACTS } from '@/utils/constants'
 import type { TextRecords } from '@/types'
+
+const VIEM_CHAIN_MAP: Record<number, Chain> = {
+  [CHAINS.MAINNET]: mainnet,
+  [CHAINS.SEPOLIA]: sepolia,
+  [CHAINS.BASE]: base,
+  [CHAINS.BASE_SEPOLIA]: baseSepolia,
+  [CHAINS.LINEA]: linea,
+  [CHAINS.LINEA_SEPOLIA]: lineaSepolia,
+  [CHAINS.OPTIMISM]: optimism,
+  [CHAINS.OPTIMISM_SEPOLIA]: optimismSepolia,
+  [CHAINS.ARBITRUM]: arbitrum,
+  [CHAINS.ARBITRUM_SEPOLIA]: arbitrumSepolia,
+  [CHAINS.SCROLL]: scroll,
+  [CHAINS.SCROLL_SEPOLIA]: scrollSepolia,
+}
 
 // Function to get parent domains up to 2LD
 function getParentDomains(ensName: string): string[] {
@@ -172,7 +202,7 @@ export async function GET(
     }
 
     // Initialize viem client with configured RPC endpoint
-    const client = createPublicClient({ transport: http(config.RPC_ENDPOINT) })
+    const client = createPublicClient({ chain: VIEM_CHAIN_MAP[chainIdNumber], transport: http(config.RPC_ENDPOINT) })
 
     // Fetch text records with parent fallback
     const records = await fetchTextRecordsWithFallback(client, name)

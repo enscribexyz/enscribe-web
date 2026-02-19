@@ -2,6 +2,7 @@ import { CHAINS, CONTRACTS } from './constants'
 import { createPublicClient, http } from 'viem'
 import { getEnsName, readContract } from 'viem/actions'
 import L2ReverseRegistrarABI from '@/contracts/L2ReverseRegistrar'
+import { mainnet, sepolia } from 'viem/chains'
 
 const METADATA_TEXT_KEYS = new Set([
   'alias',
@@ -26,7 +27,10 @@ const METADATA_TEXT_KEYS = new Set([
  * @param chainId - The chain ID to perform the lookup on
  * @returns The primary ENS name if found, empty string otherwise
  */
-export const getENS = async (addr: string, chainId: number): Promise<string> => {
+export const getENS = async (
+  addr: string,
+  chainId: number,
+): Promise<string> => {
   const config = CONTRACTS[chainId]
 
   if (!config || !config.RPC_ENDPOINT) {
@@ -35,13 +39,21 @@ export const getENS = async (addr: string, chainId: number): Promise<string> => 
     )
     return ''
   }
+  const viemChain = chainId === CHAINS.MAINNET ? mainnet : sepolia
 
-  const client = createPublicClient({ transport: http(config.RPC_ENDPOINT) })
+  const client = createPublicClient({
+    chain: viemChain,
+    transport: http(config.RPC_ENDPOINT),
+  })
+
+  // const client = createPublicClient({ transport: http(config.RPC_ENDPOINT) })
 
   // For mainnet and sepolia, use standard ENS reverse resolution
   if (chainId === CHAINS.MAINNET || chainId === CHAINS.SEPOLIA) {
     try {
-      return (await getEnsName(client, { address: addr as `0x${string}` })) || ''
+      return (
+        (await getEnsName(client, { address: addr as `0x${string}` })) || ''
+      )
     } catch (error) {
       console.error('[getENS] Error looking up ENS name:', error)
       return ''
@@ -63,9 +75,7 @@ export const getENS = async (addr: string, chainId: number): Promise<string> => 
     // For L2s, use reverse registrar nameForAddr
     try {
       if (!config?.L2_REVERSE_REGISTRAR) {
-        console.error(
-          `[getENS] Missing reverse registrar for chain ${chainId}`,
-        )
+        console.error(`[getENS] Missing reverse registrar for chain ${chainId}`)
         return ''
       }
 
@@ -151,7 +161,10 @@ export const fetchAssociatedNamesCount = async (
     }
     return { count: 0 }
   } catch (error) {
-    console.error('[fetchAssociatedNamesCount] Error fetching associated ENS names:', error)
+    console.error(
+      '[fetchAssociatedNamesCount] Error fetching associated ENS names:',
+      error,
+    )
     return { count: 0 }
   }
 }
@@ -219,7 +232,9 @@ export const fetchForwardNameSummary = async (
     const texts = Array.isArray(domain?.resolver?.texts)
       ? (domain.resolver.texts as string[])
       : []
-    const singleNameHasMetadata = texts.some((key) => METADATA_TEXT_KEYS.has(key))
+    const singleNameHasMetadata = texts.some((key) =>
+      METADATA_TEXT_KEYS.has(key),
+    )
 
     return {
       count: 1,

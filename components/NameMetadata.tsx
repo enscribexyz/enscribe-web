@@ -939,7 +939,7 @@ export default function NameMetadata({ initialName }: NameMetadataProps) {
         try {
           const ensConfig = CONTRACTS[ensChainId]
           const { getEnsAddress: resolveEnsName } = await import('viem/actions')
-          const ensClient = createPublicClient({ transport: http(ensConfig.RPC_ENDPOINT) })
+          const ensClient = createPublicClient({ chain: getViemChain(ensChainId), transport: http(ensConfig.RPC_ENDPOINT) })
           resolvedAddress = await resolveEnsName(ensClient, { name })
         } catch (resolveError: any) {
           console.error(

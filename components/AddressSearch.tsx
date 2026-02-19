@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAccount } from 'wagmi'
 import { createPublicClient, http, parseAbi, toCoinType, isAddress } from 'viem'
+import { mainnet, sepolia } from 'viem/chains'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Search } from 'lucide-react'
@@ -46,7 +47,8 @@ export default function AddressSearch({
     if (!config) {
       throw new Error(`Unsupported chain ID: ${chainId}`)
     }
-    return createPublicClient({ transport: http(config.RPC_ENDPOINT) })
+    const viemChain = chainId === CHAINS.MAINNET ? mainnet : sepolia
+    return createPublicClient({ chain: viemChain, transport: http(config.RPC_ENDPOINT) })
   }
 
   const handleSearch = async () => {

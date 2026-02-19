@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { CHAINS, CONTRACTS } from '@/utils/constants'
 import { readContract } from 'viem/actions'
 import { namehash } from 'viem/ens'
+import { mainnet, sepolia } from 'viem/chains'
 
 interface SearchModalProps {
   isOpen: boolean
@@ -93,7 +94,11 @@ export default function SearchModal({
     if (!config) {
       throw new Error(`Unsupported chain ID: ${chainId}`)
     }
-    return createPublicClient({ transport: http(config.RPC_ENDPOINT) })
+    const viemChain = chainId === CHAINS.MAINNET ? mainnet : sepolia
+    return createPublicClient({
+      chain: viemChain,
+      transport: http(config.RPC_ENDPOINT),
+    })
   }, [])
 
   const handleSearch = useCallback(async () => {
@@ -111,7 +116,6 @@ export default function SearchModal({
       const cleanedQuery: string = searchQuery.trim()
       const isValidAddress = isAddress(cleanedQuery)
       const containsDot = cleanedQuery.includes('.')
-
 
       // Make sure Layout knows this chain selection is intentional
       if (propSetManuallyChanged) {
@@ -161,7 +165,6 @@ export default function SearchModal({
           // Use mainnet for mainnets, sepolia for testnets for ENS resolution
           const ensChainId = isTestnet ? CHAINS.SEPOLIA : CHAINS.MAINNET
 
-
           let resolvedAddress: string | null = null
 
           // For Base chains, use their public resolver with coinType
@@ -209,7 +212,9 @@ export default function SearchModal({
             try {
               const { getEnsAddress } = await import('viem/actions')
               const ensClient = getEnsClient(ensChainId)
-              resolvedAddress = await getEnsAddress(ensClient, { name: ensName })
+              resolvedAddress = await getEnsAddress(ensClient, {
+                name: ensName,
+              })
             } catch (resolveError: any) {
               console.error(
                 'Error resolving ENS name on mainnet/sepolia:',
@@ -369,129 +374,134 @@ export default function SearchModal({
   return (
     <AnimatePresence>
       {isOpen && (
-    <div className="fixed inset-0 z-[100] flex items-start justify-center pt-20 px-4">
-      {/* Backdrop */}
-      <motion.div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        onClick={onClose}
-      />
+        <div className="fixed inset-0 z-[100] flex items-start justify-center pt-20 px-4">
+          {/* Backdrop */}
+          <motion.div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+          />
 
-      {/* Modal */}
-      <motion.div
-        className="relative w-full max-w-2xl bg-card rounded-2xl shadow-2xl overflow-hidden border border-border"
-        initial={{ opacity: 0, y: -20, scale: 0.97 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, y: -10, scale: 0.97 }}
-        transition={{ duration: 0.2, ease: 'easeOut' }}
-      >
-        {/* Header */}
-        {/* <div className="flex items-center justify-between p-6 border-b border-border"> */}
-        {/* <h2 className="text-2xl font-bold text-card-foreground">
+          {/* Modal */}
+          <motion.div
+            className="relative w-full max-w-2xl bg-card rounded-2xl shadow-2xl overflow-hidden border border-border"
+            initial={{ opacity: 0, y: -20, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -10, scale: 0.97 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+          >
+            {/* Header */}
+            {/* <div className="flex items-center justify-between p-6 border-b border-border"> */}
+            {/* <h2 className="text-2xl font-bold text-card-foreground">
             Select Address To View
           </h2> */}
-        {/* <button
+            {/* <button
             onClick={onClose}
             className="p-2 hover:bg-accent rounded-lg transition-colors"
           >
             <X className="w-6 h-6 text-muted-foreground" />
           </button> */}
-        {/* </div> */}
+            {/* </div> */}
 
-        {/* Content */}
-        <div className="p-6">
-          {/* Search Input */}
-          <div className="flex items-center space-x-2 mb-4">
-            <div className="flex-1 dark:text-white text-black">
-              <Input
-                type="text"
-                placeholder="Search Address or ENS name"
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value)
-                  setError('')
-                }}
-                onPaste={handlePaste}
-                className={`h-14 text-lg ${
-                  error
-                    ? 'border-destructive focus:ring-destructive'
-                    : 'border-input focus:ring-ring'
-                } bg-background text-foreground`}
-                autoFocus
-              />
-            </div>
-          </div>
-
-          {/* Error Message */}
-          {error && <p className="text-sm text-destructive mb-4">{error}</p>}
-
-          {/* Search Results */}
-          {searchResults.length > 0 && (
-            <div className="mt-6">
-              <h3 className="text-lg font-semibold text-card-foreground mb-3">
-                Search Results
-              </h3>
-              <div className="space-y-4">
-                {searchResults.map((result, index) => (
-                  <div key={index}>
-                    {/* Result Title */}
-                    {result.title && (
-                      <div className="text-xs font-medium text-muted-foreground mb-1.5 px-1">
-                        {result.title}
-                      </div>
-                    )}
-                    {/* Result Button */}
-                    <button
-                      onClick={() => handleResultClick(result)}
-                      className="w-full flex items-center space-x-4 p-4 bg-accent hover:bg-muted rounded-xl transition-colors cursor-pointer border-2 border-transparent hover:border-ring"
-                    >
-                      {/* Avatar/Icon */}
-                      <div
-                        className={`w-12 h-12 rounded-full ${result.type === 'nameMetadata' ? 'bg-gradient-to-br from-green-400 to-cyan-500' : 'bg-gradient-to-br from-blue-400 to-purple-500'} flex items-center justify-center flex-shrink-0`}
-                      >
-                        <span className="text-white font-bold text-lg">
-                          {result.name.substring(0, 2).toUpperCase()}
-                        </span>
-                      </div>
-
-                      {/* Name and Address */}
-                      <div className="flex-1 text-left">
-                        <div className="font-semibold text-card-foreground">
-                          {result.name}
-                        </div>
-                        {result.name !== result.address &&
-                          result.type === 'explore' && (
-                            <div className="text-sm text-muted-foreground truncate">
-                              {result.address}
-                            </div>
-                          )}
-                      </div>
-                    </button>
-                  </div>
-                ))}
+            {/* Content */}
+            <div className="p-6">
+              {/* Search Input */}
+              <div className="flex items-center space-x-2 mb-4">
+                <div className="flex-1 dark:text-white text-black">
+                  <Input
+                    type="text"
+                    placeholder="Search Address or ENS name"
+                    value={searchQuery}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value)
+                      setError('')
+                    }}
+                    onPaste={handlePaste}
+                    className={`h-14 text-lg ${
+                      error
+                        ? 'border-destructive focus:ring-destructive'
+                        : 'border-input focus:ring-ring'
+                    } bg-background text-foreground`}
+                    autoFocus
+                  />
+                </div>
               </div>
-            </div>
-          )}
 
-          {/* Loading State */}
-          {isLoading && (
-            <div className="mt-6 space-y-4">
-              {[...Array(2)].map((_, i) => (
-                <div key={i} className="flex items-center space-x-4 p-4 rounded-xl border border-border">
-                  <Skeleton className="h-12 w-12 rounded-full flex-shrink-0" />
-                  <div className="flex-1 space-y-2">
-                    <Skeleton className="h-4 w-48" />
-                    <Skeleton className="h-3 w-64" />
+              {/* Error Message */}
+              {error && (
+                <p className="text-sm text-destructive mb-4">{error}</p>
+              )}
+
+              {/* Search Results */}
+              {searchResults.length > 0 && (
+                <div className="mt-6">
+                  <h3 className="text-lg font-semibold text-card-foreground mb-3">
+                    Search Results
+                  </h3>
+                  <div className="space-y-4">
+                    {searchResults.map((result, index) => (
+                      <div key={index}>
+                        {/* Result Title */}
+                        {result.title && (
+                          <div className="text-xs font-medium text-muted-foreground mb-1.5 px-1">
+                            {result.title}
+                          </div>
+                        )}
+                        {/* Result Button */}
+                        <button
+                          onClick={() => handleResultClick(result)}
+                          className="w-full flex items-center space-x-4 p-4 bg-accent hover:bg-muted rounded-xl transition-colors cursor-pointer border-2 border-transparent hover:border-ring"
+                        >
+                          {/* Avatar/Icon */}
+                          <div
+                            className={`w-12 h-12 rounded-full ${result.type === 'nameMetadata' ? 'bg-gradient-to-br from-green-400 to-cyan-500' : 'bg-gradient-to-br from-blue-400 to-purple-500'} flex items-center justify-center flex-shrink-0`}
+                          >
+                            <span className="text-white font-bold text-lg">
+                              {result.name.substring(0, 2).toUpperCase()}
+                            </span>
+                          </div>
+
+                          {/* Name and Address */}
+                          <div className="flex-1 text-left">
+                            <div className="font-semibold text-card-foreground">
+                              {result.name}
+                            </div>
+                            {result.name !== result.address &&
+                              result.type === 'explore' && (
+                                <div className="text-sm text-muted-foreground truncate">
+                                  {result.address}
+                                </div>
+                              )}
+                          </div>
+                        </button>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              ))}
+              )}
+
+              {/* Loading State */}
+              {isLoading && (
+                <div className="mt-6 space-y-4">
+                  {[...Array(2)].map((_, i) => (
+                    <div
+                      key={i}
+                      className="flex items-center space-x-4 p-4 rounded-xl border border-border"
+                    >
+                      <Skeleton className="h-12 w-12 rounded-full flex-shrink-0" />
+                      <div className="flex-1 space-y-2">
+                        <Skeleton className="h-4 w-48" />
+                        <Skeleton className="h-3 w-64" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-          )}
+          </motion.div>
         </div>
-      </motion.div>
-    </div>
       )}
     </AnimatePresence>
   )
