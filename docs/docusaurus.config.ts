@@ -39,6 +39,7 @@ const config = {
       }
     },
     'docusaurus-plugin-image-zoom',
+    require.resolve('./src/plugins/related-posts'),
      [
        '@docusaurus/plugin-content-docs',
        {
@@ -73,8 +74,7 @@ const config = {
         blog: {
           showReadingTime: true,
           postsPerPage: 9,
-          blogSidebarTitle: 'All our posts',
-          blogSidebarCount: 'ALL',
+          blogSidebarCount: 0,
           onInlineTags: 'ignore',
           onUntruncatedBlogPosts: 'ignore',
           feedOptions: {

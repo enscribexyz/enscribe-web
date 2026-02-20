@@ -302,3 +302,10 @@ html[data-theme="light"] .project-logo {
     grid-template-columns: repeat(3, 1fr) !important;
   }
 }
+
+/* ── Related posts grid ── */
+@media (min-width: 576px) {
+  .related-posts-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+}
