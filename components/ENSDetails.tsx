@@ -1,8 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react'
-import { useCopyToClipboard } from '@/hooks/useCopyToClipboard'
-import { readContract } from 'viem/actions'
-import { getPublicClient } from '@/lib/viemClient'
-import { useAccount } from 'wagmi'
+import React from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -12,38 +8,20 @@ import {
   CheckCircle,
   ChevronDown,
   ChevronUp,
-  CircleAlert,
   Copy,
   ExternalLink,
   ShieldCheck,
   XCircle,
   TriangleAlert,
 } from 'lucide-react'
-import {
-  CHAINS,
-  CONTRACTS,
-  ETHERSCAN_API,
-  OLI_ATTESTATION_URL,
-  OLI_GQL_URL,
-  OLI_SEARCH_URL,
-} from '@/utils/constants'
-import reverseRegistrarABI from '@/contracts/ReverseRegistrar'
-import publicResolverABI from '@/contracts/PublicResolver'
 import Link from 'next/link'
-import ensRegistryABI from '@/contracts/ENSRegistry'
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from './ui/tooltip'
-import { ProfileCard } from 'ethereum-identity-kit'
 import { FullWidthProfile } from 'ethereum-identity-kit'
-import { checkIfProxy } from '@/utils/proxy'
-import { getENS, fetchOwnedDomains } from '@/utils/ens'
-import { useToast } from '@/hooks/use-toast'
-import type { ENSDomain, TextRecords, VerificationStatus } from '@/types'
-// import { EnsRainbowApiClient } from '@ensnode/ensrainbow-sdk'
 import { TextRecordsIdentityCard } from '@/components/ens/TextRecordsIdentityCard'
 import { TechnicalDetailsAndAuditsPanel } from '@/components/ens/TechnicalDetailsAndAuditsPanel'
 import { CompiledMetadataPanel } from '@/components/ens/CompiledMetadataPanel'
@@ -52,6 +30,7 @@ import { SecurityAuditBadges } from '@/components/ens/SecurityAuditBadges'
 import { AttestationsPanel } from '@/components/ens/AttestationsPanel'
 import { AssociatedENSNamesList } from '@/components/ens/AssociatedENSNamesList'
 import { OwnedENSNamesList } from '@/components/ens/OwnedENSNamesList'
+import { useENSDetails } from '@/hooks/useENSDetails'
 
 interface ENSDetailsProps {
   address: string
@@ -67,11 +46,6 @@ interface ENSDetailsProps {
   queriedENSName?: string
 }
 
-interface ImplementationDetailsProps {
-  implementationAddress: string
-  chainId: number
-}
-
 export default function ENSDetails({
   address,
   contractDeployerAddress,
@@ -82,810 +56,54 @@ export default function ENSDetails({
   isNestedView = false,
   queriedENSName,
 }: ENSDetailsProps) {
-  const { copied, copyToClipboard } = useCopyToClipboard()
-  // State for implementation details expansion
-  const [implementationExpanded, setImplementationExpanded] = useState(false)
-  // State for text records
-  const [textRecords, setTextRecords] = useState<TextRecords>({})
-  const [isLoading, setIsLoading] = useState(true)
-  const [isMetadataLoading, setIsMetadataLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [ensNames, setEnsNames] = useState<ENSDomain[]>([])
-  const [primaryName, setPrimaryName] = useState<string | null>(null)
-  const [contractDeployerPrimaryName, setContractDeployerPrimaryName] =
-    useState<string | null>(null)
-  const [primaryNameExpiryDate, setPrimaryNameExpiryDate] = useState<
-    number | null
-  >(null)
-  const [forwardNameExpiryDate, setForwardNameExpiryDate] = useState<
-    number | null
-  >(null)
-  const [selectedForwardName, setSelectedForwardName] = useState<string | null>(
-    null,
-  )
-  const [verificationStatus, setVerificationStatus] =
-    useState<VerificationStatus | null>(null)
-  const [hasAttestations, setHasAttestations] = useState<boolean>(false)
-  const [userOwnedDomains, setUserOwnedDomains] = useState<ENSDomain[]>([])
-  const [sourcifyMetadata, setSourceifyMetadata] = useState<any>(null)
-  const [ensNameOwner, setEnsNameOwner] = useState<string | null>(null)
-  const [ensNameManager, setEnsNameManager] = useState<string | null>(null)
-  const [ensNameManagerLoading, setEnsNameManagerLoading] = useState(false)
-  const [tldOwner, setTldOwner] = useState<string | null>(null)
-  const [tldManager, setTldManager] = useState<string | null>(null)
-  const [otherDetailsExpanded, setOtherDetailsExpanded] = useState(false)
-  const [ensNameOwnerResolved, setEnsNameOwnerResolved] = useState<
-    string | null
-  >(null)
-  const [ensNameManagerResolved, setEnsNameManagerResolved] = useState<
-    string | null
-  >(null)
-  const [tldOwnerResolved, setTldOwnerResolved] = useState<string | null>(null)
-  const [tldManagerResolved, setTldManagerResolved] = useState<string | null>(
-    null,
-  )
-  const [deployerResolved, setDeployerResolved] = useState<string | null>(null)
-  const [implDeployerAddress, setImplDeployerAddress] = useState<string | null>(
-    null,
-  )
-  const [implDeployerName, setImplDeployerName] = useState<string | null>(null)
-  const { chain, isConnected } = useAccount()
-  const [customProvider, setCustomProvider] =
-    useState<import('viem').PublicClient | null>(null)
-  const { toast } = useToast()
-
-  // Use provided chainId if available, otherwise use connected wallet's chain
-  const effectiveChainId = chainId || chain?.id
-  const config = effectiveChainId ? CONTRACTS[effectiveChainId] : undefined
-  const etherscanUrl = config?.ETHERSCAN_URL || 'https://etherscan.io/'
-  const SOURCIFY_URL = 'https://repo.sourcify.dev/'
-
-  // Determine if we should use the wallet client or a custom provider
-  const shouldUseWalletClient = isConnected && chainId === chain?.id
-
-
-  const fetchUserOwnedDomains = useCallback(async () => {
-    if (!address || !config?.SUBGRAPH_API) return
-    try {
-      const domains = await fetchOwnedDomains(address, config.SUBGRAPH_API, {
-        includeRegistration: true,
-      })
-      setUserOwnedDomains(domains)
-    } catch (error) {
-      console.error("Error fetching user's owned ENS domains:", error)
-    }
-  }, [address, config])
-
-  // Initialize custom provider when chainId changes
-  useEffect(() => {
-    if (effectiveChainId && config?.RPC_ENDPOINT) {
-      try {
-        const provider = getPublicClient(effectiveChainId)
-        if (provider) setCustomProvider(provider)
-      } catch (err) {
-        console.error('[ENSDetails] Error initializing provider:', err)
-        setError('Failed to initialize provider for the selected chain')
-      }
-    }
-  }, [effectiveChainId, config])
-
-  // Function to get contract verification status
-  const getContractStatus = async (
-    chainId: number | undefined,
-    address: string,
-  ) => {
-    const defaultStatus = {
-      sourcify_verification: 'unverified',
-      etherscan_verification: 'unverified',
-      audit_status: 'unaudited',
-      attestation_tx_hash: '0xabc123',
-      blockscout_verification: 'unverified',
-      ens_name: '',
-    }
-
-    try {
-      if (!chainId) return defaultStatus
-
-      const res = await fetch(
-        `/api/v1/verification/${chainId}/${address.toLowerCase()}`,
-      )
-      if (!res.ok) return defaultStatus
-
-      const data = await res.json()
-
-      if (data) return data
-      return defaultStatus
-    } catch (error) {
-      console.error('[ENSDetails] Error fetching verification status:', error)
-      return defaultStatus
-    }
-  }
-
-  const fetchAttestationData = useCallback(async () => {
-    const response = await fetch(OLI_GQL_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        operationName: 'Attestations',
-        variables: {
-          where: {
-            schemaId: {
-              equals:
-                '0xb763e62d940bed6f527dd82418e146a904e62a297b8fa765c9b3e1f0bc6fdd68',
-            },
-            recipient: {
-              equals: address,
-            },
-          },
-          take: 50,
-          orderBy: [
-            {
-              timeCreated: 'desc',
-            },
-          ],
-        },
-        query: `query Attestations($where: AttestationWhereInput, $take: Int, $orderBy: [AttestationOrderByWithRelationInput!]) {\n  attestations(where: $where, take: $take, orderBy: $orderBy) {\n    attester\n    decodedDataJson\n    timeCreated\n    txid\n    revoked\n    revocationTime\n    isOffchain\n    __typename\n  }\n}`,
-      }),
-    })
-
-    try {
-      const attestations = await response.json()
-      setHasAttestations(attestations.data.attestations.length === 0)
-    } catch (err) {
-      setHasAttestations(false)
-    }
-  }, [address])
-
-  // Function to fetch primary ENS name for an address
-  const fetchPrimaryName = useCallback(async () => {
-    if (!address || !customProvider) return
-
-    try {
-
-      // Always do reverse lookup to get the ACTUAL primary name
-      // Don't skip this even if queriedENSName exists - we need to check if they match
-
-      // Check if address is a valid Ethereum address format (0x...)
-      // If it contains '.' it's likely an ENS name, not an address
-      if (address.includes('.')) {
-        setPrimaryName(null)
-        setPrimaryNameExpiryDate(null)
-        return
-      }
-
-      // Validate it's a proper address format before reverse lookup
-      if (!address.startsWith('0x') || address.length !== 42) {
-        setPrimaryName(null)
-        setPrimaryNameExpiryDate(null)
-        return
-      }
-
-      // Do reverse lookup (address → ENS name) to get the ACTUAL primary name
-      const primaryENS = await getENS(address, effectiveChainId!)
-
-      if (primaryENS) {
-        setPrimaryName(primaryENS)
-
-        // Check if queriedENSName matches the actual primary name
-        if (queriedENSName) {
-          const isActualPrimary =
-            queriedENSName.toLowerCase() === primaryENS.toLowerCase()
-        }
-
-        // Fetch expiry date for the primary name's 2LD
-        await fetchPrimaryNameExpiryDate(primaryENS)
-      } else {
-        setPrimaryName(null)
-        setPrimaryNameExpiryDate(null)
-      }
-    } catch (error) {
-      console.error('[ENSDetails] Error fetching primary ENS name:', error)
-      setPrimaryName(null)
-    }
-  }, [address, customProvider, queriedENSName])
-
-  // Function to fetch expiry date for any ENS name's 2LD
-  const fetchNameExpiryDate = async (
-    ensName: string,
-    setExpiryState: (date: number | null) => void,
-  ) => {
-    if (!config?.SUBGRAPH_API) return
-
-    try {
-      // Extract domain parts from the ENS name
-      const nameParts = ensName.split('.')
-      if (nameParts.length < 2) return
-
-      // For other networks or 2LD names, query the 2LD
-      const tld = nameParts[nameParts.length - 1]
-      const sld = nameParts[nameParts.length - 2]
-      const domainToQuery = `${sld}.${tld}`
-
-      // Query the subgraph for the domain with its registration data
-      const domainResponse = await fetch(config.SUBGRAPH_API, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${process.env.NEXT_PUBLIC_GRAPH_API_KEY || ''}`,
-        },
-        body: JSON.stringify({
-          query: `
-                            query GetDomainWithRegistration($name: String!) {
-                                domains(where: { name: $name }) {
-                                    name
-                                    registration {
-                                        expiryDate
-                                        registrationDate
-                                    }
-                                }
-                            }
-                        `,
-          variables: {
-            name: domainToQuery,
-          },
-        }),
-      })
-
-      const domainData = await domainResponse.json()
-
-      const expiryDate =
-        domainData?.data?.domains?.[0]?.registration?.expiryDate
-
-      if (expiryDate) {
-        setExpiryState(Number(expiryDate))
-      } else {
-        setExpiryState(null)
-      }
-    } catch (error) {
-      console.error('[ENSDetails] Error fetching name expiry date:', error)
-      setExpiryState(null)
-    }
-  }
-
-  // Wrapper for primary name expiry
-  const fetchPrimaryNameExpiryDate = useCallback(async (primaryENS: string) => {
-    await fetchNameExpiryDate(primaryENS, setPrimaryNameExpiryDate)
-  }, [])
-
-  // Wrapper for forward name expiry
-  const fetchForwardNameExpiryDate = useCallback(async (forwardENS: string) => {
-    await fetchNameExpiryDate(forwardENS, setForwardNameExpiryDate)
-  }, [])
-
-  // Function to fetch owner and manager from ENS subgraph with fallback to ENS Registry
-  const fetchOwnerAndManager = useCallback(
-    async (ensName: string) => {
-      if (!config?.SUBGRAPH_API) {
-        return { owner: null, manager: null }
-      }
-
-      try {
-
-        const query = `
-        {
-          domains(where: {name: "${ensName}"}) {
-            name
-            owner {
-              id
-            }
-            registrant {
-              id
-            }
-            wrappedOwner {
-              id
-            }
-          }
-        }
-      `
-
-        const response = await fetch(config.SUBGRAPH_API, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${process.env.NEXT_PUBLIC_GRAPH_API_KEY || ''}`,
-          },
-          body: JSON.stringify({ query }),
-        })
-
-        const data = await response.json()
-
-        if (data.data?.domains && data.data.domains.length > 0) {
-          const domain = data.data.domains[0]
-
-          // Manager is the 'owner' field in subgraph (confusing naming)
-          let manager = domain.owner?.id || null
-
-          // Owner is wrappedOwner if set (wrapped name), else registrant
-          const owner = domain.wrappedOwner?.id || domain.registrant?.id || null
-
-          // Fallback: If manager is not available, check ENS Registry contract directly
-          if (!manager && config.ENS_REGISTRY && customProvider) {
-            try {
-              const { namehash: computeNamehash } = await import('viem/ens')
-              const nameNode = computeNamehash(ensName)
-              manager = await readContract(customProvider, {
-                address: config.ENS_REGISTRY as `0x${string}`,
-                abi: ensRegistryABI,
-                functionName: 'owner',
-                args: [nameNode],
-              }) as string
-            } catch (registryError) {
-              console.error(
-                `[ENSDetails] Error fetching from ENS Registry:`,
-                registryError,
-              )
-            }
-          }
-
-          return { owner, manager }
-        }
-
-        // No domain found in subgraph, try fallback to ENS Registry
-        let manager = null
-        if (config.ENS_REGISTRY && customProvider) {
-          try {
-            const { namehash: computeNamehash } = await import('viem/ens')
-            const nameNode = computeNamehash(ensName)
-            manager = await readContract(customProvider, {
-              address: config.ENS_REGISTRY as `0x${string}`,
-              abi: ensRegistryABI,
-              functionName: 'owner',
-              args: [nameNode],
-            }) as string
-          } catch (registryError) {
-            console.error(
-              `[ENSDetails] Error fetching from ENS Registry:`,
-              registryError,
-            )
-          }
-        }
-        return { owner: null, manager }
-      } catch (error) {
-        console.error(
-          `[ENSDetails] Error fetching owner/manager for ${ensName}:`,
-          error,
-        )
-        return { owner: null, manager: null }
-      }
-    },
-    [config, customProvider],
-  )
-
-  // Function to fetch all ENS names resolving to this address
-  const fetchAssociatedNames = useCallback(async () => {
-    if (!address || !config?.SUBGRAPH_API) return
-
-    try {
-
-      // Fetch domains with their registration data in a single query
-      const domainsResponse = await fetch(config.SUBGRAPH_API, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${process.env.NEXT_PUBLIC_GRAPH_API_KEY || ''}`,
-        },
-        body: JSON.stringify({
-          query: `
-                            query GetENSNamesWithExpiry($address: String!) {
-                                domains(where: { resolvedAddress: $address }) { 
-                                    name
-                                    registration {
-                                        expiryDate
-                                        registrationDate
-                                    }
-                                }
-                            }
-                        `,
-          variables: {
-            address: address.toLowerCase(),
-          },
-        }),
-      })
-
-      const domainsData = await domainsResponse.json()
-
-      if (domainsData.data && domainsData.data.domains) {
-        // Filter domains based on chain
-        let filteredDomains = domainsData.data.domains
-
-        // Apply chain-specific filtering
-        if (effectiveChainId === CHAINS.BASE) {
-          // For Base chain, only keep .base.eth names
-          filteredDomains = filteredDomains.filter((domain: { name: string }) =>
-            domain.name.endsWith('.base.eth'),
-          )
-        } else if (effectiveChainId === CHAINS.BASE_SEPOLIA) {
-          // For Base Sepolia, don't show any names
-          filteredDomains = []
-        }
-
-        // Create domains array with expiry dates already included
-        const filterDomains = async () => {
-          // const client = new EnsRainbowApiClient();
-          return await Promise.all(
-            filteredDomains.map(
-              async (domain: {
-                name: string
-                registration: { expiryDate: string } | null
-              }) => {
-                // if (domain.name.startsWith('[')) {
-                //   const match = domain.name.match(/\[([^\]]+)\]/);
-                //   if (match) {
-                //     const response = await client.heal(`0x${match[1]}`)
-                //     if (response.status == "success") {
-                //       console.log(`domain name: ${domain.name}, healed: ${response.label}`)
-                //       domain.name = response.label!
-                //     }
-                //   }
-                // }
-
-                return {
-                  name: domain.name,
-                  isPrimary: domain.name === primaryName,
-                  expiryDate: domain.registration?.expiryDate
-                    ? Number(domain.registration.expiryDate)
-                    : undefined,
-                }
-              },
-            ),
-          )
-        }
-
-        const domains = await filterDomains()
-
-        // Sort domains: primary first, then by name length
-        const sortedDomains = domains.sort(
-          (
-            a: { isPrimary: any; name: string | any[] },
-            b: { isPrimary: any; name: string | any[] },
-          ) => {
-            if (a.isPrimary) return -1
-            if (b.isPrimary) return 1
-            return a.name.length - b.name.length
-          },
-        )
-
-        // Set domains with expiry dates already included
-        setEnsNames(sortedDomains)
-
-        // Also set forward resolution names for contracts without primary names
-        if (isContract && !primaryName && sortedDomains.length > 0) {
-          // Sort domains: deployer's names first, then by expiry date (newest first)
-          const forwardSortedDomains = sortedDomains.sort((a: any, b: any) => {
-            // First priority: names owned by the contract deployer
-            const aIsDeployer =
-              a.owner?.id?.toLowerCase() ===
-              contractDeployerAddress?.toLowerCase()
-            const bIsDeployer =
-              b.owner?.id?.toLowerCase() ===
-              contractDeployerAddress?.toLowerCase()
-
-            if (aIsDeployer && !bIsDeployer) return -1
-            if (!aIsDeployer && bIsDeployer) return 1
-
-            // Second priority: by expiry date (newest first)
-            const aExpiry = a.expiryDate || 0
-            const bExpiry = b.expiryDate || 0
-            return bExpiry - aExpiry
-          })
-
-          const names = forwardSortedDomains.map((domain: any) => domain.name)
-
-          // Select the first name (either deployer's or highest priority)
-          setSelectedForwardName(names[0])
-
-        }
-      }
-    } catch (error) {
-      console.error('[ENSDetails] Error fetching associated ENS names:', error)
-    }
-  }, [address, config, effectiveChainId, primaryName])
-
-  // Function to fetch verification status for a contract
-  const fetchVerificationStatus = useCallback(async () => {
-    if (!address || !effectiveChainId || !isContract) return
-
-    try {
-      const status = await getContractStatus(effectiveChainId, address)
-      setVerificationStatus(status)
-    } catch (error) {
-      console.error('[ENSDetails] Error fetching verification status:', error)
-      setVerificationStatus(null)
-    }
-  }, [address, effectiveChainId, isContract])
-
-  // Function to fetch Sourcify metadata for verified contracts
-  const fetchSourceifyMetadata = useCallback(async () => {
-    if (!address || !effectiveChainId || !isContract) return
-
-    try {
-      const response = await fetch(
-        `https://sourcify.dev/server/v2/contract/${effectiveChainId}/${address}?fields=abi,metadata`,
-      )
-
-      if (response.ok) {
-        const data = await response.json()
-        setSourceifyMetadata(data)
-      } else {
-        setSourceifyMetadata(null)
-      }
-    } catch (error) {
-      console.error('[ENSDetails] Error fetching Sourcify metadata:', error)
-      setSourceifyMetadata(null)
-    }
-  }, [address, effectiveChainId, isContract])
-
-  // Main useEffect to trigger data fetching when dependencies change
-  useEffect(() => {
-    // Always clear error on dependency change
-    setError(null)
-
-    // Only fetch when a provider is available
-    if (!address) return
-    if (!config) {
-      setError('Chain ID is not supported.')
-      setIsLoading(false)
-      return
-    }
-    if (!customProvider) {
-      return
-    }
-
-    const fetchAllData = async () => {
-      setIsLoading(true)
-      setError(null)
-      setContractDeployerPrimaryName(contractDeployerName)
-
-      try {
-        // Fetch data in parallel
-        await Promise.all([
-          fetchPrimaryName(),
-          fetchAssociatedNames(),
-          isContract ? fetchVerificationStatus() : Promise.resolve(),
-          isContract ? fetchSourceifyMetadata() : Promise.resolve(),
-          fetchUserOwnedDomains(),
-          fetchAttestationData(),
-        ])
-      } catch (err) {
-        console.error('[ENSDetails] Error fetching data:', err)
-        setError('Failed to fetch data')
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    fetchAllData()
-  }, [
-    address,
-    customProvider,
-    config,
+  const {
+    shouldShowLoading,
+    error,
+    primaryName,
+    selectedForwardName,
+    ensNames,
+    userOwnedDomains,
+    primaryNameExpiryDate,
+    forwardNameExpiryDate,
+    ensNameOwner,
+    ensNameManager,
+    ensNameManagerLoading,
+    ensNameOwnerResolved,
+    ensNameManagerResolved,
+    tldOwner,
+    tldManager,
+    tldOwnerResolved,
+    tldManagerResolved,
+    deployerResolved,
+    contractDeployerPrimaryName,
+    implDeployerAddress,
+    implDeployerName,
+    verificationStatus,
+    sourcifyMetadata,
+    textRecords,
+    hasAttestations,
     effectiveChainId,
-    isContract,
-    queriedENSName,
-    fetchPrimaryName,
-    fetchAssociatedNames,
-    fetchVerificationStatus,
-    fetchSourceifyMetadata,
-    fetchUserOwnedDomains,
-  ])
-
-  // Function to fetch text records from API
-  const fetchTextRecordsFromAPI = useCallback(
-    async (ensName: string) => {
-      if (!ensName || !isContract || !effectiveChainId) return
-
-      setIsMetadataLoading(true)
-
-      try {
-        const response = await fetch(
-          `/api/v1/contractMetadata/${effectiveChainId}/${encodeURIComponent(ensName)}`,
-        )
-
-        if (!response.ok) {
-          console.error('[ENSDetails] API error:', response.status)
-          setTextRecords({})
-          return
-        }
-
-        const records: TextRecords = await response.json()
-        setTextRecords(records)
-      } catch (error) {
-        console.error(
-          '[ENSDetails] Error fetching text records from API:',
-          error,
-        )
-        setTextRecords({})
-      } finally {
-        setIsMetadataLoading(false)
-      }
-    },
-    [effectiveChainId, isContract],
-  )
-
-  // Fetch text records based on queried name or primary name
-  useEffect(() => {
-    // Determine which ENS name to use for text records
-    let ensNameToFetch: string | null = null
-
-    if (queriedENSName) {
-      // If user queried by ENS name, use that name immediately (priority)
-      ensNameToFetch = queriedENSName
-
-      // Fetch expiry for queried name if it's not the primary name
-      if (
-        !primaryName ||
-        queriedENSName.toLowerCase() !== primaryName.toLowerCase()
-      ) {
-        fetchForwardNameExpiryDate(queriedENSName)
-      }
-    } else {
-      // If user queried by address, use primary name or forward name
-      ensNameToFetch = primaryName || selectedForwardName
-
-      // Fetch expiry for selected forward name if it exists and is not the primary name
-      if (
-        selectedForwardName &&
-        (!primaryName ||
-          selectedForwardName.toLowerCase() !== primaryName.toLowerCase())
-      ) {
-        fetchForwardNameExpiryDate(selectedForwardName)
-      }
-    }
-
-    // Fetch from API if we have an ENS name and it's a contract
-    if (ensNameToFetch && isContract) {
-      fetchTextRecordsFromAPI(ensNameToFetch)
-    } else {
-      setTextRecords({})
-      setIsMetadataLoading(false) // No metadata to load for non-contracts
-    }
-  }, [
-    queriedENSName,
-    primaryName,
-    selectedForwardName,
-    isContract,
-    fetchTextRecordsFromAPI,
-  ])
-
-  // Fetch owner and manager for current ENS name and 2LD
-  useEffect(() => {
-    const fetchOwnerManagerData = async () => {
-      const currentName = queriedENSName || primaryName || selectedForwardName
-
-
-      // Resolve contract deployer to ENS name (even if no ENS name for contract)
-      if (contractDeployerAddress && isContract && customProvider) {
-        try {
-          const deployerENS = await getENS(
-            contractDeployerAddress,
-            effectiveChainId!,
-          )
-          setDeployerResolved(deployerENS || null)
-        } catch (err) {
-          setDeployerResolved(null)
-        }
-      }
-
-      if (!currentName || !isContract || !customProvider) {
-        return
-      }
-
-
-      // Fetch owner/manager for current ENS name
-      setEnsNameManagerLoading(true)
-      const { owner, manager } = await fetchOwnerAndManager(currentName)
-      setEnsNameOwner(owner)
-      setEnsNameManager(manager)
-      setEnsNameManagerLoading(false)
-
-      // Resolve owner to ENS name
-      if (owner) {
-        try {
-          const ownerENS = await getENS(owner, effectiveChainId!)
-          setEnsNameOwnerResolved(ownerENS || null)
-        } catch (err) {
-          setEnsNameOwnerResolved(null)
-        }
-      }
-
-      // Resolve manager to ENS name
-      if (manager) {
-        try {
-          const managerENS = await getENS(manager, effectiveChainId!)
-          setEnsNameManagerResolved(managerENS || null)
-        } catch (err) {
-          setEnsNameManagerResolved(null)
-        }
-      }
-
-      // Extract and fetch owner/manager for 2LD
-      const parts = currentName.split('.')
-      if (parts.length >= 2) {
-        const tld = parts[parts.length - 1]
-        const sld = parts[parts.length - 2]
-        const tldName = `${sld}.${tld}`
-
-        const { owner: tldOwnerData, manager: tldManagerData } =
-          await fetchOwnerAndManager(tldName)
-        setTldOwner(tldOwnerData)
-        setTldManager(tldManagerData)
-
-        // Resolve 2LD owner to ENS name
-        if (tldOwnerData) {
-          try {
-            const tldOwnerENS = await getENS(tldOwnerData, effectiveChainId!)
-            setTldOwnerResolved(tldOwnerENS || null)
-          } catch (err) {
-            setTldOwnerResolved(null)
-          }
-        }
-
-        // Resolve 2LD manager to ENS name
-        if (tldManagerData) {
-          try {
-            const tldManagerENS = await getENS(tldManagerData, effectiveChainId!)
-            setTldManagerResolved(tldManagerENS || null)
-          } catch (err) {
-            setTldManagerResolved(null)
-          }
-        }
-      }
-    }
-
-    fetchOwnerManagerData()
-  }, [
-    queriedENSName,
-    primaryName,
-    selectedForwardName,
-    isContract,
-    fetchOwnerAndManager,
+    config,
+    etherscanUrl,
+    implementationExpanded,
+    setImplementationExpanded,
+    otherDetailsExpanded,
+    setOtherDetailsExpanded,
+    copied,
+    copyToClipboard,
+    toast,
     customProvider,
+  } = useENSDetails({
+    address,
     contractDeployerAddress,
-  ])
+    contractDeployerName,
+    chainId,
+    isContract,
+    proxyInfo,
+    queriedENSName,
+  })
 
-  // Fetch deployer for implementation contract
-  useEffect(() => {
-    const fetchImplDeployer = async () => {
-      if (!proxyInfo?.implementationAddress || !effectiveChainId) {
-        return
-      }
-
-      try {
-
-        const url = `${ETHERSCAN_API}&chainid=${effectiveChainId}&module=contract&action=getcontractcreation&contractaddresses=${proxyInfo.implementationAddress}`
-        const response = await fetch(url)
-        const data = await response.json()
-
-        if (data.status === '1' && data.result && data.result.length > 0) {
-          const creatorAddress = data.result[0]?.contractCreator
-          setImplDeployerAddress(creatorAddress || null)
-
-          // Fetch primary name for the deployer
-          if (creatorAddress && customProvider) {
-            try {
-              const deployerENS = await getENS(creatorAddress, effectiveChainId!)
-              setImplDeployerName(deployerENS || null)
-            } catch (err) {
-              setImplDeployerName(null)
-            }
-          }
-        }
-      } catch (error) {
-        console.error(
-          '[ENSDetails] Error fetching implementation deployer:',
-          error,
-        )
-      }
-    }
-
-    fetchImplDeployer()
-  }, [proxyInfo?.implementationAddress, effectiveChainId, customProvider])
-
-  // Show loading until ENS data is loaded AND (for contracts) metadata is loaded
-  const shouldShowLoading = isLoading || (isContract && isMetadataLoading)
-
+  // ─── JSX ───
   if (shouldShowLoading) {
     return (
       <Card className="w-full max-w-5xl mx-auto bg-white dark:bg-gray-800 shadow-lg rounded-xl">
