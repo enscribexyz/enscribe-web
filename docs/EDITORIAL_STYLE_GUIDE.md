@@ -84,6 +84,28 @@ The following words and phrases are banned unless used intentionally and sparing
 
 **Why?** These terms are overused by generative tools and strip writing of its specificity and trustworthiness. They feel like filler and don’t reflect the grounded, developer-first tone we’re aiming for.
 
+### **Avoid rhetorical close-outs and meta-qualifiers**
+
+Do not end paragraphs with broad, dramatic, or moralizing statements that add no new factual detail.
+
+Avoid these templates:
+
+* ❌ “X is not Y. It is Z.”  
+* ❌ “The difference lies not in X, but in Y.”  
+* ❌ “This is not a criticism of X. It is an acknowledgment of Y.”
+* ❌ “This is a [label].” as a stand-alone sentence (for example, “This is a scope boundary.”)
+* ❌ Split-contrast fragments where one sentence would be clearer (for example, “X does A. It does not do B.”)
+* ❌ Stacked micro-sentences with repeated openers (for example, “Both X. Both Y. Both Z.”)
+
+Prefer:
+
+* ✅ Mechanism + actor + consequence  
+* ✅ Concrete context over abstract framing  
+* ✅ Claims tied to observable behavior, examples, or references
+* ✅ Name the subject directly (for example, “Audits test execution correctness, while identity controls reduce impersonation risk at signing time.”)
+* ✅ Use a single sentence with a clear connector for contrast when possible (for example, “X does A, but it does not do B.”)
+* ✅ Merge repeated attributes into one integrated sentence when possible
+
 ## **Tone and Voice**
 
 ### **Voice (Consistent Personality)**
