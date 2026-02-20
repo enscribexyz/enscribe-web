@@ -1,0 +1,160 @@
+---
+slug: explore-name-hierarchy
+title: "Name Explorer: Navigate ENS hierarchies and metadata"
+description: "Name Explorer lets you search any ENS name, browse its parent hierarchy and subnames, view all metadata records, and edit them if you're the owner."
+authors: [nischal]
+tags: [enscribe, ens, metadata, contract]
+keywords: [ENS, Enscribe, ENS metadata, subnames, text records]
+image: ./name-explorer.png
+---
+
+ENS names form a hierarchical namespace, where names can have parents and children, each with their own metadata and ownership. But exploring this structure and the metadata attached to names has always been really hard and un-intuitive.
+
+Thats why we added **Name Explorer** to Enscribe — a dedicated interface for navigating ENS name hierarchies, viewing metadata, and managing text records all in one place.
+
+![Name Explorer interface](./name-explorer.png)
+
+## The Problem: ENS Names Are More Than Addresses
+
+When you interact with ENS, you typically think about resolution: "What address does `vitalik.eth` point to?"
+
+But ENS names are rich data structures. Each name can have:
+- Multiple text records (metadata)
+- A parent name above it in the hierarchy
+- Subnames below it
+- Cross-chain address records
+- Contenthash attached to the name
+
+Previously, to explore all this information, you'd need to:
+- Use the ENS Manager app to see text records
+- Manually construct parent names to browse upward
+- Query subgraphs to find subnames
+- Switch between multiple tools and interfaces
+
+**Name Explorer brings all of this into one interface.**
+
+## Meet Name Explorer
+
+Name Explorer is a new page on Enscribe designed specifically for exploring ENS names, their metadata, and their place in the naming hierarchy.
+
+![Name Explorer main view](./enscribe-main.png)
+
+You can access it from:
+- The main navigation: "Name Explorer"
+- Via search results when you search for an ENS name
+- Trhough contract details page
+
+## Two Ways to Search: Address vs Name
+
+When you search for an ENS name in Enscribe, you now get **two exploration options**:
+
+![Search modal showing two options](./searchbar.png)
+
+### 1. View Address
+
+If the name resolves to an address (forward resolution is set), you can view the **contract or account details** at that address:
+- Contract verification and source code
+- Associated ENS names
+- ENS org and expiry status
+- Contract metadata (if set)
+
+This is the traditional "explore" experience — focused on the destination address.
+
+### 2. Explore Name
+
+This opens the **Name Explorer** view, focused on the ENS name itself:
+- All text records and metadata
+- Parent hierarchy navigation
+- Subnames list
+- Edit and setting new text records (if you're the owner or manager)
+
+**Key difference:** You don't need the name to resolve to an address. Any valid ENS name can be explored, whether it points somewhere or not.
+
+## Navigating the Hierarchy
+
+Name Explorer's **hierarchical navigation** lets you traverse the ENS tree structure. ENS names are organized as a tree, and you can move up to parents or down to subnames with a click.
+
+### Parent Hierarchy
+
+![Parent Hierarchy](./parent.png)
+
+Every ENS name (except TLDs) has a parent. Name Explorer shows the complete parent chain:
+
+```
+pool-manager.phoenix.cork.eth
+  ├─ phoenix.cork.eth (parent)
+  │   ├─ cork.eth (grandparent)
+  │   │   └─ eth (TLD)
+```
+
+Each parent name is clickable. Click any parent to instantly navigate up the hierarchy and explore its metadata.
+
+### Direct Subnames
+
+![Direct Subnames](./subnames.png)
+
+If a name has subnames beneath it, Name Explorer lists them all:
+
+```
+phoenix.cork.eth
+  ├─ adapter.phoenix.cork.eth
+  ├─ shares-factory.phoenix.cork.eth
+  ├─ pool-manager.phoenix.cork.eth
+  ├─ controller.phoenix.cork.eth
+  └─ whitelist.phoenix.cork.eth
+  └─ ...
+```
+
+Click any subname to explore it. You can browse an entire project's naming structure this way.
+
+**Use cases:**
+- **Understand organizational structure**: See how a project organizes its contracts
+- **Trace ownership**: Follow parent names to find the root organization
+- **Discover related names**: Find other contracts under the same parent
+- **Find specific contract versions** quickly
+- **Check inherited metadata**: See what metadata comes from parent levels
+
+## Viewing Metadata and Editing Metadata
+
+Name Explorer shows every text record set on an ENS name. All metadata is displayed in one view.
+
+If you're the owner or manager of an ENS name, Name Explorer lets you **edit metadata directly**.
+
+![Edit metadata modal](./edit-records.png)
+
+Click the **"Set Metadata"** button next to any ENS name you own to open the metadata editor.
+
+### Recommended Keys
+
+The editor provides **recommended metadata keys** based on the address type, if it is a contract or an account. Also you manually add other keys related to account or contract or even custom keys if you want to.
+
+**Account Metadata** (for wallets)
+- email, phone, location
+- Social profiles
+- Personal information
+
+**Contract Metadata** (for smart contracts)
+- Technical documentation
+- Audit reports
+- License information
+- Compiler metadata
+
+These recommendations follow the [draft Contract Metadata ENSIP](https://github.com/ensdomains/ensips/pull/50) and community best practices.
+
+Set multiple metadata fields in a single transaction using **multicall**. This saves gas and time when you're setting up metadata for the first time or making bulk updates.
+
+The interface shows exactly which records will be updated and lets you review before signing.
+
+## Try It Now
+
+Name Explorer is live on [Enscribe](https://app.enscribe.xyz/nameMetadata):
+- Search for any ENS name
+- Explore public metadata
+- Navigate hierarchies
+- Connect your wallet to edit your names
+
+Whether you're managing a protocol with hundreds of contracts, exploring the ENS namespace, or simply want to see what metadata is attached to your favorite names, Name Explorer provides the visibility and control you need.
+
+Join the conversation and give us your feedback on [Discord](https://discord.gg/8QUMMdS5GY), [Telegram](https://t.me/enscribers) or [X](https://x.com/enscribe_)
+
+Happy naming! 🚀
