@@ -32,7 +32,7 @@ import {
   getDeployedAddress,
   logMetric,
 } from '@/utils/componentUtils'
-import { DeployENSDomainModal } from '@/components/naming/DeployENSDomainModal'
+import { ENSDomainPickerModal } from '@/components/naming/ENSDomainPickerModal'
 import {
   getEnsAddress,
   readContract,
@@ -2049,7 +2049,7 @@ export default function DeployForm() {
         )}
       </div>
 
-      <DeployENSDomainModal
+      <ENSDomainPickerModal
         open={showENSModal}
         onOpenChange={setShowENSModal}
         fetchingENS={fetchingENS}
@@ -2058,6 +2058,8 @@ export default function DeployForm() {
           setParentName(domain)
           setShowENSModal(false)
         }}
+        title="Choose Your ENS Parent"
+        description="Choose one of your owned ENS domains or enter manually."
         onEnterManually={() => {
           setParentName('')
           setShowENSModal(false)

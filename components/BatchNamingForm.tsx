@@ -28,7 +28,7 @@ import reverseRegistrarABI from '@/contracts/ReverseRegistrar'
 import ownableContractABI from '@/contracts/Ownable'
 import Image from 'next/image'
 import SetNameStepsModal, { Step } from './SetNameStepsModal'
-import { ENSDomainSelectionModal } from '@/components/naming/ENSDomainSelectionModal'
+import { ENSDomainPickerModal } from '@/components/naming/ENSDomainPickerModal'
 import { L2ChainPickerDialog } from '@/components/naming/L2ChainPickerDialog'
 import { CallDataPanel } from '@/components/naming/CallDataPanel'
 import { BatchEntryRow } from '@/components/naming/BatchEntryRow'
@@ -2070,17 +2070,36 @@ export default function BatchNamingForm() {
 
 
       {/* ENS Domain Selection Modal */}
-      <ENSDomainSelectionModal
+      <ENSDomainPickerModal
         open={showENSModal}
         onOpenChange={setShowENSModal}
         fetchingENS={fetchingENS}
         userOwnedDomains={userOwnedDomains}
-        enscribeDomain={enscribeDomain}
-        onSelectDomain={(domain, type) => {
+        title="Choose Domain"
+        onSelectDomain={(domain) => {
           setParentName(domain)
-          setParentType(type)
+          setParentType(domain === enscribeDomain ? 'web3labs' : 'own')
           setShowENSModal(false)
         }}
+        extraSection={
+          <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+            <h3 className="text-base font-medium text-gray-900 dark:text-white mb-3">
+              Other Domains
+            </h3>
+            <div
+              className="px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-full cursor-pointer transition-colors inline-flex items-center bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700"
+              onClick={() => {
+                setParentName(enscribeDomain)
+                setParentType('web3labs')
+                setShowENSModal(false)
+              }}
+            >
+              <span className="text-gray-800 dark:text-gray-200 font-medium whitespace-nowrap">
+                {enscribeDomain}
+              </span>
+            </div>
+          </div>
+        }
       />
 
 
