@@ -1,6 +1,6 @@
 ---
 slug: versioning-upgradeable-contracts
-title: How to version upgradeable contracts
+title: How to manage versions in upgradeable smart contracts
 description: A practical guide to naming proxy and implementation contracts so upgradeable systems stay transparent for users, developers and auditors.
 authors: [abhi]
 tags: [enscribe, ens, upgradeable-contracts, proxy-pattern, foundry, versioning]
@@ -9,11 +9,11 @@ image: ./cover.png
 
 ![Proxy and implementation contracts visual](./cover.png)
 
-In our [recent guide on smart contract versioning](https://www.enscribe.xyz/blog/smart-contract-versioning), we explored how smart contracts can be versioned & suggested a few ideas on how to integrate contract versioning in your existing deployment pipelines. This post is a sequel explaining how similar ideas can be applied when you have upgradeable contracts.
+In our [recent guide on smart contract versioning](https://www.enscribe.xyz/blog/smart-contract-versioning), we explored how smart contracts can be versioned and suggested a few ideas on how to integrate contract versioning in your existing deployment pipelines. This post is a sequel explaining how similar ideas can be applied when you have upgradeable contracts.
 
 In smart contract engineering, the proxy pattern is a standard for smart contract upgradability. By separating the proxy (stable user-facing abstraction) from the implementation (the upgradeable logic), developers can ship improvements without breaking contract calls on the clients because the address changed.
 
-Whilst naming the implementation contract is awesome, what happens if you just name either the proxy contract or the implementation contract? It introduces a ‘transparency problem’ —  without naming both the contracts, figuring out which contract does what and which version of the logic is currently active behind a proxy becomes a headache for users, developers and auditors.
+Whilst naming the implementation contract is awesome, what happens if you just name either the proxy contract or the implementation contract? It introduces a ‘*transparency problem*’ —  without naming both the contracts, figuring out which contract does what and which version of the logic is currently active behind a proxy becomes a headache for users, developers and auditors.
 
 ![proxy](proxy-user.png)
 
@@ -23,7 +23,7 @@ How can a proxy contract differentiate a transaction that is meant to upgrade th
 
 TransparentUpgradeableProxy pattern ensures that only the admin can upgrade the implementation whilst for normal users, it ‘transparently’ forwards the transaction to the implementation contract, executing the logic, as if the proxy wasn’t there (hence the name).
 
-Let’s first see how the [TransparentUpgradeableProxy proxy contract from OpenZeppelin](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/proxy/transparent/TransparentUpgradeableProxy.sol) that uses the transparent upgradeable proxy pattern looks like.
+Let’s first see how the [TransparentUpgradeableProxy](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/proxy/transparent/TransparentUpgradeableProxy.sol) proxy contract from OpenZeppelin that uses the transparent upgradeable proxy pattern looks like.
 
 We have a constructor that configures the proxy admin and the implementation address:
 
@@ -84,7 +84,7 @@ contract ImplementationV1 is Initializable, Ownable {
 }
 ```
 
-We can now deploy both these contracts & point the proxy contract to the implementation by using a number of ways:
+We can now deploy both these contracts and point the proxy contract to the implementation by using a number of ways:
 
     If deploying a new proxy: pass `(implementationAddress, adminAddress, initData)` to proxy constructor.
     If upgrading an existing proxy: admin calls `upgradeToAndCall(newImplementationAddress, initData)` (or `upgradeTo` if already initialized).
@@ -176,7 +176,7 @@ And here’s how the implementation contract named as `v1.cooldapp.abhi.eth` loo
 
 ![implementation](impl.png)
 
-Should you want to update the implementation, you can simply deploy & name it as `v2.app.mydomain.eth` & upgrade the proxy to point to this new version.
+Should you want to update the implementation, you can simply deploy and name it as `v2.app.mydomain.eth` and upgrade the proxy to point to this new version.
 
 For other approaches to versioning regular smart contracts you can refer to our [recent guide on smart contract versioning](https://www.enscribe.xyz/blog/smart-contract-versioning).
 
