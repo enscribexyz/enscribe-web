@@ -7,6 +7,8 @@ tags: [enscribe, ens, upgradeable-contracts, proxy-pattern, foundry, versioning]
 image: ./cover.png
 ---
 
+![Proxy and implementation contracts visual](./cover.png)
+
 In our [recent guide on smart contract versioning](https://www.enscribe.xyz/blog/smart-contract-versioning), we explored how smart contracts can be versioned & suggested a few ideas on how to integrate contract versioning in your existing deployment pipelines. This post is a sequel explaining how similar ideas can be applied when you have upgradeable contracts.
 
 In smart contract engineering, the proxy pattern is a standard for smart contract upgradability. By separating the proxy (stable user-facing abstraction) from the implementation (the upgradeable logic), developers can ship improvements without breaking contract calls on the clients because the address changed.
