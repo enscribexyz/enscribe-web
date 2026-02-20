@@ -8,9 +8,9 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { useToast } from '@/hooks/use-toast'
 import { CONTRACTS, CHAINS } from '../utils/constants'
 import { L2_CHAIN_NAMES } from '@/lib/chains'
-import { isAddress, encodeFunctionData, namehash, createPublicClient, http } from 'viem'
+import { isAddress, encodeFunctionData, namehash } from 'viem'
 import { readContract, writeContract, waitForTransactionReceipt } from 'viem/actions'
-import * as chains from 'viem/chains'
+import { getPublicClient } from '@/lib/viemClient'
 import { X, Copy, Check, Info, ChevronDown, ChevronRight } from 'lucide-react'
 import {
   Tooltip,
@@ -1063,50 +1063,12 @@ export default function BatchNamingForm() {
     }
 
     try {
-      // Get the viem chain object for the L2
-      let viemChain
-      switch (l2ChainId) {
-        case CHAINS.OPTIMISM:
-          viemChain = chains.optimism
-          break
-        case CHAINS.OPTIMISM_SEPOLIA:
-          viemChain = chains.optimismSepolia
-          break
-        case CHAINS.ARBITRUM:
-          viemChain = chains.arbitrum
-          break
-        case CHAINS.ARBITRUM_SEPOLIA:
-          viemChain = chains.arbitrumSepolia
-          break
-        case CHAINS.SCROLL:
-          viemChain = chains.scroll
-          break
-        case CHAINS.SCROLL_SEPOLIA:
-          viemChain = chains.scrollSepolia
-          break
-        case CHAINS.BASE:
-          viemChain = chains.base
-          break
-        case CHAINS.BASE_SEPOLIA:
-          viemChain = chains.baseSepolia
-          break
-        case CHAINS.LINEA:
-          viemChain = chains.linea
-          break
-        case CHAINS.LINEA_SEPOLIA:
-          viemChain = chains.lineaSepolia
-          break
-        default:
-          console.error(`Unknown chain ID: ${l2ChainId}`)
-          return false
-      }
-
       // Create a public client for the L2 chain
-      const chainConfig = CONTRACTS[l2ChainId]
-      const l2PublicClient = createPublicClient({
-        chain: viemChain,
-        transport: http(chainConfig.RPC_ENDPOINT),
-      })
+      const l2PublicClient = getPublicClient(l2ChainId)
+      if (!l2PublicClient) {
+        console.error(`Failed to create client for chain ${l2ChainId}`)
+        return false
+      }
 
       // Try to read the owner from the contract on L2
       const ownerAddress = (await readContract(l2PublicClient, {
@@ -1138,50 +1100,12 @@ export default function BatchNamingForm() {
     }
 
     try {
-      // Get the viem chain object for the L2
-      let viemChain
-      switch (l2ChainId) {
-        case CHAINS.OPTIMISM:
-          viemChain = chains.optimism
-          break
-        case CHAINS.OPTIMISM_SEPOLIA:
-          viemChain = chains.optimismSepolia
-          break
-        case CHAINS.ARBITRUM:
-          viemChain = chains.arbitrum
-          break
-        case CHAINS.ARBITRUM_SEPOLIA:
-          viemChain = chains.arbitrumSepolia
-          break
-        case CHAINS.SCROLL:
-          viemChain = chains.scroll
-          break
-        case CHAINS.SCROLL_SEPOLIA:
-          viemChain = chains.scrollSepolia
-          break
-        case CHAINS.BASE:
-          viemChain = chains.base
-          break
-        case CHAINS.BASE_SEPOLIA:
-          viemChain = chains.baseSepolia
-          break
-        case CHAINS.LINEA:
-          viemChain = chains.linea
-          break
-        case CHAINS.LINEA_SEPOLIA:
-          viemChain = chains.lineaSepolia
-          break
-        default:
-          console.error(`Unknown chain ID: ${l2ChainId}`)
-          return false
-      }
-
       // Create a public client for the L2 chain
-      const chainConfig = CONTRACTS[l2ChainId]
-      const l2PublicClient = createPublicClient({
-        chain: viemChain,
-        transport: http(chainConfig.RPC_ENDPOINT),
-      })
+      const l2PublicClient = getPublicClient(l2ChainId)
+      if (!l2PublicClient) {
+        console.error(`Failed to create client for chain ${l2ChainId}`)
+        return false
+      }
 
       // Try to read the owner from the contract on L2
       const ownerAddress = (await readContract(l2PublicClient, {

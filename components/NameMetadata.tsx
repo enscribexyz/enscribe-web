@@ -28,27 +28,12 @@ import {
   readContract,
 } from 'viem/actions'
 import {
-  createPublicClient,
-  http,
   getAddress,
   isAddress,
   parseAbi,
   encodeFunctionData,
 } from 'viem'
-import {
-  mainnet,
-  sepolia,
-  base,
-  baseSepolia,
-  linea,
-  lineaSepolia,
-  optimism,
-  optimismSepolia,
-  arbitrum,
-  arbitrumSepolia,
-  scroll,
-  scrollSepolia,
-} from 'viem/chains'
+import { getPublicClient } from '@/lib/viemClient'
 import publicResolverABI from '../contracts/PublicResolver'
 import { useToast } from '@/hooks/use-toast'
 import Image from 'next/image'
@@ -207,38 +192,6 @@ export default function NameMetadata({ initialName }: NameMetadataProps) {
   // Use wallet chain if connected, otherwise use selected chain from ChainSelector
   const activeChainId = chain?.id || selectedChain || CHAINS.MAINNET
   const config = CONTRACTS[activeChainId]
-
-  // Get viem chain object
-  const getViemChain = (chainId: number) => {
-    switch (chainId) {
-      case CHAINS.MAINNET:
-        return mainnet
-      case CHAINS.SEPOLIA:
-        return sepolia
-      case CHAINS.BASE:
-        return base
-      case CHAINS.BASE_SEPOLIA:
-        return baseSepolia
-      case CHAINS.LINEA:
-        return linea
-      case CHAINS.LINEA_SEPOLIA:
-        return lineaSepolia
-      case CHAINS.OPTIMISM:
-        return optimism
-      case CHAINS.OPTIMISM_SEPOLIA:
-        return optimismSepolia
-      case CHAINS.ARBITRUM:
-        return arbitrum
-      case CHAINS.ARBITRUM_SEPOLIA:
-        return arbitrumSepolia
-      case CHAINS.SCROLL:
-        return scroll
-      case CHAINS.SCROLL_SEPOLIA:
-        return scrollSepolia
-      default:
-        return mainnet
-    }
-  }
 
   // Reset form function
   const resetForm = useCallback(() => {
@@ -566,11 +519,8 @@ export default function NameMetadata({ initialName }: NameMetadataProps) {
         // This ensures we have the most up-to-date data
         if (metadata.resolverAddress && config?.RPC_ENDPOINT) {
           try {
-            const viemChain = getViemChain(activeChainId)
-            const publicClient = createPublicClient({
-              chain: viemChain,
-              transport: http(config.RPC_ENDPOINT),
-            })
+            const publicClient = getPublicClient(activeChainId)
+            if (!publicClient) throw new Error('Failed to create client')
 
             const nameNode = namehash(name)
 
@@ -898,16 +848,8 @@ export default function NameMetadata({ initialName }: NameMetadataProps) {
       ) {
         try {
           const baseConfig = CONTRACTS[activeChainId]
-          const baseClient = createPublicClient({
-            transport: http(baseConfig.RPC_ENDPOINT),
-            chain: {
-              id: activeChainId,
-              name: 'Base',
-              network: 'base',
-              nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
-              rpcUrls: { default: { http: [baseConfig.RPC_ENDPOINT] } },
-            },
-          })
+          const baseClient = getPublicClient(activeChainId)
+          if (!baseClient) throw new Error('Failed to create client for Base chain')
 
           const publicResolverAbi = parseAbi([
             'function addr(bytes32 node) view returns (address)',
@@ -937,9 +879,9 @@ export default function NameMetadata({ initialName }: NameMetadataProps) {
       // If Base resolution failed or not on Base, try mainnet/sepolia ENS
       if (!resolvedAddress) {
         try {
-          const ensConfig = CONTRACTS[ensChainId]
           const { getEnsAddress: resolveEnsName } = await import('viem/actions')
-          const ensClient = createPublicClient({ chain: getViemChain(ensChainId), transport: http(ensConfig.RPC_ENDPOINT) })
+          const ensClient = getPublicClient(ensChainId)
+          if (!ensClient) throw new Error('Failed to create ENS client')
           resolvedAddress = await resolveEnsName(ensClient, { name })
         } catch (resolveError: any) {
           console.error(

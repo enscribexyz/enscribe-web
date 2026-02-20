@@ -1,6 +1,6 @@
 /**
  * Single source of truth for all chain configuration.
- * Import chain display metadata, wagmi chain objects, and chain ID arrays from here.
+ * Import chain display metadata, wagmi chain objects, viem chain map, and chain ID arrays from here.
  */
 
 import {
@@ -17,6 +17,7 @@ import {
   scroll,
   scrollSepolia,
 } from 'wagmi/chains'
+import type { Chain } from 'viem'
 import { CHAINS } from '@/utils/constants'
 
 // ─── Wagmi Chains Array ────────────────────────────────────────────────────
@@ -90,3 +91,24 @@ export const L2_TESTNET_CHAIN_IDS: CHAINS[] = [
 ]
 
 export const L2_CHAIN_IDS: CHAINS[] = [...L2_MAINNET_CHAIN_IDS, ...L2_TESTNET_CHAIN_IDS]
+
+// ─── Viem Chain Map ──────────────────────────────────────────────────────
+
+export const VIEM_CHAIN_MAP: Record<number, Chain> = {
+  [CHAINS.MAINNET]: mainnet,
+  [CHAINS.SEPOLIA]: sepolia,
+  [CHAINS.BASE]: base,
+  [CHAINS.BASE_SEPOLIA]: baseSepolia,
+  [CHAINS.LINEA]: linea,
+  [CHAINS.LINEA_SEPOLIA]: lineaSepolia,
+  [CHAINS.OPTIMISM]: optimism,
+  [CHAINS.OPTIMISM_SEPOLIA]: optimismSepolia,
+  [CHAINS.ARBITRUM]: arbitrum,
+  [CHAINS.ARBITRUM_SEPOLIA]: arbitrumSepolia,
+  [CHAINS.SCROLL]: scroll,
+  [CHAINS.SCROLL_SEPOLIA]: scrollSepolia,
+}
+
+export function getViemChain(chainId: number): Chain {
+  return VIEM_CHAIN_MAP[chainId] ?? mainnet
+}

@@ -1,8 +1,7 @@
 import { CHAINS, CONTRACTS } from './constants'
-import { createPublicClient, http } from 'viem'
 import { getEnsName, readContract } from 'viem/actions'
 import L2ReverseRegistrarABI from '@/contracts/L2ReverseRegistrar'
-import { mainnet, sepolia } from 'viem/chains'
+import { getPublicClient } from '@/lib/viemClient'
 
 const METADATA_TEXT_KEYS = new Set([
   'alias',
@@ -39,14 +38,9 @@ export const getENS = async (
     )
     return ''
   }
-  const viemChain = chainId === CHAINS.MAINNET ? mainnet : sepolia
 
-  const client = createPublicClient({
-    chain: viemChain,
-    transport: http(config.RPC_ENDPOINT),
-  })
-
-  // const client = createPublicClient({ transport: http(config.RPC_ENDPOINT) })
+  const client = getPublicClient(chainId)
+  if (!client) return ''
 
   // For mainnet and sepolia, use standard ENS reverse resolution
   if (chainId === CHAINS.MAINNET || chainId === CHAINS.SEPOLIA) {

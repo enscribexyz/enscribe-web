@@ -57,7 +57,8 @@ import {
 } from 'viem/actions'
 import { namehash, normalize } from 'viem/ens'
 import { isAddress, keccak256, toBytes, encodeFunctionData, parseAbi, encodePacked } from 'viem'
-import { createPublicClient, http, toCoinType } from 'viem'
+import { toCoinType } from 'viem'
+import { getPublicClient } from '@/lib/viemClient'
 import enscribeContractABI from '../contracts/Enscribe'
 import ownableContractABI from '@/contracts/Ownable'
 import { ContractStatusPanel } from '@/components/naming/ContractStatusPanel'
@@ -1095,16 +1096,14 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
           }
 
           // Create a custom client for this L2 chain
-          const l2Client = createPublicClient({
-            transport: http(l2Config.RPC_ENDPOINT),
-            chain: {
-              id: l2Chain.chainId,
+          const l2Client = getPublicClient(l2Chain.chainId)
+          if (!l2Client) {
+            return {
               name: l2Chain.name,
-              network: l2Chain.name.toLowerCase(),
-              nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
-              rpcUrls: { default: { http: [l2Config.RPC_ENDPOINT] } },
-            },
-          })
+              isOwnable: false,
+              error: `Failed to create client for ${l2Chain.name}`,
+            }
+          }
 
           const ownerAddress = (await readContract(l2Client, {
             address: address as `0x${string}`,

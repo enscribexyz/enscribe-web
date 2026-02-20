@@ -1,21 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react'
-import { createPublicClient, http } from 'viem'
-import type { Chain } from 'viem'
-import {
-  mainnet,
-  sepolia,
-  base,
-  baseSepolia,
-  linea,
-  lineaSepolia,
-  optimism,
-  optimismSepolia,
-  arbitrum,
-  arbitrumSepolia,
-  scroll,
-  scrollSepolia,
-} from 'viem/chains'
 import { readContract } from 'viem/actions'
+import { getPublicClient } from '@/lib/viemClient'
 import { useAccount } from 'wagmi'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -66,21 +51,6 @@ import { SecurityAuditBadges } from '@/components/ens/SecurityAuditBadges'
 import { AttestationsPanel } from '@/components/ens/AttestationsPanel'
 import { AssociatedENSNamesList } from '@/components/ens/AssociatedENSNamesList'
 import { OwnedENSNamesList } from '@/components/ens/OwnedENSNamesList'
-
-const VIEM_CHAIN_MAP: Record<number, Chain> = {
-  [CHAINS.MAINNET]: mainnet,
-  [CHAINS.SEPOLIA]: sepolia,
-  [CHAINS.BASE]: base,
-  [CHAINS.BASE_SEPOLIA]: baseSepolia,
-  [CHAINS.LINEA]: linea,
-  [CHAINS.LINEA_SEPOLIA]: lineaSepolia,
-  [CHAINS.OPTIMISM]: optimism,
-  [CHAINS.OPTIMISM_SEPOLIA]: optimismSepolia,
-  [CHAINS.ARBITRUM]: arbitrum,
-  [CHAINS.ARBITRUM_SEPOLIA]: arbitrumSepolia,
-  [CHAINS.SCROLL]: scroll,
-  [CHAINS.SCROLL_SEPOLIA]: scrollSepolia,
-}
 
 interface ENSDetailsProps {
   address: string
@@ -176,7 +146,7 @@ export default function ENSDetails({
   const [implDeployerName, setImplDeployerName] = useState<string | null>(null)
   const { chain, isConnected } = useAccount()
   const [customProvider, setCustomProvider] =
-    useState<ReturnType<typeof createPublicClient> | null>(null)
+    useState<import('viem').PublicClient | null>(null)
   const { toast } = useToast()
 
   // Use provided chainId if available, otherwise use connected wallet's chain
@@ -350,8 +320,8 @@ export default function ENSDetails({
   useEffect(() => {
     if (effectiveChainId && config?.RPC_ENDPOINT) {
       try {
-        const provider = createPublicClient({ chain: VIEM_CHAIN_MAP[effectiveChainId], transport: http(config.RPC_ENDPOINT) })
-        setCustomProvider(provider)
+        const provider = getPublicClient(effectiveChainId)
+        if (provider) setCustomProvider(provider)
       } catch (err) {
         console.error('[ENSDetails] Error initializing provider:', err)
         setError('Failed to initialize provider for the selected chain')

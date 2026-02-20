@@ -3,8 +3,8 @@
 import { useParams } from 'next/navigation'
 import { useState, useEffect, useCallback } from 'react'
 import { isAddress, parseAbi } from 'viem/utils'
-import { createPublicClient, http, toCoinType } from 'viem'
-import { mainnet, sepolia } from 'viem/chains'
+import { toCoinType } from 'viem'
+import { getPublicClient } from '@/lib/viemClient'
 import { normalize } from 'viem/ens'
 import Layout from '@/components/Layout'
 import ENSDetails from '@/components/ENSDetails'
@@ -111,16 +111,8 @@ export default function ExploreAddressPage() {
         chainIdNumber === CHAINS.BASE_SEPOLIA
       ) {
         const config = CONTRACTS[chainIdNumber]
-        const baseClient = createPublicClient({
-          transport: http(config.RPC_ENDPOINT),
-          chain: {
-            id: chainIdNumber,
-            name: 'Base',
-            network: 'base',
-            nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
-            rpcUrls: { default: { http: [config.RPC_ENDPOINT] } },
-          },
-        })
+        const baseClient = getPublicClient(chainIdNumber)
+        if (!baseClient) throw new Error('Failed to create client for Base chain')
 
         const publicResolverAbi = parseAbi([
           'function addr(bytes32 node, uint256 coinType) view returns (bytes)',
@@ -146,9 +138,9 @@ export default function ExploreAddressPage() {
         ].includes(chainIdNumber)
 
         const ensChainId = isTestnet ? CHAINS.SEPOLIA : CHAINS.MAINNET
-        const ensConfig = CONTRACTS[ensChainId]
         const { getEnsAddress: resolveEnsName } = await import('viem/actions')
-        const ensClient = createPublicClient({ chain: ensChainId === CHAINS.MAINNET ? mainnet : sepolia, transport: http(ensConfig.RPC_ENDPOINT) })
+        const ensClient = getPublicClient(ensChainId)
+        if (!ensClient) throw new Error('Failed to create ENS client')
         resolvedAddress = await resolveEnsName(ensClient, { name: normalizedName })
       } catch (error) {
         if (
@@ -208,19 +200,8 @@ export default function ExploreAddressPage() {
     setIsValidChain(true)
 
     try {
-      const rpcEndpoint = config.RPC_ENDPOINT
-      const viemClient = createPublicClient({
-        chain: {
-          id: chainIdNumber,
-          name: config.name,
-          nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
-          rpcUrls: {
-            default: { http: [rpcEndpoint] },
-            public: { http: [rpcEndpoint] },
-          },
-        },
-        transport: http(rpcEndpoint),
-      })
+      const viemClient = getPublicClient(chainIdNumber)
+      if (!viemClient) throw new Error('Failed to create client')
       setClient(viemClient)
     } catch (err) {
       console.error('Error initializing viem client:', err)

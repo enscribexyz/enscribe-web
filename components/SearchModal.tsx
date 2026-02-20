@@ -1,13 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAccount } from 'wagmi'
-import { createPublicClient, http, parseAbi, isAddress } from 'viem'
+import { parseAbi, isAddress } from 'viem'
+import { getPublicClient } from '@/lib/viemClient'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { CHAINS, CONTRACTS } from '@/utils/constants'
 import { readContract } from 'viem/actions'
 import { namehash } from 'viem/ens'
-import { mainnet, sepolia } from 'viem/chains'
 
 interface SearchModalProps {
   isOpen: boolean
@@ -90,15 +90,11 @@ export default function SearchModal({
   }, [isOpen, onClose])
 
   const getEnsClient = useCallback((chainId: number) => {
-    const config = CONTRACTS[chainId as keyof typeof CONTRACTS]
-    if (!config) {
+    const client = getPublicClient(chainId)
+    if (!client) {
       throw new Error(`Unsupported chain ID: ${chainId}`)
     }
-    const viemChain = chainId === CHAINS.MAINNET ? mainnet : sepolia
-    return createPublicClient({
-      chain: viemChain,
-      transport: http(config.RPC_ENDPOINT),
-    })
+    return client
   }, [])
 
   const handleSearch = useCallback(async () => {
@@ -173,16 +169,8 @@ export default function SearchModal({
             selectedChain === CHAINS.BASE_SEPOLIA
           ) {
             const config = CONTRACTS[selectedChain]
-            const baseClient = createPublicClient({
-              transport: http(config.RPC_ENDPOINT),
-              chain: {
-                id: selectedChain,
-                name: 'Base',
-                network: 'base',
-                nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
-                rpcUrls: { default: { http: [config.RPC_ENDPOINT] } },
-              },
-            })
+            const baseClient = getPublicClient(selectedChain)
+            if (!baseClient) throw new Error('Failed to create client for Base chain')
 
             const publicResolverAbi = parseAbi([
               'function addr(bytes32 node) view returns (address)',

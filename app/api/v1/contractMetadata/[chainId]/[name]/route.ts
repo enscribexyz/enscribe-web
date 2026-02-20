@@ -16,40 +16,11 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createPublicClient, http } from 'viem'
-import type { Chain } from 'viem'
-import {
-  mainnet,
-  sepolia,
-  base,
-  baseSepolia,
-  linea,
-  lineaSepolia,
-  optimism,
-  optimismSepolia,
-  arbitrum,
-  arbitrumSepolia,
-  scroll,
-  scrollSepolia,
-} from 'viem/chains'
+import type { PublicClient } from 'viem'
 import { getEnsText } from 'viem/actions'
-import { CHAINS, CONTRACTS } from '@/utils/constants'
+import { CONTRACTS } from '@/utils/constants'
 import type { TextRecords } from '@/types'
-
-const VIEM_CHAIN_MAP: Record<number, Chain> = {
-  [CHAINS.MAINNET]: mainnet,
-  [CHAINS.SEPOLIA]: sepolia,
-  [CHAINS.BASE]: base,
-  [CHAINS.BASE_SEPOLIA]: baseSepolia,
-  [CHAINS.LINEA]: linea,
-  [CHAINS.LINEA_SEPOLIA]: lineaSepolia,
-  [CHAINS.OPTIMISM]: optimism,
-  [CHAINS.OPTIMISM_SEPOLIA]: optimismSepolia,
-  [CHAINS.ARBITRUM]: arbitrum,
-  [CHAINS.ARBITRUM_SEPOLIA]: arbitrumSepolia,
-  [CHAINS.SCROLL]: scroll,
-  [CHAINS.SCROLL_SEPOLIA]: scrollSepolia,
-}
+import { getPublicClient } from '@/lib/viemClient'
 
 // Function to get parent domains up to 2LD
 function getParentDomains(ensName: string): string[] {
@@ -66,7 +37,7 @@ function getParentDomains(ensName: string): string[] {
 
 // Function to fetch text record from a specific ENS name
 async function fetchTextRecord(
-  client: ReturnType<typeof createPublicClient>,
+  client: PublicClient,
   ensName: string,
   key: string,
 ): Promise<string | null> {
@@ -80,7 +51,7 @@ async function fetchTextRecord(
 
 // Function to fetch text records with parent fallback (OPTIMIZED - All parallel)
 async function fetchTextRecordsWithFallback(
-  client: ReturnType<typeof createPublicClient>,
+  client: PublicClient,
   ensName: string,
 ): Promise<TextRecords> {
   const records: TextRecords = {}
@@ -202,7 +173,10 @@ export async function GET(
     }
 
     // Initialize viem client with configured RPC endpoint
-    const client = createPublicClient({ chain: VIEM_CHAIN_MAP[chainIdNumber], transport: http(config.RPC_ENDPOINT) })
+    const client = getPublicClient(chainIdNumber)
+    if (!client) {
+      return NextResponse.json({ error: 'Failed to create client' }, { status: 500 })
+    }
 
     // Fetch text records with parent fallback
     const records = await fetchTextRecordsWithFallback(client, name)
