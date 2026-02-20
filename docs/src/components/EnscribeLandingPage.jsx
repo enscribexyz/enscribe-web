@@ -306,18 +306,31 @@ export default function EnscribeLandingPage() {
         </header>
 
         <main className="flex-1">
-          {/* ── Announcement bar ── */}
-          <div className="w-full border-b border-white/5 py-2.5 px-4">
-            <div className="container mx-auto flex items-center justify-center gap-2 text-sm">
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
-              New
-            </span>
-              <span className="text-slate-400">
-              Smart Contract Naming Audits for protocol teams
-            </span>
-              <Link to="/audit" className="text-cyan-400 font-medium hover:text-cyan-300 transition-colors">
-                Learn more <span aria-hidden="true">&rarr;</span>
-              </Link>
+          {/* ── Announcement bars ── */}
+          <div className="w-full border-b border-white/5 py-2.5 px-4 bg-gradient-to-r from-purple-500/[0.05] via-transparent to-cyan-500/[0.05]">
+            <div className="flex flex-col items-center gap-1.5 text-[13px]">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full font-semibold bg-purple-500/15 text-purple-400 border border-purple-500/25">
+                  Live
+                </span>
+                <span className="text-slate-300">
+                  ENS Contract Naming Season — 10,000 $ENS in rewards
+                </span>
+                <Link to="/blog/contract-naming-season" className="text-purple-400 font-semibold hover:text-purple-300 transition-colors">
+                  Learn more <span aria-hidden="true">&rarr;</span>
+                </Link>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full font-semibold bg-cyan-500/15 text-cyan-400 border border-cyan-500/25">
+                  New
+                </span>
+                <span className="text-slate-300">
+                  Smart Contract Naming Audits for protocol teams
+                </span>
+                <Link to="/audit" className="text-cyan-400 font-semibold hover:text-cyan-300 transition-colors">
+                  Learn more <span aria-hidden="true">&rarr;</span>
+                </Link>
+              </div>
             </div>
           </div>
 

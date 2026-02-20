@@ -11,6 +11,10 @@ Scope: Applies to the entire repository unless a deeper `AGENTS.md` overrides it
 - Keep changes scoped to the requested area; avoid unrelated refactors.
 - For any file under `docs/`, follow `docs/AGENTS.md` (it overrides this file for docs work).
 
+## Commits
+- Use a short summary line, then list each change on its own line prefixed with a hyphen.
+- Do not combine multiple changes into a single sentence.
+
 ## Validation
 - App changes: run root checks when relevant (`npm run lint`, `npm run test`, `npm run build`).
 - Docs changes: run docs checks when relevant (`npm --prefix docs run build`, `npm --prefix docs run typecheck`).
