@@ -1,7 +1,7 @@
 ---
 slug: versioning-upgradeable-contracts
 title: How to version upgradeable contracts
-description: A practical guide to naming proxy and implementation contracts so upgradeable systems stay transparent for users, developers, and auditors.
+description: A practical guide to naming proxy and implementation contracts so upgradeable systems stay transparent for users, developers and auditors.
 authors: [abhi]
 tags: [enscribe, ens, upgradeable-contracts, proxy-pattern, foundry, versioning]
 image: ./cover.png
@@ -174,7 +174,7 @@ Here’s an example of how this same proxy contract named as `cooldapp.abhi.eth`
 
 And here’s how the implementation contract named as `v1.cooldapp.abhi.eth` looks like:
 
-![implementation](implementation.png)
+![implementation](impl.png)
 
 Should you want to update the implementation, you can simply deploy & name it as `v2.app.mydomain.eth` & upgrade the proxy to point to this new version.
 
