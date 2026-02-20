@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { type Address } from 'viem'
 import { namehash, normalize } from 'viem/ens'
-import { getParentNode } from '@/utils/ens'
+import { getParentNode, fetchOwnedDomains } from '@/utils/ens'
 import ensRegistryABI from '../contracts/ENSRegistry'
 import nameWrapperABI from '../contracts/NameWrapper'
 import { useAccount, useWalletClient } from 'wagmi'
@@ -256,185 +256,13 @@ export default function DeployForm() {
   }
 
   const fetchUserOwnedDomains = async () => {
-    if (!walletAddress) {
-      console.warn('Address or chain configuration is missing')
-      return
-    }
-
-    if (!config?.SUBGRAPH_API) {
-      console.warn('No subgraph API endpoint configured for this chain')
-      return
-    }
-
+    if (!walletAddress || !config?.SUBGRAPH_API) return
     try {
       setFetchingENS(true)
-
-      // Fetch domains where user is the owner
-      const [ownerResponse, registrantResponse, wrappedResponse] =
-        await Promise.all([
-          fetch(config.SUBGRAPH_API, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${process.env.NEXT_PUBLIC_GRAPH_API_KEY || ''}`,
-            },
-            body: JSON.stringify({
-              query: `
-                            query getDomainsForAccount($address: String!) { 
-                                domains(where: { owner: $address }) { 
-                                    name 
-                                } 
-                            }
-                        `,
-              variables: {
-                address: walletAddress.toLowerCase(),
-              },
-            }),
-          }),
-          // Fetch domains where user is the registrant
-          fetch(config.SUBGRAPH_API, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${process.env.NEXT_PUBLIC_GRAPH_API_KEY || ''}`,
-            },
-            body: JSON.stringify({
-              query: `
-                            query getDomainsForAccount($address: String!) { 
-                                domains(where: { registrant: $address }) { 
-                                    name 
-                                } 
-                            }
-                        `,
-              variables: {
-                address: walletAddress.toLowerCase(),
-              },
-            }),
-          }),
-          // Fetch domains where user is the wrapped
-          fetch(config.SUBGRAPH_API, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${process.env.NEXT_PUBLIC_GRAPH_API_KEY || ''}`,
-            },
-            body: JSON.stringify({
-              query: `
-                            query getDomainsForAccount($address: String!) { 
-                                domains(where: { wrappedOwner: $address }) { 
-                                    name 
-                                } 
-                            }
-                        `,
-              variables: {
-                address: walletAddress.toLowerCase(),
-              },
-            }),
-          }),
-        ])
-
-      const [ownerData, registrantData, wrappedData] = await Promise.all([
-        ownerResponse.json(),
-        registrantResponse.json(),
-        wrappedResponse.json(),
-      ])
-
-      // Combine all sets of domains and remove duplicates
-      const ownedDomains =
-        ownerData?.data?.domains?.map((d: { name: string }) => d.name) || []
-      const registrantDomains =
-        registrantData?.data?.domains?.map((d: { name: string }) => d.name) ||
-        []
-      const wrappedDomains =
-        wrappedData?.data?.domains?.map((d: { name: string }) => d.name) || []
-
-      // Combine and deduplicate domains
-      const allDomains = [
-        ...new Set([...ownedDomains, ...registrantDomains, ...wrappedDomains]),
-      ]
-
-      if (allDomains.length > 0) {
-        // Filter out .addr.reverse names
-        const filteredDomains = allDomains.filter(
-          (domain: string) => !domain.endsWith('.addr.reverse'),
-        )
-
-        // Keep domains as-is, including any labelhashes
-        const processedDomains = filteredDomains
-
-        // First, separate domains with labelhashes from regular domains
-        const domainsWithLabelhash = processedDomains.filter(
-          (domain) => domain.includes('[') && domain.includes(']'),
-        )
-        const regularDomains = processedDomains.filter(
-          (domain) => !(domain.includes('[') && domain.includes(']')),
-        )
-
-        // Function to get the 2LD for a domain
-        const get2LD = (domain: string): string => {
-          const parts = domain.split('.')
-          if (parts.length < 2) return domain
-          return `${parts[parts.length - 2]}.${parts[parts.length - 1]}`
-        }
-
-        // Group regular domains by their 2LD
-        const domainsByParent: { [key: string]: string[] } = {}
-
-        regularDomains.forEach((domain) => {
-          const parent2LD = get2LD(domain)
-          if (!domainsByParent[parent2LD]) {
-            domainsByParent[parent2LD] = []
-          }
-          domainsByParent[parent2LD].push(domain)
-        })
-
-        // Sort 2LDs alphabetically
-        const sorted2LDs = Object.keys(domainsByParent).sort()
-
-        // For each 2LD, sort its domains by depth
-        const sortedDomains: string[] = []
-
-        sorted2LDs.forEach((parent2LD) => {
-          // Sort domains within this 2LD group by depth
-          const sortedGroup = domainsByParent[parent2LD].sort((a, b) => {
-            // Always put the 2LD itself first
-            if (a === parent2LD) return -1
-            if (b === parent2LD) return 1
-
-            // Then sort by depth
-            const aDepth = a.split('.').length
-            const bDepth = b.split('.').length
-            if (aDepth !== bDepth) {
-              return aDepth - bDepth
-            }
-
-            // If same depth, sort alphabetically
-            return a.localeCompare(b)
-          })
-
-          // Add all domains from this group to the result
-          sortedDomains.push(...sortedGroup)
-        })
-
-        // Finally, add domains with labelhashes at the end
-        sortedDomains.push(...domainsWithLabelhash)
-
-        // Apply chain-specific filtering
-        let chainFilteredDomains = sortedDomains
-
-        // Filter based on chain
-        if (chain?.id === CHAINS.BASE) {
-          // For Base chain, only keep .base.eth names
-          chainFilteredDomains = sortedDomains.filter((domain) =>
-            domain.endsWith('.base.eth'),
-          )
-        } else if (chain?.id === CHAINS.BASE_SEPOLIA) {
-          // For Base Sepolia, don't show any names
-          chainFilteredDomains = []
-        }
-
-        setUserOwnedDomains(chainFilteredDomains)
-      }
+      const domains = await fetchOwnedDomains(walletAddress, config.SUBGRAPH_API, {
+        chainId: chain?.id,
+      })
+      setUserOwnedDomains(domains.map((d) => d.name))
     } catch (error) {
       console.error("Error fetching user's owned ENS domains:", error)
       toast({

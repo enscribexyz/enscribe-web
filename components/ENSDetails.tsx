@@ -40,7 +40,7 @@ import {
 import { ProfileCard } from 'ethereum-identity-kit'
 import { FullWidthProfile } from 'ethereum-identity-kit'
 import { checkIfProxy } from '@/utils/proxy'
-import { getENS } from '@/utils/ens'
+import { getENS, fetchOwnedDomains } from '@/utils/ens'
 import { useToast } from '@/hooks/use-toast'
 import type { ENSDomain, TextRecords, VerificationStatus } from '@/types'
 // import { EnsRainbowApiClient } from '@ensnode/ensrainbow-sdk'
@@ -145,157 +145,12 @@ export default function ENSDetails({
 
 
   const fetchUserOwnedDomains = useCallback(async () => {
-    if (!address || !config?.SUBGRAPH_API) {
-      console.warn('Address or subgraph API is not configured')
-      return
-    }
-
+    if (!address || !config?.SUBGRAPH_API) return
     try {
-      // Fetch domains where user is the owner, registrant, or wrapped owner
-      const [ownerResponse, registrantResponse, wrappedResponse] =
-        await Promise.all([
-          fetch(config.SUBGRAPH_API, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${process.env.NEXT_PUBLIC_GRAPH_API_KEY || ''}`,
-            },
-            body: JSON.stringify({
-              query: `
-                                query getDomainsForAccount($address: String!) { 
-                                    domains(where: { owner: $address }) { 
-                                        name 
-                                        registration {
-                                            expiryDate
-                                            registrationDate
-                                        }
-                                    } 
-                                }
-                            `,
-              variables: { address: address.toLowerCase() },
-            }),
-          }),
-          fetch(config.SUBGRAPH_API, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${process.env.NEXT_PUBLIC_GRAPH_API_KEY || ''}`,
-            },
-            body: JSON.stringify({
-              query: `
-                                query getDomainsForAccount($address: String!) { 
-                                    domains(where: { registrant: $address }) { 
-                                        name 
-                                        registration {
-                                            expiryDate
-                                            registrationDate
-                                        }
-                                    } 
-                                }
-                            `,
-              variables: { address: address.toLowerCase() },
-            }),
-          }),
-          fetch(config.SUBGRAPH_API, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${process.env.NEXT_PUBLIC_GRAPH_API_KEY || ''}`,
-            },
-            body: JSON.stringify({
-              query: `
-                                query getDomainsForAccount($address: String!) { 
-                                    domains(where: { wrappedOwner: $address }) { 
-                                        name 
-                                        registration {
-                                            expiryDate
-                                            registrationDate
-                                        }
-                                    } 
-                                }
-                            `,
-              variables: { address: address.toLowerCase() },
-            }),
-          }),
-        ])
-
-      const [ownerData, registrantData, wrappedData] = await Promise.all([
-        ownerResponse.json(),
-        registrantResponse.json(),
-        wrappedResponse.json(),
-      ])
-
-      // Combine all domains and remove duplicates by name
-      const ownedDomainsMap = new Map()
-
-      // Process each set of domains
-      ;[
-        ownerData?.data?.domains || [],
-        registrantData?.data?.domains || [],
-        wrappedData?.data?.domains || [],
-      ].forEach((domains) => {
-        domains.forEach(
-          (domain: {
-            name: string
-            registration: { expiryDate: string } | null
-          }) => {
-            if (
-              !domain.name.endsWith('.addr.reverse') &&
-              !ownedDomainsMap.has(domain.name)
-            ) {
-              ownedDomainsMap.set(domain.name, {
-                name: domain.name,
-                expiryDate: domain.registration?.expiryDate
-                  ? Number(domain.registration.expiryDate)
-                  : undefined,
-              })
-            }
-          },
-        )
+      const domains = await fetchOwnedDomains(address, config.SUBGRAPH_API, {
+        includeRegistration: true,
       })
-
-      // Convert to array and enhance with additional properties
-      const domainsArray = Array.from(ownedDomainsMap.values()).map(
-        (domain: ENSDomain) => {
-          const nameParts = domain.name.split('.')
-          const tld = nameParts[nameParts.length - 1]
-          const sld = nameParts[nameParts.length - 2] || ''
-          const parent2LD = `${sld}.${tld}`
-          const level = nameParts.length
-          const hasLabelhash = nameParts.some(
-            (part) => part.startsWith('[') && part.endsWith(']'),
-          )
-
-          return {
-            ...domain,
-            parent2LD,
-            level,
-            hasLabelhash,
-          }
-        },
-      )
-
-      // Organize domains by their properties
-      const organizedDomains = domainsArray.sort((a, b) => {
-        // First, separate domains with labelhash (they go at the end)
-        if (a.hasLabelhash && !b.hasLabelhash) return 1
-        if (!a.hasLabelhash && b.hasLabelhash) return -1
-
-        // Then sort by parent 2LD
-        if (a.parent2LD !== b.parent2LD) {
-          return a.parent2LD.localeCompare(b.parent2LD)
-        }
-
-        // For domains with the same parent 2LD, sort by level (3LD, 4LD, etc.)
-        if (a.level !== b.level) {
-          return a.level - b.level
-        }
-
-        // Finally, sort alphabetically for domains with the same level
-        return a.name.localeCompare(b.name)
-      })
-
-      setUserOwnedDomains(organizedDomains)
+      setUserOwnedDomains(domains)
     } catch (error) {
       console.error("Error fetching user's owned ENS domains:", error)
     }

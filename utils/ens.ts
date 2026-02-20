@@ -3,6 +3,7 @@ import { getEnsName, readContract } from 'viem/actions'
 import { namehash } from 'viem/ens'
 import L2ReverseRegistrarABI from '@/contracts/L2ReverseRegistrar'
 import { getPublicClient } from '@/lib/viemClient'
+import type { ENSDomain } from '@/types'
 
 /**
  * Safely computes the namehash of an ENS name, returning '' on error.
@@ -255,4 +256,123 @@ export const fetchForwardNameSummary = async (
     )
     return { count: 0, singleNameHasMetadata: false }
   }
+}
+
+// ─── Owned Domains ────────────────────────────────────────────────────────────
+
+/** Helper to extract 2LD (e.g. "foo.eth") from a full domain name. */
+function get2LD(domain: string): string {
+  const parts = domain.split('.')
+  if (parts.length < 2) return domain
+  return `${parts[parts.length - 2]}.${parts[parts.length - 1]}`
+}
+
+/**
+ * Fetches all ENS domains owned by an address via three parallel subgraph queries
+ * (owner, registrant, wrappedOwner). Deduplicates, filters, and sorts results
+ * by 2LD grouping + depth.
+ *
+ * Replaces the identical ~120-line fetchUserOwnedDomains function duplicated
+ * in NameContract, DeployForm, BatchNamingForm, and ENSDetails.
+ *
+ * @param options.includeRegistration - If true, also fetches registration data
+ *   (expiryDate). ENSDetails needs this; the form components don't.
+ * @param options.chainFilter - Optional chain ID for chain-specific filtering
+ *   (e.g. Base only shows .base.eth names).
+ */
+export async function fetchOwnedDomains(
+  address: string,
+  subgraphApi: string,
+  options?: { includeRegistration?: boolean; chainId?: number },
+): Promise<ENSDomain[]> {
+  const registrationFields = options?.includeRegistration
+    ? `registration { expiryDate registrationDate }`
+    : ''
+
+  const makeQuery = (filterField: string) =>
+    JSON.stringify({
+      query: `
+        query getDomainsForAccount($address: String!) {
+          domains(where: { ${filterField}: $address }) {
+            name
+            ${registrationFields}
+          }
+        }
+      `,
+      variables: { address: address.toLowerCase() },
+    })
+
+  const headers = {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${process.env.NEXT_PUBLIC_GRAPH_API_KEY || ''}`,
+  }
+
+  const [ownerRes, registrantRes, wrappedRes] = await Promise.all([
+    fetch(subgraphApi, { method: 'POST', headers, body: makeQuery('owner') }),
+    fetch(subgraphApi, { method: 'POST', headers, body: makeQuery('registrant') }),
+    fetch(subgraphApi, { method: 'POST', headers, body: makeQuery('wrappedOwner') }),
+  ])
+
+  const [ownerData, registrantData, wrappedData] = await Promise.all([
+    ownerRes.json(),
+    registrantRes.json(),
+    wrappedRes.json(),
+  ])
+
+  // Deduplicate using a Map (retains first-seen registration data)
+  const domainMap = new Map<string, ENSDomain>()
+  const allSources = [
+    ownerData?.data?.domains,
+    registrantData?.data?.domains,
+    wrappedData?.data?.domains,
+  ]
+
+  for (const domains of allSources) {
+    if (!Array.isArray(domains)) continue
+    for (const d of domains) {
+      if (!d.name || d.name.endsWith('.addr.reverse')) continue
+      if (domainMap.has(d.name)) continue
+
+      const domain: ENSDomain = { name: d.name }
+      if (d.registration?.expiryDate) {
+        domain.expiryDate = Number(d.registration.expiryDate)
+      }
+      domainMap.set(d.name, domain)
+    }
+  }
+
+  // Enrich with parent2LD, level, hasLabelhash
+  const enriched = Array.from(domainMap.values()).map((domain) => {
+    const parts = domain.name.split('.')
+    const hasLabelhash = domain.name.includes('[') && domain.name.includes(']')
+    return {
+      ...domain,
+      parent2LD: get2LD(domain.name),
+      level: parts.length,
+      hasLabelhash,
+    }
+  })
+
+  // Sort: labelhash last, then by 2LD group, then depth, then alphabetically
+  enriched.sort((a, b) => {
+    if (a.hasLabelhash && !b.hasLabelhash) return 1
+    if (!a.hasLabelhash && b.hasLabelhash) return -1
+    if (a.parent2LD !== b.parent2LD) return (a.parent2LD ?? '').localeCompare(b.parent2LD ?? '')
+    const aIs2LD = a.name === a.parent2LD
+    const bIs2LD = b.name === b.parent2LD
+    if (aIs2LD && !bIs2LD) return -1
+    if (!aIs2LD && bIs2LD) return 1
+    if ((a.level ?? 0) !== (b.level ?? 0)) return (a.level ?? 0) - (b.level ?? 0)
+    return a.name.localeCompare(b.name)
+  })
+
+  // Chain-specific filtering
+  if (options?.chainId === CHAINS.BASE) {
+    return enriched.filter((d) => d.name.endsWith('.base.eth'))
+  }
+  if (options?.chainId === CHAINS.BASE_SEPOLIA) {
+    return []
+  }
+
+  return enriched
 }
