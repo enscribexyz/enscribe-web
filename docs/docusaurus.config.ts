@@ -180,6 +180,8 @@ const config = {
         apiKey: 'a16f9c245539783b5555ed92781838aa',
 
         indexName: 'enscribe',
+
+        askAi: 'CPzOUStt6qk8',
       },
       footer: {
         style: "dark",
