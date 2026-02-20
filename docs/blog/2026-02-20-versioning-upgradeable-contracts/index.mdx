@@ -33,7 +33,6 @@ constructor(address _logic, address initialOwner, bytes memory _data) payable ER
     ERC1967Utils.changeAdmin(_proxyAdmin());
 }
 ```
-
 
 The `_fallback` function implements differentiating an admin trying to upgrade the contract from other accounts trying to call the implementation’s logic:
 
@@ -50,7 +49,6 @@ function _fallback() internal virtual override {
     }
 }
 ```
-
 A proxy admin is only allowed to upgrade the proxy’s implementation address. Any calls to execute business logic are reverted.
 
 Now let’s take a look at our implementation contract the proxy points to.
