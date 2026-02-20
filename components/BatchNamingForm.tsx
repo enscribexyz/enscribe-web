@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
+import { useCopyToClipboard } from '@/hooks/useCopyToClipboard'
 import { useAccount, useWalletClient, useSwitchChain } from 'wagmi'
 import { Button } from '@/components/ui/button'
 import { useSafeWallet } from '@/hooks/useSafeWallet'
@@ -10,6 +11,7 @@ import { CONTRACTS, CHAINS } from '../utils/constants'
 import { L2_CHAIN_NAMES, getChainName } from '@/lib/chains'
 import { useChainConfig } from '@/hooks/useChainConfig'
 import { isAddress, encodeFunctionData, namehash } from 'viem'
+import { getParentNode } from '@/utils/ens'
 import { readContract, writeContract, waitForTransactionReceipt } from 'viem/actions'
 import { getPublicClient } from '@/lib/viemClient'
 import { X, Copy, Check, Info, ChevronDown, ChevronRight } from 'lucide-react'
@@ -72,7 +74,7 @@ export default function BatchNamingForm() {
   const [userOwnedDomains, setUserOwnedDomains] = useState<string[]>([])
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false)
   const [callDataList, setCallDataList] = useState<string[]>([])
-  const [copied, setCopied] = useState<{ [key: string]: boolean }>({})
+  const { copied, copyToClipboard, resetCopied } = useCopyToClipboard()
   const [allCallData, setAllCallData] = useState<string>('')
   const [isCallDataOpen, setIsCallDataOpen] = useState<boolean>(false)
   const [focusedInputId, setFocusedInputId] = useState<string | null>(null)
@@ -116,7 +118,7 @@ export default function BatchNamingForm() {
     setSkipL1Naming(false)
     setIsAdvancedOpen(false)
     setCallDataList([])
-    setCopied({})
+    resetCopied()
     setAllCallData('')
     setIsCallDataOpen(false)
   }, [chain?.id, isConnected, modalOpen, enscribeDomain])
@@ -412,21 +414,6 @@ export default function BatchNamingForm() {
     if (batchEntries.length > 1) {
       setBatchEntries(batchEntries.filter((entry) => entry.id !== id))
     }
-  }
-
-  // Function to copy text to clipboard
-  const copyToClipboard = (text: string, id: string) => {
-    navigator.clipboard
-      .writeText(text)
-      .then(() => {
-        setCopied({ ...copied, [id]: true })
-        setTimeout(() => {
-          setCopied({ ...copied, [id]: false })
-        }, 2000)
-      })
-      .catch((err) => {
-        console.error('Failed to copy text: ', err)
-      })
   }
 
   const fetchUserOwnedDomains = async () => {
@@ -904,14 +891,6 @@ export default function BatchNamingForm() {
     }
   }
 
-
-  const getParentNode = (name: string) => {
-    try {
-      return namehash(name)
-    } catch (error) {
-      return ''
-    }
-  }
 
   function isEmpty(value: string) {
     return value == null || value.trim().length === 0
@@ -2308,7 +2287,7 @@ export default function BatchNamingForm() {
             setSkipL1Naming(false)
             setError('')
             setIsAdvancedOpen(false)
-            setCopied({})
+            resetCopied()
             setAllCallData('')
             setIsCallDataOpen(false)
             setCallDataList([])

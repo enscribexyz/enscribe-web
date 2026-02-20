@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { useCopyToClipboard } from '@/hooks/useCopyToClipboard'
 import { useRouter, useSearchParams } from 'next/navigation'
 import contractABI from '../contracts/Enscribe'
 import ensRegistryABI from '../contracts/ENSRegistry'
@@ -38,7 +39,7 @@ import { CONTRACTS, CHAINS } from '../utils/constants'
 import { useChainConfig } from '@/hooks/useChainConfig'
 import { useSafeWallet } from '@/hooks/useSafeWallet'
 import { getChainName } from '@/lib/chains'
-import { getENS, fetchAssociatedNamesCount } from '../utils/ens'
+import { getENS, fetchAssociatedNamesCount, getParentNode } from '../utils/ens'
 import Link from 'next/link'
 import Image from 'next/image'
 import SetNameStepsModal, { Step } from './SetNameStepsModal'
@@ -129,7 +130,7 @@ export default function NameContract() {
   >(null)
   const [isAdvancedOpen, setIsAdvancedOpen] = useState<boolean>(false)
   const [callDataList, setCallDataList] = useState<string[]>([])
-  const [copied, setCopied] = useState<{ [key: string]: boolean }>({})
+  const { copied, copyToClipboard, resetCopied } = useCopyToClipboard()
   const [allCallData, setAllCallData] = useState<string>('')
   const [isCallDataOpen, setIsCallDataOpen] = useState<boolean>(false)
 
@@ -155,14 +156,6 @@ export default function NameContract() {
         : null
 
   const unsupportedL2Name = getChainName(chain?.id ?? 0)
-
-  const getParentNode = (name: string) => {
-    try {
-      return namehash(name)
-    } catch (error) {
-      return ''
-    }
-  }
 
   useEffect(() => {
     // Don't reset form if modal is open (to prevent closing during Optimism transaction)
@@ -192,7 +185,7 @@ export default function NameContract() {
     setSkipL1Naming(false)
     setIsAdvancedOpen(false)
     setCallDataList([])
-    setCopied({})
+    resetCopied()
     setAllCallData('')
     setIsCallDataOpen(false)
 
@@ -378,21 +371,6 @@ export default function NameContract() {
     }
     
     return null
-  }
-
-  // Function to copy text to clipboard
-  const copyToClipboard = (text: string, id: string) => {
-    navigator.clipboard
-      .writeText(text)
-      .then(() => {
-        setCopied({ ...copied, [id]: true })
-        setTimeout(() => {
-          setCopied({ ...copied, [id]: false })
-        }, 2000)
-      })
-      .catch((err) => {
-        console.error('Failed to copy text: ', err)
-      })
   }
 
   const generateCallData = async () => {
@@ -3229,7 +3207,7 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
             setSkipL1Naming(false)
             setIsAdvancedOpen(false)
             setCallDataList([])
-            setCopied({})
+            resetCopied()
             setAllCallData('')
             setIsCallDataOpen(false)
           }

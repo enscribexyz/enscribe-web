@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react'
+import { useCopyToClipboard } from '@/hooks/useCopyToClipboard'
 import { readContract } from 'viem/actions'
 import { getPublicClient } from '@/lib/viemClient'
 import { useAccount } from 'wagmi'
@@ -81,27 +82,11 @@ export default function ENSDetails({
   isNestedView = false,
   queriedENSName,
 }: ENSDetailsProps) {
-  // State for copy feedback
-  const [copied, setCopied] = useState<{ [key: string]: boolean }>({})
+  const { copied, copyToClipboard } = useCopyToClipboard()
   // State for implementation details expansion
   const [implementationExpanded, setImplementationExpanded] = useState(false)
   // State for text records
   const [textRecords, setTextRecords] = useState<TextRecords>({})
-
-  // Function to copy text to clipboard
-  const copyToClipboard = (text: string, id: string) => {
-    navigator.clipboard
-      .writeText(text)
-      .then(() => {
-        setCopied({ ...copied, [id]: true })
-        setTimeout(() => {
-          setCopied({ ...copied, [id]: false })
-        }, 2000)
-      })
-      .catch((err) => {
-        console.error('Failed to copy text: ', err)
-      })
-  }
   const [isLoading, setIsLoading] = useState(true)
   const [isMetadataLoading, setIsMetadataLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)

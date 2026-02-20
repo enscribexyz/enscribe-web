@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { type Address } from 'viem'
 import { namehash, normalize } from 'viem/ens'
+import { getParentNode } from '@/utils/ens'
 import ensRegistryABI from '../contracts/ENSRegistry'
 import nameWrapperABI from '../contracts/NameWrapper'
 import { useAccount, useWalletClient } from 'wagmi'
@@ -123,14 +124,6 @@ export default function DeployForm() {
   ].includes((chain?.id as number) || -1)
 
   const unsupportedL2Name = getChainName(chain?.id ?? 0)
-
-  const getParentNode = (name: string) => {
-    try {
-      return namehash(name)
-    } catch (error) {
-      return ''
-    }
-  }
 
   useEffect(() => {
     if (parentType === 'web3labs' && config?.ENSCRIBE_DOMAIN) {

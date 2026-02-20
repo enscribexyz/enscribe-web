@@ -1,7 +1,20 @@
 import { CHAINS, CONTRACTS } from './constants'
 import { getEnsName, readContract } from 'viem/actions'
+import { namehash } from 'viem/ens'
 import L2ReverseRegistrarABI from '@/contracts/L2ReverseRegistrar'
 import { getPublicClient } from '@/lib/viemClient'
+
+/**
+ * Safely computes the namehash of an ENS name, returning '' on error.
+ * Replaces the identical getParentNode function duplicated in 3 components.
+ */
+export function getParentNode(name: string): `0x${string}` | '' {
+  try {
+    return namehash(name)
+  } catch {
+    return ''
+  }
+}
 
 const METADATA_TEXT_KEYS = new Set([
   'alias',

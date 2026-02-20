@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button'
 import { Check, ChevronDown, ChevronUp, Copy, ExternalLink } from 'lucide-react'
 import type { ENSDomain } from '@/types'
 import type { NetworkConfig } from '@/utils/constants'
+import { useCopyToClipboard } from '@/hooks/useCopyToClipboard'
 
 interface OwnedENSNamesListProps {
   userOwnedDomains: ENSDomain[]
@@ -16,21 +17,7 @@ export const OwnedENSNamesList = memo(function OwnedENSNamesList({
   onNavigateToDomain,
 }: OwnedENSNamesListProps) {
   const [expanded, setExpanded] = useState(false)
-  const [copied, setCopied] = useState<Record<string, boolean>>({})
-
-  function copyToClipboard(text: string, id: string) {
-    navigator.clipboard
-      .writeText(text)
-      .then(() => {
-        setCopied((prev) => ({ ...prev, [id]: true }))
-        setTimeout(() => {
-          setCopied((prev) => ({ ...prev, [id]: false }))
-        }, 2000)
-      })
-      .catch((err) => {
-        console.error('Failed to copy text: ', err)
-      })
-  }
+  const { copied, copyToClipboard } = useCopyToClipboard()
 
   if (userOwnedDomains.length === 0) {
     return (
