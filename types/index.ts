@@ -61,13 +61,31 @@ export interface ContractRecord {
 
 // ─── Batch Naming ─────────────────────────────────────────────────────────────
 
-export interface BatchEntry {
+/** Tracks the result of a batch naming transaction */
+export interface BatchResult {
   address: string
   label: string
   ensName?: string
   status?: 'pending' | 'success' | 'error'
   txHash?: string
   errorMessage?: string
+}
+
+/** A single entry in the batch naming form (with validation state) */
+export interface BatchFormEntry {
+  id: string
+  address: string
+  label: string
+  addressError?: string
+  labelError?: string
+}
+
+// ─── Modal Steps ─────────────────────────────────────────────────────────────
+
+export interface Step {
+  title: string
+  action: () => Promise<`0x${string}` | string | void>
+  chainId?: number
 }
 
 // ─── Constructor Args ─────────────────────────────────────────────────────────

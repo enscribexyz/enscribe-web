@@ -1,17 +1,10 @@
 import React, { memo } from 'react'
 import { Input } from '@/components/ui/input'
 import { X } from 'lucide-react'
-
-interface BatchEntry {
-  id: string
-  address: string
-  label: string
-  addressError?: string
-  labelError?: string
-}
+import type { BatchFormEntry } from '@/types'
 
 interface BatchEntryRowProps {
-  entry: BatchEntry
+  entry: BatchFormEntry
   index: number
   parentName: string
   showBatchSeparator: boolean

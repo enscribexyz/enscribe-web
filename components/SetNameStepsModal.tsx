@@ -31,16 +31,7 @@ import {
 import { getDeployedAddress, isTestNet } from '@/utils/componentUtils'
 import { method } from 'es-toolkit/compat'
 
-export interface Step {
-  title: string
-  action: () => Promise<`0x${string}` | string | void>
-  chainId?: number // Add chainId to track which chain the transaction happens on
-}
-
-export interface BatchEntry {
-  address: string
-  label: string
-}
+import type { Step, BatchResult } from '@/types'
 
 export interface SetNameStepsModalProps {
   open: boolean
@@ -53,7 +44,7 @@ export interface SetNameStepsModalProps {
   isPrimaryNameSet?: boolean
   isSafeWallet?: boolean
   walletAddress?: string
-  batchEntries?: BatchEntry[]
+  batchEntries?: BatchResult[]
   parentName?: string
 }
 

@@ -27,19 +27,13 @@ import nameWrapperABI from '../contracts/NameWrapper'
 import reverseRegistrarABI from '@/contracts/ReverseRegistrar'
 import ownableContractABI from '@/contracts/Ownable'
 import Image from 'next/image'
-import SetNameStepsModal, { Step } from './SetNameStepsModal'
+import SetNameStepsModal from './SetNameStepsModal'
+import type { Step, BatchFormEntry } from '@/types'
 import { ENSDomainPickerModal } from '@/components/naming/ENSDomainPickerModal'
 import { L2ChainPickerDialog } from '@/components/naming/L2ChainPickerDialog'
 import { CallDataPanel } from '@/components/naming/CallDataPanel'
 import { BatchEntryRow } from '@/components/naming/BatchEntryRow'
 
-interface BatchEntry {
-  id: string
-  address: string
-  label: string
-  addressError?: string
-  labelError?: string
-}
 
 
 const L2_CHAIN_OPTIONS = L2_CHAIN_NAMES
@@ -55,7 +49,7 @@ export default function BatchNamingForm() {
   const isSafeWallet = useSafeWallet()
   const enscribeDomain = config?.ENSCRIBE_DOMAIN || ''
 
-  const [batchEntries, setBatchEntries] = useState<BatchEntry[]>([
+  const [batchEntries, setBatchEntries] = useState<BatchFormEntry[]>([
     { id: '1', address: '', label: '' }
   ])
   const [parentName, setParentName] = useState('')
@@ -335,7 +329,7 @@ export default function BatchNamingForm() {
     if (userEntries.length > 0) {
       // Use a timer to avoid processing on every keystroke (shorter debounce for better UX)
       const timer = setTimeout(() => {
-        const allNames = new Map<string, BatchEntry>()
+        const allNames = new Map<string, BatchFormEntry>()
         
         // Track valid entries (no errors) for parent subdomain calculation
         const validEntriesForParents = userEntries.filter(
@@ -366,7 +360,7 @@ export default function BatchNamingForm() {
         })
 
         // Create zero-address entries for missing parents
-        const zeroAddressEntries: BatchEntry[] = []
+        const zeroAddressEntries: BatchFormEntry[] = []
         requiredParents.forEach((parentSubdomain) => {
           zeroAddressEntries.push({
             id: `zero-${parentSubdomain}-${Date.now()}`,
@@ -456,7 +450,7 @@ export default function BatchNamingForm() {
   /**
    * Sort batch entries by batch logic (same order as transaction batches)
    */
-  const sortEntriesByBatchLogic = (entries: BatchEntry[], parent: string): BatchEntry[] => {
+  const sortEntriesByBatchLogic = (entries: BatchFormEntry[], parent: string): BatchFormEntry[] => {
     if (!parent || entries.length === 0) {
       return entries
     }
@@ -512,7 +506,7 @@ export default function BatchNamingForm() {
         const text = e.target?.result as string
         const lines = text.split('\n').filter((line) => line.trim())
         const startIndex = lines[0].toLowerCase().includes('address') ? 1 : 0
-        const newEntries: BatchEntry[] = []
+        const newEntries: BatchFormEntry[] = []
 
         for (let i = startIndex; i < lines.length; i++) {
           const line = lines[i].trim()
@@ -581,7 +575,7 @@ export default function BatchNamingForm() {
     }
 
     const validEntries = batchEntries.filter(
-      (e: BatchEntry) => e.address && e.label && isAddress(e.address)
+      (e: BatchFormEntry) => e.address && e.label && isAddress(e.address)
     )
 
     if (validEntries.length === 0) {
@@ -644,7 +638,7 @@ export default function BatchNamingForm() {
 
       // Generate call data for each batch
       batchGroups.forEach((batch, index) => {
-        const labels = batch.entries.map((e: BatchEntry) => {
+        const labels = batch.entries.map((e: BatchFormEntry) => {
           const fullName = e.label
           const parentSuffix = `.${batch.parentName}`
           if (fullName.endsWith(parentSuffix)) {
@@ -652,7 +646,7 @@ export default function BatchNamingForm() {
           }
           return fullName
         })
-        const addresses = batch.entries.map((e: BatchEntry) => e.address as `0x${string}`)
+        const addresses = batch.entries.map((e: BatchFormEntry) => e.address as `0x${string}`)
 
         let batchCallData
         if (uniqueCoinTypes.length === 1 && uniqueCoinTypes[0] === 60n) {
@@ -674,7 +668,7 @@ export default function BatchNamingForm() {
 
       // 3. Reverse resolution (if applicable)
       // Flatten all entries from all batches
-      const allEntries: BatchEntry[] = []
+      const allEntries: BatchFormEntry[] = []
       batchGroups.forEach((batch) => {
         allEntries.push(...batch.entries)
       })
@@ -1107,14 +1101,14 @@ export default function BatchNamingForm() {
    * Each batch contains entries at the same level under the same parent
    */
   const processAndGroupEntriesForBatching = (
-    entries: BatchEntry[],
+    entries: BatchFormEntry[],
     rootParent: string
   ): Array<{
     parentName: string
-    entries: BatchEntry[]
+    entries: BatchFormEntry[]
     level: number
   }> => {
-    const allNames = new Map<string, BatchEntry>() // fullName -> entry
+    const allNames = new Map<string, BatchFormEntry>() // fullName -> entry
 
     // Build full names for each entry
     entries.forEach((entry) => {
@@ -1152,7 +1146,7 @@ export default function BatchNamingForm() {
     })
 
     // Group entries by their immediate parent and level
-    const batches = new Map<string, Map<number, BatchEntry[]>>() // parentName -> level -> entries
+    const batches = new Map<string, Map<number, BatchFormEntry[]>>() // parentName -> level -> entries
 
     allNames.forEach((entry, fullName) => {
       const parts = fullName.split('.')
@@ -1184,7 +1178,7 @@ export default function BatchNamingForm() {
     // Convert to array and sort by level, then by parent name
     const result: Array<{
       parentName: string
-      entries: BatchEntry[]
+      entries: BatchFormEntry[]
       level: number
     }> = []
 
@@ -1201,7 +1195,7 @@ export default function BatchNamingForm() {
     sortedLevels.forEach((level) => {
       const batchesAtLevel: Array<{
         parentName: string
-        entries: BatchEntry[]
+        entries: BatchFormEntry[]
         level: number
       }> = []
 
@@ -1298,7 +1292,7 @@ export default function BatchNamingForm() {
       })
 
       // Get all processed entries for reverse resolution checks
-      const allProcessedEntries: BatchEntry[] = []
+      const allProcessedEntries: BatchFormEntry[] = []
       batchGroups.forEach((batch) => {
         allProcessedEntries.push(...batch.entries)
       })
