@@ -7,7 +7,7 @@ import NameMetadata from '@/components/NameMetadata'
 
 function NameMetadataContent() {
   const searchParams = useSearchParams()
-  const name = searchParams.get('name') ?? undefined
+  const name = searchParams?.get('name') ?? undefined
 
   return (
     <Layout>
