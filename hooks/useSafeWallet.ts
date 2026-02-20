@@ -4,7 +4,7 @@
  */
 import { useState, useEffect } from 'react'
 import { useAccount } from 'wagmi'
-import { checkIfSafe } from '@/components/componentUtils'
+import { checkIfSafe } from '@/utils/componentUtils'
 
 export function useSafeWallet(): boolean {
   const { connector } = useAccount()

@@ -16,7 +16,10 @@ import {
 } from '@/components/ui/select'
 import { useToast } from '@/hooks/use-toast'
 import parseJson from 'json-parse-safe'
-import { CHAINS, CONTRACTS } from '../utils/constants'
+import { CHAINS } from '../utils/constants'
+import { useChainConfig } from '@/hooks/useChainConfig'
+import { useSafeWallet } from '@/hooks/useSafeWallet'
+import { getChainName } from '@/lib/chains'
 import SetNameStepsModal, { Step } from './SetNameStepsModal'
 import { CheckCircle2 } from 'lucide-react'
 import Link from 'next/link'
@@ -27,8 +30,7 @@ import {
   fetchGeneratedName,
   getDeployedAddress,
   logMetric,
-  checkIfSafe,
-} from '@/components/componentUtils'
+} from '@/utils/componentUtils'
 import { DeployENSDomainModal } from '@/components/naming/DeployENSDomainModal'
 import {
   getEnsAddress,
@@ -72,14 +74,13 @@ const checkIfReverseClaimable = (bytecode: string): boolean => {
 }
 
 export default function DeployForm() {
-  const { address: walletAddress, isConnected, chain, connector } = useAccount()
+  const { address: walletAddress, isConnected, chain } = useAccount()
   const { data: walletClient } = useWalletClient()
 
-  const config = chain?.id ? CONTRACTS[chain.id] : undefined
-
+  const config = useChainConfig()
   const enscribeDomain = config?.ENSCRIBE_DOMAIN!
-
   const chainId = chain?.id!
+  const isSafeWallet = useSafeWallet()
 
   const { toast } = useToast()
 
@@ -112,34 +113,16 @@ export default function DeployForm() {
 
   const [userOwnedDomains, setUserOwnedDomains] = useState<string[]>([])
   const [showENSModal, setShowENSModal] = useState(false)
-  const [isSafeWallet, setIsSafeWallet] = useState(false)
-
   const corelationId = uuid()
 
   // Unsupported L2 gating (Optimism, Arbitrum, Scroll including Sepolia)
   const isUnsupportedL2Chain = [
-    CHAINS.OPTIMISM,
-    CHAINS.OPTIMISM_SEPOLIA,
-    CHAINS.ARBITRUM,
-    CHAINS.ARBITRUM_SEPOLIA,
-    CHAINS.SCROLL,
-    CHAINS.SCROLL_SEPOLIA,
+    CHAINS.OPTIMISM, CHAINS.OPTIMISM_SEPOLIA,
+    CHAINS.ARBITRUM, CHAINS.ARBITRUM_SEPOLIA,
+    CHAINS.SCROLL, CHAINS.SCROLL_SEPOLIA,
   ].includes((chain?.id as number) || -1)
 
-  const unsupportedL2Name =
-    chain?.id === CHAINS.OPTIMISM
-      ? 'Optimism'
-      : chain?.id === CHAINS.OPTIMISM_SEPOLIA
-        ? 'Optimism Sepolia'
-        : chain?.id === CHAINS.ARBITRUM
-          ? 'Arbitrum'
-          : chain?.id === CHAINS.ARBITRUM_SEPOLIA
-            ? 'Arbitrum Sepolia'
-            : chain?.id === CHAINS.SCROLL
-              ? 'Scroll'
-              : chain?.id === CHAINS.SCROLL_SEPOLIA
-                ? 'Scroll Sepolia'
-                : ''
+  const unsupportedL2Name = getChainName(chain?.id ?? 0)
 
   const getParentNode = (name: string) => {
     try {
@@ -192,10 +175,6 @@ export default function DeployForm() {
   const populateName = async () => {
     const name = await fetchGeneratedName()
     setLabel(name)
-  }
-
-  const checkIfSafeWallet = async (): Promise<boolean> => {
-    return await checkIfSafe(connector)
   }
 
   const addArg = () =>
@@ -951,10 +930,6 @@ export default function DeployForm() {
 
       let name = `${labelNormalized}.${parentNameNormalized}`
 
-      // Check if connected wallet is a Safe wallet
-      const safeCheck = await checkIfSafeWallet()
-      setIsSafeWallet(safeCheck)
-
       if (isOwnable) {
         if (parentType === 'web3labs') {
           steps.push({
@@ -963,7 +938,7 @@ export default function DeployForm() {
               // const txn = await namingContract.setNameAndDeploy(finalBytecode, label, parentName, parentNode, {
               //     value: txCost
               // })
-              if (safeCheck) {
+              if (isSafeWallet) {
                 await writeContract(walletClient, {
                   address: config?.ENSCRIBE_CONTRACT as `0x${string}`,
                   abi: enscribeContractABI,
@@ -1051,7 +1026,7 @@ export default function DeployForm() {
             steps.push({
               title: 'Give operator access',
               action: async () => {
-                if (safeCheck) {
+                if (isSafeWallet) {
                   await writeContract(walletClient, {
                     address: config?.ENS_REGISTRY as `0x${string}`,
                     abi: ensRegistryABI,
@@ -1112,7 +1087,7 @@ export default function DeployForm() {
           steps.push({
             title: 'Deploy and Set primary Name',
             action: async () => {
-              if (safeCheck) {
+              if (isSafeWallet) {
                 await writeContract(walletClient, {
                   address: config?.ENSCRIBE_CONTRACT as `0x${string}`,
                   abi: enscribeContractABI,
@@ -1205,7 +1180,7 @@ export default function DeployForm() {
               steps.push({
                 title: 'Give operator access',
                 action: async () => {
-                  if (safeCheck) {
+                  if (isSafeWallet) {
                     await writeContract(walletClient, {
                       address: config?.NAME_WRAPPER as `0x${string}`,
                       abi: nameWrapperABI,
@@ -1275,7 +1250,7 @@ export default function DeployForm() {
               steps.push({
                 title: 'Give operator access',
                 action: async () => {
-                  if (safeCheck) {
+                  if (isSafeWallet) {
                     await writeContract(walletClient, {
                       address: config?.ENS_REGISTRY as `0x${string}`,
                       abi: ensRegistryABI,
@@ -1337,7 +1312,7 @@ export default function DeployForm() {
           steps.push({
             title: 'Deploy and Set primary Name',
             action: async () => {
-              if (safeCheck) {
+              if (isSafeWallet) {
                 await writeContract(walletClient, {
                   address: config?.ENSCRIBE_CONTRACT as `0x${string}`,
                   abi: enscribeContractABI,
@@ -1413,7 +1388,7 @@ export default function DeployForm() {
 
         setModalTitle('Deploy Contract and set Primary Name')
         setModalSubtitle(
-          safeCheck
+          isSafeWallet
             ? 'Transactions will be executed in your Safe wallet app'
             : 'Running each step to finish naming this contract',
         )
@@ -1442,7 +1417,7 @@ export default function DeployForm() {
               steps.push({
                 title: 'Give operator access',
                 action: async () => {
-                  if (safeCheck) {
+                  if (isSafeWallet) {
                     await writeContract(walletClient, {
                       address: config?.NAME_WRAPPER as `0x${string}`,
                       abi: nameWrapperABI,
@@ -1512,7 +1487,7 @@ export default function DeployForm() {
               steps.push({
                 title: 'Give operator access',
                 action: async () => {
-                  if (safeCheck) {
+                  if (isSafeWallet) {
                     await writeContract(walletClient, {
                       address: config?.ENS_REGISTRY as `0x${string}`,
                       abi: ensRegistryABI,
@@ -1576,7 +1551,7 @@ export default function DeployForm() {
           steps.push({
             title: 'Set name & Deploy contract',
             action: async () => {
-              if (safeCheck) {
+              if (isSafeWallet) {
                 await writeContract(walletClient, {
                   address: config?.ENSCRIBE_CONTRACT as `0x${string}`,
                   abi: enscribeContractABI,
@@ -1674,7 +1649,7 @@ export default function DeployForm() {
               steps.push({
                 title: 'Give operator access',
                 action: async () => {
-                  if (safeCheck) {
+                  if (isSafeWallet) {
                     await writeContract(walletClient, {
                       address: config?.NAME_WRAPPER as `0x${string}`,
                       abi: nameWrapperABI,
@@ -1744,7 +1719,7 @@ export default function DeployForm() {
               steps.push({
                 title: 'Give operator access',
                 action: async () => {
-                  if (safeCheck) {
+                  if (isSafeWallet) {
                     await writeContract(walletClient, {
                       address: config?.ENS_REGISTRY as `0x${string}`,
                       abi: ensRegistryABI,
@@ -1808,7 +1783,7 @@ export default function DeployForm() {
           steps.push({
             title: 'Set name & Deploy contract',
             action: async () => {
-              if (safeCheck) {
+              if (isSafeWallet) {
                 await writeContract(walletClient, {
                   address: config?.ENSCRIBE_CONTRACT as `0x${string}`,
                   abi: enscribeContractABI,
@@ -1887,7 +1862,7 @@ export default function DeployForm() {
 
         setModalTitle('Deploy Contract and set Primary Name')
         setModalSubtitle(
-          safeCheck
+          isSafeWallet
             ? 'Transactions will be executed in your Safe wallet app'
             : 'Complete each step to finish naming this contract',
         )

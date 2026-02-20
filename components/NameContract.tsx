@@ -35,6 +35,9 @@ import {
 } from '@/components/ui/tooltip'
 import { useToast } from '@/hooks/use-toast'
 import { CONTRACTS, CHAINS } from '../utils/constants'
+import { useChainConfig } from '@/hooks/useChainConfig'
+import { useSafeWallet } from '@/hooks/useSafeWallet'
+import { getChainName } from '@/lib/chains'
 import { getENS, fetchAssociatedNamesCount } from '../utils/ens'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -45,9 +48,8 @@ import { v4 as uuid } from 'uuid'
 import {
   fetchGeneratedName,
   logMetric,
-  checkIfSafe,
   isTestNet,
-} from '@/components/componentUtils'
+} from '@/utils/componentUtils'
 import {
   getEnsAddress,
   readContract,
@@ -69,12 +71,12 @@ export default function NameContract() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { address: walletAddress, isConnected, chain } = useAccount()
-  const { connector } = useAccount()
   const { data: walletClient } = useWalletClient()
   const { switchChain } = useSwitchChain()
 
-  const config = chain?.id ? CONTRACTS[chain.id] : undefined
+  const config = useChainConfig()
   const enscribeDomain = config?.ENSCRIBE_DOMAIN!
+  const isSafeWallet = useSafeWallet()
 
   const { toast } = useToast()
 
@@ -119,7 +121,6 @@ export default function NameContract() {
   const [dropdownValue, setDropdownValue] = useState<string>('')
   const [skipL1Naming, setSkipL1Naming] = useState<boolean>(false)
   const [showL2Modal, setShowL2Modal] = useState<boolean>(false)
-  const [isSafeWallet, setIsSafeWallet] = useState(false)
   const [sldAsPrimary, setSldAsPrimary] = useState<boolean>(true)
   const [ensModalFromPicker, setEnsModalFromPicker] = useState<boolean>(false)
   const [ensNameChosen, setEnsNameChosen] = useState<boolean>(false)
@@ -136,16 +137,12 @@ export default function NameContract() {
   const opType = 'nameexisting'
   const L2_CHAIN_OPTIONS = ['Optimism', 'Arbitrum', 'Scroll', 'Base', 'Linea']
 
-  // Unsupported L2 gating for this page: Optimism/Arbitrum/Scroll L2s should show guidance
+  // Unsupported L2 gating: L2s except Base (handled separately) show guidance
   const isUnsupportedL2Chain = [
-    CHAINS.OPTIMISM,
-    CHAINS.OPTIMISM_SEPOLIA,
-    CHAINS.ARBITRUM,
-    CHAINS.ARBITRUM_SEPOLIA,
-    CHAINS.SCROLL,
-    CHAINS.SCROLL_SEPOLIA,
-    CHAINS.LINEA,
-    CHAINS.LINEA_SEPOLIA,
+    CHAINS.OPTIMISM, CHAINS.OPTIMISM_SEPOLIA,
+    CHAINS.ARBITRUM, CHAINS.ARBITRUM_SEPOLIA,
+    CHAINS.SCROLL, CHAINS.SCROLL_SEPOLIA,
+    CHAINS.LINEA, CHAINS.LINEA_SEPOLIA,
   ].includes((chain?.id as number) || -1)
 
   const isBaseChain =
@@ -157,28 +154,7 @@ export default function NameContract() {
         ? 'basetest.eth'
         : null
 
-  const unsupportedL2Name =
-    chain?.id === CHAINS.OPTIMISM
-      ? 'Optimism'
-      : chain?.id === CHAINS.OPTIMISM_SEPOLIA
-        ? 'Optimism Sepolia'
-        : chain?.id === CHAINS.ARBITRUM
-          ? 'Arbitrum'
-          : chain?.id === CHAINS.ARBITRUM_SEPOLIA
-            ? 'Arbitrum Sepolia'
-            : chain?.id === CHAINS.SCROLL
-              ? 'Scroll'
-              : chain?.id === CHAINS.SCROLL_SEPOLIA
-                ? 'Scroll Sepolia'
-                : chain?.id === CHAINS.LINEA
-                  ? 'Linea'
-                  : chain?.id === CHAINS.LINEA_SEPOLIA
-                    ? 'Linea Sepolia'
-                    : chain?.id === CHAINS.BASE
-                      ? 'Base'
-                      : chain?.id === CHAINS.BASE_SEPOLIA
-                        ? 'Base Sepolia'
-                        : ''
+  const unsupportedL2Name = getChainName(chain?.id ?? 0)
 
   const getParentNode = (name: string) => {
     try {
@@ -389,9 +365,6 @@ export default function NameContract() {
     setLabel(name)
   }
 
-  const checkIfSafeWallet = async (): Promise<boolean> => {
-    return await checkIfSafe(connector)
-  }
 
   // Validate ENS name format (for "Use Existing Name" flow)
   const validateFullENSName = (name: string): string | null => {
@@ -2298,17 +2271,13 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
         }
       }
 
-      // Check if connected wallet is a Safe wallet
-      const safeCheck = await checkIfSafeWallet()
-      setIsSafeWallet(safeCheck)
-
       setModalTitle(
         (isContractOwner && isOwnable) || isReverseClaimable
           ? 'Set Primary Name'
           : 'Set Forward Resolution',
       )
       setModalSubtitle(
-        safeCheck
+        isSafeWallet
           ? 'Transactions will be executed in your Safe wallet app'
           : 'Running each step to finish naming this contract',
       )

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { splitBasename } from '../components/basenames'
+import { splitBasename } from '../utils/basenames'
 
 describe('splitBasename', () => {
   it('normalizes and returns label/fqdn for base mainnet domains', () => {

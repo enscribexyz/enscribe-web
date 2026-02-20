@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useAccount, useWalletClient } from 'wagmi'
 import { Button } from '@/components/ui/button'
-import { checkIfSafe } from '@/components/componentUtils'
+import { useSafeWallet } from '@/hooks/useSafeWallet'
 import { Input } from '@/components/ui/input'
 import {
   Dialog,
@@ -163,7 +163,7 @@ interface NameMetadataProps {
 
 export default function NameMetadata({ initialName }: NameMetadataProps) {
   const { selectedChain } = useSelectedChain()
-  const { chain, address: walletAddress, connector } = useAccount()
+  const { chain, address: walletAddress } = useAccount()
   const { data: walletClient } = useWalletClient()
   const { toast } = useToast()
   const router = useRouter()
@@ -187,7 +187,7 @@ export default function NameMetadata({ initialName }: NameMetadataProps) {
   const [showAccountMetadata, setShowAccountMetadata] = useState(false)
   const [showContractMetadata, setShowContractMetadata] = useState(false)
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false)
-  const [isSafeWallet, setIsSafeWallet] = useState(false)
+  const isSafeWallet = useSafeWallet()
 
   // Use wallet chain if connected, otherwise use selected chain from ChainSelector
   const activeChainId = chain?.id || selectedChain || CHAINS.MAINNET
@@ -1192,10 +1192,6 @@ export default function NameMetadata({ initialName }: NameMetadataProps) {
     return metadataList.filter((item) => !existingKeys.has(item.key))
   }
 
-  const checkIfSafeWallet = async (): Promise<boolean> => {
-    return await checkIfSafe(connector)
-  }
-
   const handleSetTextRecords = async () => {
     if (!walletClient || !walletAddress) {
       toast({
@@ -1235,9 +1231,6 @@ export default function NameMetadata({ initialName }: NameMetadataProps) {
     setSettingRecords(true)
 
     try {
-      // Check if using Safe wallet
-      const safeCheck = await checkIfSafeWallet()
-      
       const node = namehash(currentName)
 
       // Filter out empty values
@@ -1265,7 +1258,7 @@ export default function NameMetadata({ initialName }: NameMetadataProps) {
       )
 
       // Call multicall with all encoded setText calls in a single transaction
-      if (safeCheck) {
+      if (isSafeWallet) {
         // For Safe wallets, just trigger the transaction without waiting
         await writeContract(walletClient, {
           chain: chain,
@@ -1302,7 +1295,7 @@ export default function NameMetadata({ initialName }: NameMetadataProps) {
       // Refresh metadata (with longer delay for Safe wallets)
       setTimeout(() => {
         handleSearchForName(currentName)
-      }, safeCheck ? 5000 : 2000)
+      }, isSafeWallet ? 5000 : 2000)
     } catch (err: any) {
       console.error('Error setting text records:', err)
       toast({

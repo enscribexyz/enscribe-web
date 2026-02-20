@@ -67,6 +67,14 @@ export function getChainOption(chainId: number): ChainOption | undefined {
   return CHAIN_OPTIONS.find((c) => c.id === chainId)
 }
 
+export function getChainName(chainId: number): string {
+  return getChainOption(chainId)?.name ?? ''
+}
+
+export function isL2Chain(chainId: number): boolean {
+  return L2_CHAIN_IDS.includes(chainId as CHAINS)
+}
+
 // ─── L2 Chain Names (for BatchNaming) ─────────────────────────────────────
 
 export const L2_CHAIN_NAMES = ['Optimism', 'Arbitrum', 'Scroll', 'Base', 'Linea'] as const

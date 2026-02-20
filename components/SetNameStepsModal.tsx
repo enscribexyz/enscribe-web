@@ -9,6 +9,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { CheckCircle, Loader2, XCircle, Clock, ChevronDown, ChevronUp } from 'lucide-react'
 import { CONTRACTS, TOPIC0 } from '../utils/constants'
+import { useChainConfig } from '@/hooks/useChainConfig'
 import { useAccount, useWalletClient } from 'wagmi'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
@@ -27,7 +28,7 @@ import {
   waitForTransactionReceipt,
   writeContract,
 } from 'viem/actions'
-import { getDeployedAddress, isTestNet } from '@/components/componentUtils'
+import { getDeployedAddress, isTestNet } from '@/utils/componentUtils'
 import { method } from 'es-toolkit/compat'
 
 export interface Step {
@@ -94,7 +95,7 @@ export default function SetNameStepsModal({
 
   const { chain, address } = useAccount()
   const router = useRouter()
-  const config = chain?.id ? CONTRACTS[chain.id] : undefined
+  const config = useChainConfig()
   const { data: walletClient } = useWalletClient()
 
   if(!walletAddress){walletAddress = address}
