@@ -72,6 +72,7 @@ const config = {
         },
         blog: {
           showReadingTime: true,
+          postsPerPage: 9,
           blogSidebarTitle: 'All our posts',
           blogSidebarCount: 'ALL',
           onInlineTags: 'ignore',

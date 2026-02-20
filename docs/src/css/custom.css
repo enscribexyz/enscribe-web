@@ -289,3 +289,16 @@ html[data-theme="light"] .project-logo {
 .animate-shine {
   animation: shine 0.75s ease-in-out;
 }
+
+/* ── Blog post card grid ── */
+@media (min-width: 576px) {
+  .blog-post-card-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+@media (min-width: 997px) {
+  .blog-post-card-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+}
