@@ -11,10 +11,27 @@ import { useToast } from '@/hooks/use-toast'
 import { CONTRACTS, CHAINS } from '../utils/constants'
 import { useChainConfig } from '@/hooks/useChainConfig'
 import { useSafeWallet } from '@/hooks/useSafeWallet'
-import { getChainName, type L2ChainName, waitForChainSwitch } from '@/lib/chains'
-import { isEmpty, isAddressEmpty as isAddressEmptyCheck, isValidAddress as isValidAddressCheck } from '@/utils/validation'
-import { getL2ChainId, getL2ViemChain, getL2ChainDisplayName } from '@/lib/l2ChainConfig'
-import { getENS, fetchAssociatedNamesCount, getParentNode, fetchOwnedDomains } from '../utils/ens'
+import {
+  getChainName,
+  type L2ChainName,
+  waitForChainSwitch,
+} from '@/lib/chains'
+import {
+  isEmpty,
+  isAddressEmpty as isAddressEmptyCheck,
+  isValidAddress as isValidAddressCheck,
+} from '@/utils/validation'
+import {
+  getL2ChainId,
+  getL2ViemChain,
+  getL2ChainDisplayName,
+} from '@/lib/l2ChainConfig'
+import {
+  getENS,
+  fetchAssociatedNamesCount,
+  getParentNode,
+  fetchOwnedDomains,
+} from '../utils/ens'
 import type { Step } from '@/types'
 import { v4 as uuid } from 'uuid'
 import {
@@ -30,10 +47,24 @@ import {
   getEnsName,
 } from 'viem/actions'
 import { namehash, normalize } from 'viem/ens'
-import { isAddress, keccak256, toBytes, encodeFunctionData, parseAbi, encodePacked } from 'viem'
+import {
+  isAddress,
+  keccak256,
+  toBytes,
+  encodeFunctionData,
+  parseAbi,
+  encodePacked,
+  InvalidAddressError,
+} from 'viem'
 import { toCoinType } from 'viem'
 import enscribeContractABI from '../contracts/Enscribe'
-import { checkOwnable, checkContractOwner, checkReverseClaimable, checkOwnableOnL2, checkRecordExists } from '@/utils/contractChecks'
+import {
+  checkOwnable,
+  checkContractOwner,
+  checkReverseClaimable,
+  checkOwnableOnL2,
+  checkRecordExists,
+} from '@/utils/contractChecks'
 
 export function useNameContract() {
   const router = useRouter()
@@ -107,10 +138,14 @@ export function useNameContract() {
 
   // Unsupported L2 gating: L2s except Base (handled separately) show guidance
   const isUnsupportedL2Chain = [
-    CHAINS.OPTIMISM, CHAINS.OPTIMISM_SEPOLIA,
-    CHAINS.ARBITRUM, CHAINS.ARBITRUM_SEPOLIA,
-    CHAINS.SCROLL, CHAINS.SCROLL_SEPOLIA,
-    CHAINS.LINEA, CHAINS.LINEA_SEPOLIA,
+    CHAINS.OPTIMISM,
+    CHAINS.OPTIMISM_SEPOLIA,
+    CHAINS.ARBITRUM,
+    CHAINS.ARBITRUM_SEPOLIA,
+    CHAINS.SCROLL,
+    CHAINS.SCROLL_SEPOLIA,
+    CHAINS.LINEA,
+    CHAINS.LINEA_SEPOLIA,
   ].includes((chain?.id as number) || -1)
 
   const isBaseChain =
@@ -203,12 +238,14 @@ export function useNameContract() {
     // Use functional update to access current state and avoid dependency on selectedL2ChainNames
     setSelectedL2ChainNames((prev) => {
       // If all checks are complete and none are true, clear all selected L2 chains
-      if (allL2ChecksComplete &&
-          !isOwnableOptimism &&
-          !isOwnableArbitrum &&
-          !isOwnableScroll &&
-          !isOwnableBase &&
-          !isOwnableLinea) {
+      if (
+        allL2ChecksComplete &&
+        !isOwnableOptimism &&
+        !isOwnableArbitrum &&
+        !isOwnableScroll &&
+        !isOwnableBase &&
+        !isOwnableLinea
+      ) {
         // Collapse Advanced Options when all L2 chains are cleared
         setIsAdvancedOpen(false)
         return []
@@ -242,7 +279,15 @@ export function useNameContract() {
 
       return prev
     })
-  }, [isOwnableOptimism, isOwnableArbitrum, isOwnableScroll, isOwnableBase, isOwnableLinea, chain?.id, existingContractAddress])
+  }, [
+    isOwnableOptimism,
+    isOwnableArbitrum,
+    isOwnableScroll,
+    isOwnableBase,
+    isOwnableLinea,
+    chain?.id,
+    existingContractAddress,
+  ])
 
   // Clear L2 chains and collapse Advanced Options when contract address is removed
   useEffect(() => {
@@ -284,7 +329,10 @@ export function useNameContract() {
             router.replace(`/explore/${redirectChainId}/${addr}`)
             return
           }
-          const { count } = await fetchAssociatedNamesCount(addr, redirectChainId)
+          const { count } = await fetchAssociatedNamesCount(
+            addr,
+            redirectChainId,
+          )
           if (count > 0) {
             router.replace(`/explore/${redirectChainId}/${addr}`)
             return
@@ -320,13 +368,31 @@ export function useNameContract() {
     } else {
       setCallDataList([])
     }
-  }, [existingContractAddress, label, parentName, selectedAction, parentType, selectedL2ChainNames, skipL1Naming, isOwnable, isReverseClaimable, isContractOwner, isOwnableOptimism, isOwnableArbitrum, isOwnableScroll, isOwnableBase, isOwnableLinea, walletClient, config, chain?.id])
+  }, [
+    existingContractAddress,
+    label,
+    parentName,
+    selectedAction,
+    parentType,
+    selectedL2ChainNames,
+    skipL1Naming,
+    isOwnable,
+    isReverseClaimable,
+    isContractOwner,
+    isOwnableOptimism,
+    isOwnableArbitrum,
+    isOwnableScroll,
+    isOwnableBase,
+    isOwnableLinea,
+    walletClient,
+    config,
+    chain?.id,
+  ])
 
   const populateName = async () => {
     const name = await fetchGeneratedName()
     setLabel(name)
   }
-
 
   // Validate ENS name format (for "Use Existing Name" flow)
   const validateFullENSName = (name: string): string | null => {
@@ -344,6 +410,13 @@ export function useNameContract() {
 
   const generateCallData = async () => {
     if (!walletClient || !config || !existingContractAddress || !label) {
+      setCallDataList([])
+      setAllCallData('')
+      return
+    }
+
+    // Validate address before any viem calls - prevents InvalidAddressError spam while typing
+    if (!isAddress(existingContractAddress)) {
       setCallDataList([])
       setAllCallData('')
       return
@@ -390,7 +463,12 @@ export function useNameContract() {
         if (parentName.trim()) {
           // Check if parent name is valid (not just dots or empty)
           const trimmedParent = parentName.trim()
-          if (trimmedParent !== '.' && trimmedParent !== '..' && !trimmedParent.startsWith('.') && !trimmedParent.endsWith('.')) {
+          if (
+            trimmedParent !== '.' &&
+            trimmedParent !== '..' &&
+            !trimmedParent.startsWith('.') &&
+            !trimmedParent.endsWith('.')
+          ) {
             try {
               parentNameNormalized = normalize(trimmedParent)
             } catch (error) {
@@ -406,9 +484,15 @@ export function useNameContract() {
       }
 
       const skipSubnameCreation = selectedAction !== 'subname'
-      const parentNode = selectedAction === 'pick' ? getParentNode(name) : getParentNode(parentNameNormalized)
+      const parentNode =
+        selectedAction === 'pick'
+          ? getParentNode(name)
+          : getParentNode(parentNameNormalized)
       const node = skipSubnameCreation ? namehash(label) : namehash(name)
-      const labelHash = selectedAction === 'pick' ? keccak256(toBytes(name.split('.')[0])) : keccak256(toBytes(labelNormalized))
+      const labelHash =
+        selectedAction === 'pick'
+          ? keccak256(toBytes(name.split('.')[0]))
+          : keccak256(toBytes(labelNormalized))
 
       const publicResolverAddress = config.PUBLIC_RESOLVER! as `0x${string}`
       const txCost = (await readContract(walletClient, {
@@ -424,37 +508,60 @@ export function useNameContract() {
           const callData = encodeFunctionData({
             abi: contractABI,
             functionName: 'setName',
-            args: [existingContractAddress, labelNormalized, parentNameNormalized, parentNode],
+            args: [
+              existingContractAddress,
+              labelNormalized,
+              parentNameNormalized,
+              parentNode,
+            ],
           })
           callDataArray.push(`Enscribe.setName: ${callData}`)
         } else {
-           // Check if wrapped (only if parentNode is valid)
-           let isWrapped = false
-           if (parentNode && parentNode !== '0x0000000000000000000000000000000000000000000000000000000000000000') {
-             try {
-               isWrapped = (await readContract(walletClient, {
-                 address: config.NAME_WRAPPER as `0x${string}`,
-                 abi: nameWrapperABI,
-                 functionName: 'isWrapped',
-                 args: [parentNode],
-               })) as boolean
-             } catch (error) {
-               isWrapped = false
-             }
-           }
+          // Check if wrapped (only if parentNode is valid)
+          let isWrapped = false
+          if (
+            parentNode &&
+            parentNode !==
+              '0x0000000000000000000000000000000000000000000000000000000000000000'
+          ) {
+            try {
+              isWrapped = (await readContract(walletClient, {
+                address: config.NAME_WRAPPER as `0x${string}`,
+                abi: nameWrapperABI,
+                functionName: 'isWrapped',
+                args: [parentNode],
+              })) as boolean
+            } catch (error) {
+              isWrapped = false
+            }
+          }
 
-           if (isWrapped) {
+          if (isWrapped) {
             const callData = encodeFunctionData({
               abi: nameWrapperABI,
               functionName: 'setSubnodeRecord',
-              args: [parentNode, labelNormalized, walletAddress, publicResolverAddress, 0, 0, 0],
+              args: [
+                parentNode,
+                labelNormalized,
+                walletAddress,
+                publicResolverAddress,
+                0,
+                0,
+                0,
+              ],
             })
             callDataArray.push(`NameWrapper.setSubnodeRecord: ${callData}`)
           } else {
             const callData = encodeFunctionData({
               abi: ensRegistryABI,
               functionName: 'setSubnodeRecord',
-              args: [parentNode, labelHash, walletAddress, publicResolverAddress, 0],
+              args: [
+                parentNode,
+                labelHash,
+                walletAddress,
+                publicResolverAddress,
+                0,
+              ],
             })
             callDataArray.push(`ENSRegistry.setSubnodeRecord: ${callData}`)
           }
@@ -485,7 +592,12 @@ export function useNameContract() {
         const callData = encodeFunctionData({
           abi: reverseRegistrarABI,
           functionName: 'setNameForAddr',
-          args: [existingContractAddress, walletAddress, publicResolverAddress, name],
+          args: [
+            existingContractAddress,
+            walletAddress,
+            publicResolverAddress,
+            name,
+          ],
         })
         callDataArray.push(`ReverseRegistrar.setNameForAddr: ${callData}`)
       }
@@ -493,7 +605,10 @@ export function useNameContract() {
       // L2 Forward Resolution steps
       for (const selectedChain of selectedL2ChainNames) {
         const isL1Mainnet = chain?.id === CHAINS.MAINNET
-        const l2ChainId = getL2ChainId(selectedChain as L2ChainName, isL1Mainnet)
+        const l2ChainId = getL2ChainId(
+          selectedChain as L2ChainName,
+          isL1Mainnet,
+        )
         const l2Config = CONTRACTS[l2ChainId]
         const coinType = Number(l2Config.COIN_TYPE || '60')
 
@@ -503,14 +618,19 @@ export function useNameContract() {
             functionName: 'setAddr',
             args: [node, coinType, existingContractAddress],
           })
-          callDataArray.push(`PublicResolver.setAddr (${selectedChain}): ${callData}`)
+          callDataArray.push(
+            `PublicResolver.setAddr (${selectedChain}): ${callData}`,
+          )
         }
       }
 
       // L2 Primary Name steps
       for (const selectedChain of selectedL2ChainNames) {
         const isL1Mainnet = chain?.id === CHAINS.MAINNET
-        const l2ChainId = getL2ChainId(selectedChain as L2ChainName, isL1Mainnet)
+        const l2ChainId = getL2ChainId(
+          selectedChain as L2ChainName,
+          isL1Mainnet,
+        )
         const l2Config = CONTRACTS[l2ChainId]
 
         // Check if contract is ownable on this L2 chain
@@ -533,29 +653,40 @@ export function useNameContract() {
             break
         }
 
-        if (l2Config && l2Config.L2_REVERSE_REGISTRAR && isOwnableOnThisL2Chain) {
+        if (
+          l2Config &&
+          l2Config.L2_REVERSE_REGISTRAR &&
+          isOwnableOnThisL2Chain
+        ) {
           const callData = encodeFunctionData({
-            abi: [{
-              inputs: [
-                { internalType: 'address', name: 'addr', type: 'address' },
-                { internalType: 'string', name: 'name', type: 'string' },
-              ],
-              name: 'setNameForAddr',
-              outputs: [],
-              stateMutability: 'nonpayable',
-              type: 'function',
-            }],
+            abi: [
+              {
+                inputs: [
+                  { internalType: 'address', name: 'addr', type: 'address' },
+                  { internalType: 'string', name: 'name', type: 'string' },
+                ],
+                name: 'setNameForAddr',
+                outputs: [],
+                stateMutability: 'nonpayable',
+                type: 'function',
+              },
+            ],
             functionName: 'setNameForAddr',
-            args: [existingContractAddress as `0x${string}`, skipSubnameCreation ? label : name],
+            args: [
+              existingContractAddress as `0x${string}`,
+              skipSubnameCreation ? label : name,
+            ],
           })
-          callDataArray.push(`L2ReverseRegistrar.setNameForAddr (${selectedChain}): ${callData}`)
+          callDataArray.push(
+            `L2ReverseRegistrar.setNameForAddr (${selectedChain}): ${callData}`,
+          )
         }
       }
 
       setCallDataList(callDataArray)
 
       // Generate combined call data for batch execution
-      const combinedCallData = callDataArray.map(item => {
+      const combinedCallData = callDataArray.map((item) => {
         // Extract just the hex call data (after the colon and space)
         const parts = item.split(': ')
         return parts.length > 1 ? parts[1] : item
@@ -582,7 +713,14 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
 
       setAllCallData(comprehensiveFormat)
     } catch (error) {
-      console.error('Error generating call data:', error)
+      const isAddressError =
+        error instanceof InvalidAddressError ||
+        (error instanceof Error &&
+          error.message?.includes('Address') &&
+          error.message?.includes('invalid'))
+      if (!isAddressError) {
+        console.error('Error generating call data:', error)
+      }
       setCallDataList([])
       setAllCallData('')
     }
@@ -592,7 +730,10 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
     if (!walletAddress || !config?.SUBGRAPH_API) return
     try {
       setFetchingENS(true)
-      const domains = await fetchOwnedDomains(walletAddress, config.SUBGRAPH_API)
+      const domains = await fetchOwnedDomains(
+        walletAddress,
+        config.SUBGRAPH_API,
+      )
       setUserOwnedDomains(domains.map((d) => d.name))
     } catch (error) {
       console.error("Error fetching user's owned ENS domains:", error)
@@ -646,7 +787,6 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
     //   console.error('Error checking ENS name:', err)
     // }
   }
-
 
   const checkIfAddressEmpty = (existingContractAddress: string): boolean => {
     const addrEmpty = isEmpty(existingContractAddress)
@@ -707,7 +847,12 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
       setIsContractOwner(false)
       return
     }
-    const isOwner = await checkContractOwner(walletClient, address, walletAddress, config.ENS_REGISTRY)
+    const isOwner = await checkContractOwner(
+      walletClient,
+      address,
+      walletAddress,
+      config.ENS_REGISTRY,
+    )
     setIsContractOwner(isOwner)
   }
 
@@ -757,11 +902,31 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
 
     const isL1Mainnet = chain?.id === CHAINS.MAINNET
     const l2Chains = [
-      { name: 'Optimism', chainId: getL2ChainId('Optimism' as L2ChainName, isL1Mainnet), setter: setIsOwnableOptimism },
-      { name: 'Arbitrum', chainId: getL2ChainId('Arbitrum' as L2ChainName, isL1Mainnet), setter: setIsOwnableArbitrum },
-      { name: 'Scroll', chainId: getL2ChainId('Scroll' as L2ChainName, isL1Mainnet), setter: setIsOwnableScroll },
-      { name: 'Base', chainId: getL2ChainId('Base' as L2ChainName, isL1Mainnet), setter: setIsOwnableBase },
-      { name: 'Linea', chainId: getL2ChainId('Linea' as L2ChainName, isL1Mainnet), setter: setIsOwnableLinea },
+      {
+        name: 'Optimism',
+        chainId: getL2ChainId('Optimism' as L2ChainName, isL1Mainnet),
+        setter: setIsOwnableOptimism,
+      },
+      {
+        name: 'Arbitrum',
+        chainId: getL2ChainId('Arbitrum' as L2ChainName, isL1Mainnet),
+        setter: setIsOwnableArbitrum,
+      },
+      {
+        name: 'Scroll',
+        chainId: getL2ChainId('Scroll' as L2ChainName, isL1Mainnet),
+        setter: setIsOwnableScroll,
+      },
+      {
+        name: 'Base',
+        chainId: getL2ChainId('Base' as L2ChainName, isL1Mainnet),
+        setter: setIsOwnableBase,
+      },
+      {
+        name: 'Linea',
+        chainId: getL2ChainId('Linea' as L2ChainName, isL1Mainnet),
+        setter: setIsOwnableLinea,
+      },
     ]
 
     const results = await Promise.all(
@@ -792,7 +957,12 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
       return
     }
 
-    const claimable = await checkReverseClaimable(walletClient, address, walletAddress, config?.ENS_REGISTRY as string)
+    const claimable = await checkReverseClaimable(
+      walletClient,
+      address,
+      walletAddress,
+      config?.ENS_REGISTRY as string,
+    )
     setIsReverseClaimable(claimable)
     if (claimable) {
       setIsAddressInvalid(false)
@@ -805,7 +975,11 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
 
   const recordExist = async (): Promise<boolean> => {
     if (!walletClient || !getParentNode(parentName)) return false
-    return checkRecordExists(walletClient, config?.ENS_REGISTRY as string, parentName)
+    return checkRecordExists(
+      walletClient,
+      config?.ENS_REGISTRY as string,
+      parentName,
+    )
   }
 
   const setPrimaryName = async () => {
@@ -961,7 +1135,6 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
 
       // Check balances on all selected L2 chains using RPC calls (in parallel)
       if (l2ChainsForBalanceCheck.length > 0) {
-
         type BalanceResult = { name: string; balance?: bigint; error?: string }
 
         const results: BalanceResult[] = await Promise.all(
@@ -1032,7 +1205,6 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
           setLoading(false)
           return
         }
-
       }
 
       const steps: Step[] = []
@@ -1050,14 +1222,12 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
       //   setError('Failed to get public resolver')
       // }
 
-
       const txCost = (await readContract(walletClient, {
         address: config.ENSCRIBE_CONTRACT as `0x${string}`,
         abi: enscribeContractABI,
         functionName: 'pricing',
         args: [],
       })) as bigint
-
 
       const titleFirst =
         parentType === 'web3labs'
@@ -1141,18 +1311,27 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
               } else {
                 setError('Forward resolution already set')
               }
-            } else if (chainId === CHAINS.BASE || chainId === CHAINS.BASE_SEPOLIA) {
+            } else if (
+              chainId === CHAINS.BASE ||
+              chainId === CHAINS.BASE_SEPOLIA
+            ) {
               const ensRegistryAbi = parseAbi([
                 'function setSubnodeRecord(bytes32 node, bytes32 label, address owner, address resolver, uint64 ttl)',
-              ]);
+              ])
               let txn = await writeContract(walletClient, {
                 chain,
                 address: config.ENS_REGISTRY as `0x${string}`,
                 abi: ensRegistryAbi,
                 functionName: 'setSubnodeRecord',
-                args: [parentNode as `0x${string}`, labelHash, walletAddress as `0x${string}`, config.PUBLIC_RESOLVER as `0x${string}`, BigInt(0)],
-                account: walletAddress
-              });
+                args: [
+                  parentNode as `0x${string}`,
+                  labelHash,
+                  walletAddress as `0x${string}`,
+                  config.PUBLIC_RESOLVER as `0x${string}`,
+                  BigInt(0),
+                ],
+                account: walletAddress,
+              })
 
               if (!isTestNet(chainId)) {
                 try {
@@ -1299,23 +1478,28 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
       }
 
       // if trying to set resolutions for an existing name, check for a resolver address
-      let resolverAddr = null;
-      if (selectedAction === 'pick') { // setting forward resolution for a existing name
-        resolverAddr = await readContract(walletClient, {
+      let resolverAddr = null
+      if (selectedAction === 'pick') {
+        // setting forward resolution for a existing name
+        resolverAddr = (await readContract(walletClient, {
           address: config.ENS_REGISTRY as `0x${string}`,
           abi: ensRegistryABI,
           functionName: 'resolver',
           args: [node],
-        }) as `0x${string}`
+        })) as `0x${string}`
 
-        if (resolverAddr === '0x0000000000000000000000000000000000000000' || resolverAddr === null || resolverAddr === undefined) {
+        if (
+          resolverAddr === '0x0000000000000000000000000000000000000000' ||
+          resolverAddr === null ||
+          resolverAddr === undefined
+        ) {
           setError('No resolver found for this name')
-          return '';
+          return ''
         }
-      } else { // setting forward resolution for a new name
-        resolverAddr = publicResolverAddress;
+      } else {
+        // setting forward resolution for a new name
+        resolverAddr = publicResolverAddress
       }
-
 
       // Step 2: Set Forward Resolution
       // For existing names, always set forward resolution (even for web3labs), since we skip subname creation.
@@ -1325,14 +1509,14 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
           title: 'Set forward resolution',
           chainId: chainId, // Add chainId for L1 transaction
           action: async () => {
-            let currentAddr = null;
+            let currentAddr = null
             if (chainId === CHAINS.BASE || chainId === CHAINS.BASE_SEPOLIA) {
-              currentAddr = await readContract(walletClient, {
+              currentAddr = (await readContract(walletClient, {
                 address: resolverAddr,
                 abi: publicResolverABI,
                 functionName: 'addr',
                 args: [node, toCoinType(chainId)],
-              }) as `0x${string}`
+              })) as `0x${string}`
             } else {
               currentAddr = (await readContract(walletClient, {
                 address: resolverAddr,
@@ -1342,23 +1526,33 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
               })) as `0x${string}`
             }
 
-            if (currentAddr.toLowerCase() !== existingContractAddress.toLowerCase()) {
+            if (
+              currentAddr.toLowerCase() !==
+              existingContractAddress.toLowerCase()
+            ) {
               let txn
 
               if (chainId === CHAINS.BASE || chainId === CHAINS.BASE_SEPOLIA) {
                 const resolverAbi = parseAbi([
                   'function setAddr(bytes32 node, address a)',
                   'function setAddr(bytes32 node, uint256 coinType, bytes memory a)',
-                ]);
+                ])
 
                 let txn = await writeContract(walletClient, {
                   chain,
                   address: config.PUBLIC_RESOLVER as `0x${string}`,
                   abi: resolverAbi,
                   functionName: 'setAddr',
-                  args: [node, toCoinType(chainId), encodePacked(['address'], [existingContractAddress as `0x${string}`])],
+                  args: [
+                    node,
+                    toCoinType(chainId),
+                    encodePacked(
+                      ['address'],
+                      [existingContractAddress as `0x${string}`],
+                    ),
+                  ],
                   account: walletAddress,
-                });
+                })
 
                 if (!isTestNet(chainId)) {
                   try {
@@ -1443,38 +1637,40 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
                     { internalType: 'address', name: 'addr', type: 'address' },
                   ],
                   name: 'nameForAddr',
-                  outputs: [{ internalType: 'string', name: 'name', type: 'string' }],
+                  outputs: [
+                    { internalType: 'string', name: 'name', type: 'string' },
+                  ],
                   stateMutability: 'view',
                   type: 'function',
                 },
               ]
 
-              const existingName = await readContract(walletClient, {
+              const existingName = (await readContract(walletClient, {
                 address: config.L2_REVERSE_REGISTRAR as `0x${string}`,
                 abi: nameForAddrABI,
                 functionName: 'nameForAddr',
                 args: [existingContractAddress as `0x${string}`],
-              }) as string
+              })) as string
 
               if (existingName.toLowerCase() === name.toLowerCase()) {
                 setError('Reverse resolution already set')
-                return '';
+                return ''
               }
 
               // name not set, so we can set the reverse resolution
               const reverseAbi = [
                 // setNameForAddr(addr, owner, resolver, name)
                 {
-                  type: "function",
-                  name: "setNameForAddr",
-                  stateMutability: "nonpayable",
+                  type: 'function',
+                  name: 'setNameForAddr',
+                  stateMutability: 'nonpayable',
                   inputs: [
-                    { name: "addr", type: "address" },
-                    { name: "name", type: "string" },
+                    { name: 'addr', type: 'address' },
+                    { name: 'name', type: 'string' },
                   ],
                   outputs: [],
                 },
-              ] as const;
+              ] as const
 
               let txn = await writeContract(walletClient, {
                 chain,
@@ -1506,10 +1702,15 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
 
               return txn
             } else {
-              const existingEnsName = await getEnsName(walletClient, {address: existingContractAddress as `0x${string}`});
-              if (existingEnsName && existingEnsName.toLowerCase() === name.toLowerCase()) {
+              const existingEnsName = await getEnsName(walletClient, {
+                address: existingContractAddress as `0x${string}`,
+              })
+              if (
+                existingEnsName &&
+                existingEnsName.toLowerCase() === name.toLowerCase()
+              ) {
                 setError('Reverse resolution already set')
-                return '';
+                return ''
               }
 
               if (isSafeWallet) {
@@ -1571,7 +1772,6 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
           title: 'Set reverse resolution',
           chainId: chainId, // Add chainId for L1 transaction
           action: async () => {
-
             let txn
 
             if (isSafeWallet) {
@@ -1747,10 +1947,13 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
             title: `Switch to ${l2Chain.name} and set L2 primary name`,
             chainId: l2Chain.chainId, // Add chainId for L2 transaction
             action: async () => {
-
-
               // Switch to L2 chain
-              await waitForChainSwitch(walletClient, switchChain, l2Chain.chainId, l2Chain.name)
+              await waitForChainSwitch(
+                walletClient,
+                switchChain,
+                l2Chain.chainId,
+                l2Chain.name,
+              )
 
               // Now execute the reverse resolution transaction on L2
 
@@ -1788,7 +1991,6 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
                   chain: l2Chain.chain,
                 })
                 txn = 'safe wallet'
-
               } else {
                 txn = await writeContract(walletClient, {
                   address: l2Config.L2_REVERSE_REGISTRAR as `0x${string}`,
@@ -1818,7 +2020,6 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
                   chain: l2Chain.chain,
                 })
               }
-
 
               // Log the L2 transaction
               if (!isTestNet(l2Chain.chainId)) {

@@ -148,7 +148,7 @@ export default function NameContract() {
             await checkIfReverseClaimable(e.target.value)
           }}
           placeholder="0xa56..."
-          className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200}`}
+          className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-900 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600"
         />
 
         {/* Contract Status Information */}
@@ -395,9 +395,7 @@ export default function NameContract() {
             </label>
             <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg p-2 flex items-center">
               <div className="flex-1 font-medium text-blue-800 dark:text-blue-300 text-sm break-all">
-                {selectedAction === 'pick'
-                  ? label
-                  : `${label}.${parentName}`}
+                {selectedAction === 'pick' ? label : `${label}.${parentName}`}
               </div>
             </div>
           </div>
@@ -434,8 +432,8 @@ export default function NameContract() {
                         <TooltipContent className="max-w-xs">
                           <p className="text-sm">
                             Select which L2 chains to set names on. This will
-                            add additional steps to switch to each selected chain
-                            and set the primary name there as well.
+                            add additional steps to switch to each selected
+                            chain and set the primary name there as well.
                           </p>
                         </TooltipContent>
                       </Tooltip>
@@ -466,9 +464,7 @@ export default function NameContract() {
                       </TooltipProvider>
                       <Checkbox
                         checked={skipL1Naming}
-                        onCheckedChange={(val) =>
-                          setSkipL1Naming(Boolean(val))
-                        }
+                        onCheckedChange={(val) => setSkipL1Naming(Boolean(val))}
                         aria-label="Skip L1 Naming"
                       />
                     </div>
@@ -839,8 +835,7 @@ export default function NameContract() {
           loading ||
           isAddressEmpty ||
           isAddressInvalid ||
-          (isEmpty(label) &&
-            !(selectedAction === 'pick' && ensNameChosen)) ||
+          (isEmpty(label) && !(selectedAction === 'pick' && ensNameChosen)) ||
           isUnsupportedL2Chain ||
           parentType === 'register'
         }
@@ -888,9 +883,7 @@ export default function NameContract() {
         subtitle={modalSubtitle}
         steps={modalSteps}
         contractAddress={existingContractAddress}
-        ensName={
-          selectedAction === 'pick' ? label : `${label}.${parentName}`
-        }
+        ensName={selectedAction === 'pick' ? label : `${label}.${parentName}`}
         isPrimaryNameSet={isPrimaryNameSet}
         isSafeWallet={isSafeWallet}
       />
@@ -931,7 +924,9 @@ function DomainList({
   const sorted2LDs = Object.keys(domainGroups).sort()
 
   return (
-    <div className={`${maxHeightClass} overflow-y-auto overflow-x-hidden min-w-0 pr-2`}>
+    <div
+      className={`${maxHeightClass} overflow-y-auto overflow-x-hidden min-w-0 pr-2`}
+    >
       <div className="space-y-4">
         {sorted2LDs.map((parent2LD) => (
           <div
