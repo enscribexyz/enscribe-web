@@ -11,7 +11,7 @@ import { useToast } from '@/hooks/use-toast'
 import { CONTRACTS, CHAINS } from '../utils/constants'
 import { useChainConfig } from '@/hooks/useChainConfig'
 import { useSafeWallet } from '@/hooks/useSafeWallet'
-import { getChainName, type L2ChainName } from '@/lib/chains'
+import { getChainName, type L2ChainName, waitForChainSwitch } from '@/lib/chains'
 import { isEmpty, isAddressEmpty as isAddressEmptyCheck, isValidAddress as isValidAddressCheck } from '@/utils/validation'
 import { getL2ChainId, getL2ViemChain, getL2ChainDisplayName } from '@/lib/l2ChainConfig'
 import { getENS, fetchAssociatedNamesCount, getParentNode, fetchOwnedDomains } from '../utils/ens'
@@ -1750,27 +1750,7 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
 
 
               // Switch to L2 chain
-              await switchChain({ chainId: l2Chain.chainId })
-
-              // Wait a moment for the chain switch to complete
-              await new Promise((resolve) => setTimeout(resolve, 3000))
-
-              // Wait for the chain to actually change
-              let attempts = 0
-              while (attempts < 10) {
-                const currentChain = await walletClient.getChainId()
-                if (currentChain === l2Chain.chainId) {
-                  break
-                }
-                await new Promise((resolve) => setTimeout(resolve, 1000))
-                attempts++
-              }
-
-              if (attempts >= 10) {
-                throw new Error(
-                  `Chain switch timeout - chain did not change to ${l2Chain.name}`,
-                )
-              }
+              await waitForChainSwitch(walletClient, switchChain, l2Chain.chainId, l2Chain.name)
 
               // Now execute the reverse resolution transaction on L2
 

@@ -4,7 +4,7 @@ import { useAccount, useWalletClient, useSwitchChain } from 'wagmi'
 import { useSafeWallet } from '@/hooks/useSafeWallet'
 import { useToast } from '@/hooks/use-toast'
 import { CONTRACTS, CHAINS } from '../utils/constants'
-import { L2_CHAIN_NAMES, getChainName, type L2ChainName } from '@/lib/chains'
+import { L2_CHAIN_NAMES, getChainName, type L2ChainName, waitForChainSwitch } from '@/lib/chains'
 import { useChainConfig } from '@/hooks/useChainConfig'
 import { getL2ChainId, getL2ViemChain, getL2ChainDisplayName } from '@/lib/l2ChainConfig'
 import { isAddress, encodeFunctionData, namehash } from 'viem'
@@ -1309,27 +1309,7 @@ export function useBatchNaming() {
                   // Switch to L2 chain if not already there
                   const currentChainId = await walletClient!.getChainId()
                   if (currentChainId !== l2Chain.chainId) {
-                    await switchChain({ chainId: l2Chain.chainId })
-
-                    // Wait for chain switch to complete
-                    await new Promise((resolve) => setTimeout(resolve, 3000))
-
-                    // Wait for the chain to actually change
-                    let attempts = 0
-                    while (attempts < 10) {
-                      const newChainId = await walletClient!.getChainId()
-                      if (newChainId === l2Chain.chainId) {
-                        break
-                      }
-                      await new Promise((resolve) => setTimeout(resolve, 1000))
-                      attempts++
-                    }
-
-                    if (attempts >= 10) {
-                      throw new Error(
-                        `Chain switch timeout - chain did not change to ${l2Chain.name}`
-                      )
-                    }
+                    await waitForChainSwitch(walletClient!, switchChain, l2Chain.chainId, l2Chain.name)
                   }
 
                   // Set reverse record on L2
@@ -1387,27 +1367,7 @@ export function useBatchNaming() {
           // Ensure we're back on L1 before revoking
           const currentChainId = await walletClient!.getChainId()
           if (currentChainId !== chain!.id) {
-            await switchChain({ chainId: chain!.id })
-
-            // Wait for chain switch to complete
-            await new Promise((resolve) => setTimeout(resolve, 3000))
-
-            // Wait for the chain to actually change
-            let attempts = 0
-            while (attempts < 10) {
-              const newChainId = await walletClient!.getChainId()
-              if (newChainId === chain!.id) {
-                break
-              }
-              await new Promise((resolve) => setTimeout(resolve, 1000))
-              attempts++
-            }
-
-            if (attempts >= 10) {
-              throw new Error(
-                `Chain switch timeout - chain did not change to ${chain?.name}`
-              )
-            }
+            await waitForChainSwitch(walletClient!, switchChain, chain!.id, 'L1')
           }
           return await revokeOperatorAccess()
         },

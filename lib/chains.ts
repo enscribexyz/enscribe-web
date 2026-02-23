@@ -120,3 +120,34 @@ export const VIEM_CHAIN_MAP: Record<number, Chain> = {
 export function getViemChain(chainId: number): Chain {
   return VIEM_CHAIN_MAP[chainId] ?? mainnet
 }
+
+// ─── Chain Switch Utility ─────────────────────────────────────────────────
+
+/**
+ * Switch to the target chain and wait for the wallet to confirm the switch.
+ * Polls up to 10 times with 1s intervals after an initial 3s delay.
+ */
+export async function waitForChainSwitch(
+  walletClient: { getChainId: () => Promise<number> },
+  switchChain: (params: { chainId: number }) => Promise<void> | void,
+  targetChainId: number,
+  chainName: string,
+): Promise<void> {
+  await switchChain({ chainId: targetChainId })
+
+  // Initial delay for the wallet to process the switch
+  await new Promise((resolve) => setTimeout(resolve, 3000))
+
+  // Poll until the chain actually changes
+  let attempts = 0
+  while (attempts < 10) {
+    const currentChainId = await walletClient.getChainId()
+    if (currentChainId === targetChainId) {
+      return
+    }
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+    attempts++
+  }
+
+  throw new Error(`Chain switch timeout - chain did not change to ${chainName}`)
+}
