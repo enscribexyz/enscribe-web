@@ -484,6 +484,7 @@ export default function BatchNamingForm() {
         isPrimaryNameSet={false}
         batchEntries={batchEntries.filter(e => e.address && e.address !== '0x0000000000000000000000000000000000000000' && e.address !== '0x0' && e.address !== '').map(e => ({ address: e.address, label: e.label }))}
         parentName={parentName}
+        isSafeWallet={isSafeWallet}
       />
     </div>
     </div>
