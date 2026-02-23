@@ -17,21 +17,24 @@ const ConnectButton = dynamic(
 const features = [
   {
     title: 'Name Contract',
-    description: 'Attach an ENS name to any existing smart contract on Ethereum, Base, or Linea.',
+    description:
+      'Attach an ENS name to any existing smart contract on Ethereum, Base, or Linea.',
     icon: FileText,
     href: '/nameContract',
     accent: 'bg-blue-500/10 text-blue-500',
   },
   {
     title: 'Deploy & Name',
-    description: 'Deploy a new smart contract and give it an ENS identity in a single flow.',
+    description:
+      'Deploy a new smart contract and give it an ENS identity in a single flow.',
     icon: Rocket,
     href: '/deploy',
     accent: 'bg-emerald-500/10 text-emerald-500',
   },
   {
     title: 'Batch Naming',
-    description: 'Name dozens of contracts at once — ideal for protocol teams and power users.',
+    description:
+      'Name dozens of contracts at once — ideal for protocol teams and power users.',
     icon: Layers,
     href: '/batchNaming',
     accent: 'bg-violet-500/10 text-violet-500',
@@ -54,7 +57,6 @@ export default function Home() {
   return (
     <Layout>
       <div className="max-w-4xl mx-auto px-4 py-12 flex flex-col gap-12">
-
         {/* Hero */}
         <motion.div
           className="text-center flex flex-col items-center gap-5"
@@ -66,10 +68,13 @@ export default function Home() {
             Powered by ENS
           </div>
           <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-foreground leading-tight">
-            Give your smart contracts<br className="hidden sm:block" /> a human-readable identity
+            Give your smart contracts
+            <br className="hidden sm:block" /> a human-readable identity
           </h1>
           <p className="text-base sm:text-lg text-muted-foreground max-w-xl">
-            Enscribe lets you attach ENS names to smart contracts on Ethereum, Base, and Linea — making on-chain interactions transparent and trustworthy.
+            Enscribe lets you attach ENS names to smart contracts on Ethereum
+            and ENS supported L2 networks — making on-chain interactions
+            transparent and trustworthy.
           </p>
 
           {/* CTAs */}
@@ -113,22 +118,27 @@ export default function Home() {
                   href={feature.href}
                   className="group flex flex-col gap-4 p-5 rounded-xl border border-border bg-card hover:border-ring hover:shadow-md transition-all duration-200 h-full"
                 >
-                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${feature.accent}`}>
+                  <div
+                    className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${feature.accent}`}
+                  >
                     <Icon className="w-5 h-5" />
                   </div>
                   <div className="flex flex-col gap-1.5 flex-1">
                     <div className="flex items-center justify-between">
-                      <span className="font-semibold text-sm text-foreground">{feature.title}</span>
+                      <span className="font-semibold text-sm text-foreground">
+                        {feature.title}
+                      </span>
                       <ArrowRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 -translate-x-1 group-hover:translate-x-0 transition-all duration-200" />
                     </div>
-                    <p className="text-sm text-muted-foreground leading-relaxed">{feature.description}</p>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      {feature.description}
+                    </p>
                   </div>
                 </Link>
               </motion.div>
             )
           })}
         </div>
-
       </div>
 
       <SearchModal

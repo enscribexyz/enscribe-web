@@ -45,3 +45,6 @@ next-env.d.ts
 .idea
 /enscribe-docs/enscribe-docs.iml
 /enscribe-web.iml
+
+# vscode
+.vscode

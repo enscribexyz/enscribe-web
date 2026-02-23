@@ -33,13 +33,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
         })
 
         const safeConnector = safe({
-          allowedDomains: [
-            /app.safe.global$/,
-            /safe.global$/,
-            /^localhost(:\d+)?$/,
-            /^127\.0\.0\.1(:\d+)?$/,
-            /enscribe-git-claude-refractor-enscribe.vercel.app$/,
-          ],
+          allowedDomains: [/app.safe.global$/, /safe.global$/],
           debug: false,
         })
 
