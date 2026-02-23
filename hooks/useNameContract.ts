@@ -32,9 +32,8 @@ import {
 import { namehash, normalize } from 'viem/ens'
 import { isAddress, keccak256, toBytes, encodeFunctionData, parseAbi, encodePacked } from 'viem'
 import { toCoinType } from 'viem'
-import { getPublicClient } from '@/lib/viemClient'
 import enscribeContractABI from '../contracts/Enscribe'
-import ownableContractABI from '@/contracts/Ownable'
+import { checkOwnable, checkContractOwner, checkReverseClaimable, checkOwnableOnL2, checkRecordExists } from '@/utils/contractChecks'
 
 export function useNameContract() {
   const router = useRouter()
@@ -708,30 +707,8 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
       setIsContractOwner(false)
       return
     }
-    try {
-      const ownerAddress = (await readContract(walletClient, {
-        address: address as `0x${string}`,
-        abi: ownableContractABI,
-        functionName: 'owner',
-        args: [],
-      })) as `0x${string}`
-      setIsContractOwner(
-        ownerAddress.toLowerCase() == walletAddress.toLowerCase(),
-      )
-    } catch (err) {
-      const addrLabel = address.slice(2).toLowerCase()
-      const reversedNode = namehash(addrLabel + '.' + 'addr.reverse')
-      const resolvedAddr = (await readContract(walletClient, {
-        address: config.ENS_REGISTRY as `0x${string}`,
-        abi: ensRegistryABI,
-        functionName: 'owner',
-        args: [reversedNode],
-      })) as string
-
-      setIsContractOwner(
-        resolvedAddr.toLowerCase() == walletAddress.toLowerCase(),
-      )
-    }
+    const isOwner = await checkContractOwner(walletClient, address, walletAddress, config.ENS_REGISTRY)
+    setIsContractOwner(isOwner)
   }
 
   const checkIfOwnable = async (address: string) => {
@@ -743,19 +720,12 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
       setIsOwnable(false)
       return
     }
-
-    try {
-      const ownerAddress = (await readContract(walletClient, {
-        address: address as `0x${string}`,
-        abi: ownableContractABI,
-        functionName: 'owner',
-        args: [],
-      })) as `0x${string}`
-
+    const ownable = await checkOwnable(walletClient, address)
+    if (ownable) {
       setIsOwnable(true)
       setIsAddressInvalid(false)
       setError('')
-    } catch (err) {
+    } else {
       setIsAddressEmpty(false)
       setIsAddressInvalid(false)
       setIsOwnable(false)
@@ -768,7 +738,6 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
       !isAddressValid(address) ||
       !walletClient
     ) {
-      // Reset all L2 ownable states
       setIsOwnableOptimism(null)
       setIsOwnableArbitrum(null)
       setIsOwnableScroll(null)
@@ -777,9 +746,7 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
       return
     }
 
-    // Only check L2 ownable if we're on L1 chains (mainnet or sepolia)
     if (chain?.id !== CHAINS.MAINNET && chain?.id !== CHAINS.SEPOLIA) {
-      // Reset all L2 ownable states
       setIsOwnableOptimism(null)
       setIsOwnableArbitrum(null)
       setIsOwnableScroll(null)
@@ -788,85 +755,28 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
       return
     }
 
-    // Determine if we're on L1 mainnet or sepolia to check appropriate L2 networks
     const isL1Mainnet = chain?.id === CHAINS.MAINNET
-
-    // Check ownable on each L2 chain in parallel (mainnet or testnet based on current L1)
     const l2Chains = [
-      {
-        name: 'Optimism',
-        chainId: isL1Mainnet ? CHAINS.OPTIMISM : CHAINS.OPTIMISM_SEPOLIA,
-        setter: setIsOwnableOptimism,
-      },
-      {
-        name: 'Arbitrum',
-        chainId: isL1Mainnet ? CHAINS.ARBITRUM : CHAINS.ARBITRUM_SEPOLIA,
-        setter: setIsOwnableArbitrum,
-      },
-      {
-        name: 'Scroll',
-        chainId: isL1Mainnet ? CHAINS.SCROLL : CHAINS.SCROLL_SEPOLIA,
-        setter: setIsOwnableScroll,
-      },
-      {
-        name: 'Base',
-        chainId: isL1Mainnet ? CHAINS.BASE : CHAINS.BASE_SEPOLIA,
-        setter: setIsOwnableBase,
-      },
-      {
-        name: 'Linea',
-        chainId: isL1Mainnet ? CHAINS.LINEA : CHAINS.LINEA_SEPOLIA,
-        setter: setIsOwnableLinea,
-      },
+      { name: 'Optimism', chainId: getL2ChainId('Optimism' as L2ChainName, isL1Mainnet), setter: setIsOwnableOptimism },
+      { name: 'Arbitrum', chainId: getL2ChainId('Arbitrum' as L2ChainName, isL1Mainnet), setter: setIsOwnableArbitrum },
+      { name: 'Scroll', chainId: getL2ChainId('Scroll' as L2ChainName, isL1Mainnet), setter: setIsOwnableScroll },
+      { name: 'Base', chainId: getL2ChainId('Base' as L2ChainName, isL1Mainnet), setter: setIsOwnableBase },
+      { name: 'Linea', chainId: getL2ChainId('Linea' as L2ChainName, isL1Mainnet), setter: setIsOwnableLinea },
     ]
 
-
-    type OwnableResult = { name: string; isOwnable: boolean; error?: string }
-
-    const results: OwnableResult[] = await Promise.all(
+    const results = await Promise.all(
       l2Chains.map(async (l2Chain) => {
-        try {
-          const l2Config = CONTRACTS[l2Chain.chainId]
-          if (!l2Config?.RPC_ENDPOINT) {
-            return {
-              name: l2Chain.name,
-              isOwnable: false,
-              error: `No RPC endpoint configured for ${l2Chain.name}`,
-            }
-          }
-
-          // Create a custom client for this L2 chain
-          const l2Client = getPublicClient(l2Chain.chainId)
-          if (!l2Client) {
-            return {
-              name: l2Chain.name,
-              isOwnable: false,
-              error: `Failed to create client for ${l2Chain.name}`,
-            }
-          }
-
-          const ownerAddress = (await readContract(l2Client, {
-            address: address as `0x${string}`,
-            abi: ownableContractABI,
-            functionName: 'owner',
-            args: [],
-          })) as `0x${string}`
-
-          return { name: l2Chain.name, isOwnable: true }
-        } catch (err) {
-          return { name: l2Chain.name, isOwnable: false }
-        }
+        const isOwnable = await checkOwnableOnL2(address, l2Chain.chainId)
+        return { name: l2Chain.name, isOwnable }
       }),
     )
 
-    // Update state based on results
     results.forEach((result) => {
       const l2Chain = l2Chains.find((chain) => chain.name === result.name)
       if (l2Chain) {
         l2Chain.setter(result.isOwnable)
       }
     })
-
   }
 
   const checkIfReverseClaimable = async (address: string) => {
@@ -876,50 +786,26 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
       return
     }
 
-    try {
-      if (!walletClient || !walletAddress) {
-        alert('Please connect your wallet first.')
-        setLoading(false)
-        return
-      }
-      const addrLabel = address.slice(2).toLowerCase()
-      const reversedNode = namehash(addrLabel + '.' + 'addr.reverse')
-      const resolvedAddr = (await readContract(walletClient, {
-        address: config?.ENS_REGISTRY as `0x${string}`,
-        abi: ensRegistryABI,
-        functionName: 'owner',
-        args: [reversedNode],
-      })) as `0x${string}`
+    if (!walletClient || !walletAddress) {
+      alert('Please connect your wallet first.')
+      setLoading(false)
+      return
+    }
 
-      if (resolvedAddr.toLowerCase() === walletAddress.toLowerCase()) {
-        setIsReverseClaimable(true)
-      } else {
-        setIsReverseClaimable(false)
-      }
-
+    const claimable = await checkReverseClaimable(walletClient, address, walletAddress, config?.ENS_REGISTRY as string)
+    setIsReverseClaimable(claimable)
+    if (claimable) {
       setIsAddressInvalid(false)
       setError('')
-    } catch (err) {
+    } else {
       setIsAddressEmpty(false)
       setIsAddressInvalid(false)
-      setIsReverseClaimable(false)
     }
   }
 
   const recordExist = async (): Promise<boolean> => {
     if (!walletClient || !getParentNode(parentName)) return false
-    try {
-      const parentNode = getParentNode(parentName)
-
-      return (await readContract(walletClient, {
-        address: config?.ENS_REGISTRY as `0x${string}`,
-        abi: ensRegistryABI,
-        functionName: 'recordExists',
-        args: [parentNode],
-      })) as boolean
-    } catch (err) {
-      return false
-    }
+    return checkRecordExists(walletClient, config?.ENS_REGISTRY as string, parentName)
   }
 
   const setPrimaryName = async () => {

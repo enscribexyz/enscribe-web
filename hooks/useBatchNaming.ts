@@ -15,9 +15,9 @@ import enscribeV2ContractABI from '../contracts/EnscribeV2'
 import ensRegistryABI from '../contracts/ENSRegistry'
 import nameWrapperABI from '../contracts/NameWrapper'
 import reverseRegistrarABI from '@/contracts/ReverseRegistrar'
-import ownableContractABI from '@/contracts/Ownable'
 import type { Step, BatchFormEntry } from '@/types'
-import { isEmpty, isAddressEmpty, isValidAddress } from '@/utils/validation'
+import { isEmpty } from '@/utils/validation'
+import { checkOwnable, checkContractOwner, checkReverseClaimable, checkOwnableOnL2, checkContractOwnerOnL2 } from '@/utils/contractChecks'
 
 export const L2_CHAIN_OPTIONS = L2_CHAIN_NAMES
 
@@ -701,96 +701,22 @@ export function useBatchNaming() {
   const checkIfOwnable = async (
     contractAddress: string
   ): Promise<boolean> => {
-    if (
-      isAddressEmpty(contractAddress) ||
-      !isValidAddress(contractAddress) ||
-      !walletClient
-    ) {
-      return false
-    }
-
-    try {
-      const ownerAddress = (await readContract(walletClient, {
-        address: contractAddress as `0x${string}`,
-        abi: ownableContractABI,
-        functionName: 'owner',
-        args: [],
-      })) as `0x${string}`
-
-      return true
-    } catch (err) {
-      return false
-    }
+    if (!walletClient) return false
+    return checkOwnable(walletClient, contractAddress)
   }
 
   const checkIfContractOwner = async (
     contractAddress: string
   ): Promise<boolean> => {
-    if (
-      isAddressEmpty(contractAddress) ||
-      !isValidAddress(contractAddress) ||
-      !walletClient ||
-      !config?.ENS_REGISTRY ||
-      !walletAddress
-    ) {
-      return false
-    }
-
-    try {
-      const ownerAddress = (await readContract(walletClient, {
-        address: contractAddress as `0x${string}`,
-        abi: ownableContractABI,
-        functionName: 'owner',
-        args: [],
-      })) as `0x${string}`
-
-      return ownerAddress.toLowerCase() === walletAddress.toLowerCase()
-    } catch (err) {
-      const addrLabel = contractAddress.slice(2).toLowerCase()
-      const reversedNode = namehash(addrLabel + '.' + 'addr.reverse')
-
-      try {
-        const resolvedAddr = (await readContract(walletClient, {
-          address: config.ENS_REGISTRY as `0x${string}`,
-          abi: ensRegistryABI,
-          functionName: 'owner',
-          args: [reversedNode],
-        })) as string
-
-        return resolvedAddr.toLowerCase() === walletAddress.toLowerCase()
-      } catch (error) {
-        return false
-      }
-    }
+    if (!walletClient || !config?.ENS_REGISTRY || !walletAddress) return false
+    return checkContractOwner(walletClient, contractAddress, walletAddress, config.ENS_REGISTRY)
   }
 
   const checkIfReverseClaimable = async (
     contractAddress: string
   ): Promise<boolean> => {
-    if (
-      isAddressEmpty(contractAddress) ||
-      !isValidAddress(contractAddress) ||
-      !walletClient ||
-      !config?.ENS_REGISTRY ||
-      !walletAddress
-    ) {
-      return false
-    }
-
-    try {
-      const addrLabel = contractAddress.slice(2).toLowerCase()
-      const reversedNode = namehash(addrLabel + '.' + 'addr.reverse')
-      const resolvedAddr = (await readContract(walletClient, {
-        address: config.ENS_REGISTRY as `0x${string}`,
-        abi: ensRegistryABI,
-        functionName: 'owner',
-        args: [reversedNode],
-      })) as `0x${string}`
-
-      return resolvedAddr.toLowerCase() === walletAddress.toLowerCase()
-    } catch (err) {
-      return false
-    }
+    if (!walletClient || !config?.ENS_REGISTRY || !walletAddress) return false
+    return checkReverseClaimable(walletClient, contractAddress, walletAddress, config.ENS_REGISTRY)
   }
 
   /**
@@ -800,33 +726,7 @@ export function useBatchNaming() {
     contractAddress: string,
     l2ChainId: number
   ): Promise<boolean> => {
-    if (
-      isAddressEmpty(contractAddress) ||
-      !isValidAddress(contractAddress)
-    ) {
-      return false
-    }
-
-    try {
-      // Create a public client for the L2 chain
-      const l2PublicClient = getPublicClient(l2ChainId)
-      if (!l2PublicClient) {
-        console.error(`Failed to create client for chain ${l2ChainId}`)
-        return false
-      }
-
-      // Try to read the owner from the contract on L2
-      const ownerAddress = (await readContract(l2PublicClient, {
-        address: contractAddress as `0x${string}`,
-        abi: ownableContractABI,
-        functionName: 'owner',
-        args: [],
-      })) as `0x${string}`
-
-      return true
-    } catch (err) {
-      return false
-    }
+    return checkOwnableOnL2(contractAddress, l2ChainId)
   }
 
   /**
@@ -836,35 +736,8 @@ export function useBatchNaming() {
     contractAddress: string,
     l2ChainId: number
   ): Promise<boolean> => {
-    if (
-      isAddressEmpty(contractAddress) ||
-      !isValidAddress(contractAddress) ||
-      !walletAddress
-    ) {
-      return false
-    }
-
-    try {
-      // Create a public client for the L2 chain
-      const l2PublicClient = getPublicClient(l2ChainId)
-      if (!l2PublicClient) {
-        console.error(`Failed to create client for chain ${l2ChainId}`)
-        return false
-      }
-
-      // Try to read the owner from the contract on L2
-      const ownerAddress = (await readContract(l2PublicClient, {
-        address: contractAddress as `0x${string}`,
-        abi: ownableContractABI,
-        functionName: 'owner',
-        args: [],
-      })) as `0x${string}`
-
-
-      return ownerAddress.toLowerCase() === walletAddress.toLowerCase()
-    } catch (err) {
-      return false
-    }
+    if (!walletAddress) return false
+    return checkContractOwnerOnL2(contractAddress, l2ChainId, walletAddress)
   }
 
   const grantOperatorAccess = async (): Promise<`0x${string}` | undefined> => {

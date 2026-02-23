@@ -28,6 +28,7 @@ import {
 } from 'viem/actions'
 import enscribeContractABI from '../contracts/Enscribe'
 import { isEmpty } from '@/utils/validation'
+import { checkRecordExists } from '@/utils/contractChecks'
 
 const OWNABLE_FUNCTION_SELECTORS = [
   '8da5cb5b', // owner()
@@ -302,18 +303,7 @@ export function useDeployForm() {
 
   const recordExist = async (name: string): Promise<boolean> => {
     if (!walletClient || !config?.ENS_REGISTRY) return false
-    try {
-      const parentNode = getParentNode(name)
-
-      return (await readContract(walletClient, {
-        address: config.ENS_REGISTRY as `0x${string}`,
-        abi: ensRegistryABI,
-        functionName: 'recordExists',
-        args: [parentNode],
-      })) as boolean
-    } catch (err) {
-      return false
-    }
+    return checkRecordExists(walletClient, config.ENS_REGISTRY, name)
   }
 
   const checkOperatorAccess = async (name: string): Promise<boolean> => {
