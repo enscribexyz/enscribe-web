@@ -33,7 +33,13 @@ export function Providers({ children }: { children: React.ReactNode }) {
         })
 
         const safeConnector = safe({
-          allowedDomains: [/app.safe.global$/, /safe.global$/],
+          allowedDomains: [
+            /app.safe.global$/,
+            /safe.global$/,
+            /^localhost(:\d+)?$/,
+            /^127\.0\.0\.1(:\d+)?$/,
+            /enscribe-git-claude-refractor-enscribe.vercel.app$/,
+          ],
           debug: false,
         })
 
@@ -74,7 +80,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="text-center space-y-4 p-8">
-          <p className="text-foreground font-medium">Failed to initialize wallet connection.</p>
+          <p className="text-foreground font-medium">
+            Failed to initialize wallet connection.
+          </p>
           <button
             className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm"
             onClick={() => window.location.reload()}
@@ -124,9 +132,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
           <ThemeAwareRainbowKit>
             <SafeAutoConnect />
             <ChainProvider>
-              <TransactionProvider>
-                {children}
-              </TransactionProvider>
+              <TransactionProvider>{children}</TransactionProvider>
             </ChainProvider>
           </ThemeAwareRainbowKit>
         </WagmiProvider>
