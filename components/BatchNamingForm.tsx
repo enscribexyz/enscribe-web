@@ -62,6 +62,10 @@ export default function BatchNamingForm() {
     truncatedAddresses,
     isUnsupportedL2Chain,
     unsupportedL2Name,
+    operatorAccess,
+    accessLoading,
+    handleGrantAccess,
+    handleRevokeAccess,
     fileInputRef,
     addressInputRefs,
     addEntry,
@@ -129,7 +133,31 @@ export default function BatchNamingForm() {
                 >
             Select Domain
           </Button>
+          {operatorAccess && parentName && parentType !== 'web3labs' && (
+            <Button
+              variant="destructive"
+              disabled={accessLoading}
+              onClick={handleRevokeAccess}
+            >
+              {accessLoading ? 'Revoking...' : 'Revoke Access'}
+            </Button>
+          )}
+          {!operatorAccess && parentName && parentType !== 'web3labs' && (
+            <Button
+              disabled={accessLoading}
+              onClick={handleGrantAccess}
+            >
+              {accessLoading ? 'Granting...' : 'Grant Access'}
+            </Button>
+          )}
         </div>
+        {parentName && parentType !== 'web3labs' && (
+          <p className="text-sm text-yellow-600 mt-2">
+            {operatorAccess
+              ? 'Note: You can revoke Operator role from Enscribe V2 here.'
+              : 'Note: You can grant Operator role to Enscribe V2 here, otherwise it will be requested during batch naming.'}
+          </p>
+        )}
 
 
       {/* Contracts Table */}

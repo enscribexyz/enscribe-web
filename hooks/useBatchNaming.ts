@@ -59,6 +59,8 @@ export function useBatchNaming() {
   const addressInputRefs = useRef<{ [key: string]: HTMLInputElement | null }>({})
   const [shouldTruncateAddress, setShouldTruncateAddress] = useState<{ [key: string]: boolean }>({})
   const [truncatedAddresses, setTruncatedAddresses] = useState<{ [key: string]: string }>({})
+  const [operatorAccess, setOperatorAccess] = useState(false)
+  const [accessLoading, setAccessLoading] = useState(false)
   // Unsupported L2 gating for this page: Optimism/Arbitrum/Scroll/Linea/Base L2s should show guidance
   const isUnsupportedL2Chain = [
     CHAINS.OPTIMISM,
@@ -108,6 +110,26 @@ export function useBatchNaming() {
       setIsAdvancedOpen(false)
     }
   }, [selectedL2ChainNames])
+
+  // Check operator access when parentName changes
+  useEffect(() => {
+    const checkParentAccess = async () => {
+      if (!walletClient || !config?.ENS_REGISTRY || !parentName) {
+        setOperatorAccess(false)
+        return
+      }
+
+      try {
+        const approved = await checkOperatorAccess(parentName)
+        setOperatorAccess(approved)
+      } catch (err) {
+        console.error('Error checking operator access:', err)
+        setOperatorAccess(false)
+      }
+    }
+
+    checkParentAccess()
+  }, [parentName, walletClient, config?.ENS_REGISTRY])
 
   useEffect(() => {
     if (parentName && batchEntries.some(e => e.address && e.label)) {
@@ -805,6 +827,48 @@ export function useBatchNaming() {
     }
   }
 
+  const handleGrantAccess = async () => {
+    setAccessLoading(true)
+    try {
+      await grantOperatorAccess()
+      setOperatorAccess(true)
+      toast({
+        title: 'Operator access granted',
+        description: 'Enscribe V2 has been granted operator access.',
+      })
+    } catch (err: any) {
+      console.error('Error granting operator access:', err)
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: err?.message || 'Failed to grant operator access',
+      })
+    } finally {
+      setAccessLoading(false)
+    }
+  }
+
+  const handleRevokeAccess = async () => {
+    setAccessLoading(true)
+    try {
+      await revokeOperatorAccess()
+      setOperatorAccess(false)
+      toast({
+        title: 'Operator access revoked',
+        description: 'Enscribe V2 operator access has been revoked.',
+      })
+    } catch (err: any) {
+      console.error('Error revoking operator access:', err)
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: err?.message || 'Failed to revoke operator access',
+      })
+    } finally {
+      setAccessLoading(false)
+    }
+  }
+
   const checkOperatorAccess = async (name: string): Promise<boolean> => {
     if (
       !walletClient ||
@@ -1029,9 +1093,10 @@ export function useBatchNaming() {
 
       const steps: Step[] = []
 
-      const operatorAccess = await checkOperatorAccess(parentName)
+      const hasOperatorAccess = await checkOperatorAccess(parentName)
+      setOperatorAccess(hasOperatorAccess)
       // Step 1: Grant operator access
-      if(!operatorAccess) {
+      if(!hasOperatorAccess) {
         steps.push({
           title: 'Grant operator access',
           chainId: chain!.id,
@@ -1438,6 +1503,10 @@ export function useBatchNaming() {
     truncatedAddresses,
     isUnsupportedL2Chain,
     unsupportedL2Name,
+    operatorAccess,
+    accessLoading,
+    handleGrantAccess,
+    handleRevokeAccess,
     fileInputRef,
     addressInputRefs,
     addEntry,
