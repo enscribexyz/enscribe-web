@@ -233,10 +233,10 @@ export default function DeployForm() {
                     }
                   }}
                 >
-                  <SelectTrigger className="bg-white text-gray-900 border border-gray-300 rounded-md p-3 focus:ring-2 focus:ring-indigo-500">
-                    <SelectValue className="text-gray-900" />
+                  <SelectTrigger className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-md p-3 focus:ring-2 focus:ring-indigo-500">
+                    <SelectValue className="text-gray-900 dark:text-gray-200" />
                   </SelectTrigger>
-                  <SelectContent className="bg-white text-gray-900 border border-gray-300 rounded-md">
+                  <SelectContent className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-md">
                     {commonTypes.map((t) => (
                       <SelectItem key={t} value={t}>
                         {t}
@@ -332,12 +332,16 @@ export default function DeployForm() {
             }
           }}
         >
-          <SelectTrigger className="bg-white text-gray-900 border border-gray-300 rounded-md p-3 focus:ring-2 focus:ring-indigo-500">
-            <SelectValue className="text-gray-900" />
+          <SelectTrigger className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-md p-3 focus:ring-2 focus:ring-indigo-500">
+            <SelectValue className="text-gray-900 dark:text-gray-200" />
           </SelectTrigger>
-          <SelectContent className="bg-white text-gray-900 border border-gray-300 rounded-md">
-            <SelectItem value="web3labs">{enscribeDomain}</SelectItem>
-            <SelectItem value="own">Your ENS Parent</SelectItem>
+          <SelectContent className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-md">
+            <SelectItem value="web3labs" className="focus:bg-gray-100 dark:focus:bg-gray-700 focus:text-gray-900 dark:focus:text-gray-200">
+              {enscribeDomain}
+            </SelectItem>
+            <SelectItem value="own" className="focus:bg-gray-100 dark:focus:bg-gray-700 focus:text-gray-900 dark:focus:text-gray-200">
+              Your ENS Parent
+            </SelectItem>
           </SelectContent>
         </Select>
         {parentType === 'own' && (

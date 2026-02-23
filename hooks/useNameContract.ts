@@ -270,8 +270,10 @@ export function useNameContract() {
   }, [existingContractAddress])
 
   useEffect(() => {
+    const params = searchParams
+    if (!params) return
     const run = async () => {
-      const contractParam = searchParams.get('contract')
+      const contractParam = params.get('contract')
       if (!contractParam || !isAddress(contractParam)) {
         return
       }
@@ -279,14 +281,14 @@ export function useNameContract() {
       const addr = contractParam
 
       // Blockscout redirect: run even when wallet is disconnected (use URL chainId when no wallet)
-      const chainIdParam = searchParams.get('chainId')
+      const chainIdParam = params.get('chainId')
       const urlChainId = chainIdParam != null ? Number(chainIdParam) : null
       const redirectChainId =
         urlChainId != null && !Number.isNaN(urlChainId) && CONTRACTS[urlChainId]
           ? urlChainId
           : chain?.id
 
-      if (searchParams.get('utm') === 'blockscout' && redirectChainId) {
+      if (params.get('utm') === 'blockscout' && redirectChainId) {
         try {
           const primaryName = await getENS(addr, redirectChainId)
           if (primaryName && primaryName.length > 0) {

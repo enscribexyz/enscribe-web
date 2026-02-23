@@ -227,7 +227,7 @@ export default function Layout({ children }: LayoutProps) {
           {/* Search bar */}
           <button
             onClick={() => setIsSearchModalOpen(true)}
-            className="flex items-center gap-2 flex-1 max-w-sm px-3 py-2 text-sm text-muted-foreground bg-muted hover:bg-accent hover:text-accent-foreground rounded-lg border border-border hover:border-ring transition-colors text-left"
+            className="flex items-center gap-2 flex-1 min-w-[180px] max-w-md px-3 py-2 text-sm text-muted-foreground bg-muted hover:bg-accent hover:text-accent-foreground rounded-lg border border-border hover:border-ring transition-colors text-left"
           >
             <Search className="w-4 h-4 shrink-0" />
             <span className="truncate">Search address or ENS name…</span>

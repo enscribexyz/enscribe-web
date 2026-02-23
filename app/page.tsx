@@ -73,15 +73,15 @@ export default function Home() {
           </p>
 
           {/* CTAs */}
-          <div className="flex flex-col sm:flex-row items-center gap-3 mt-1 w-full max-w-sm">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-1 w-full max-w-md">
             {!isConnected ? (
-              <div className="w-full flex justify-center">
+              <div className="w-full sm:w-auto flex justify-center">
                 <ConnectButton label="Connect Wallet" showBalance={false} />
               </div>
             ) : (
               <Link
                 href="/nameContract"
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg font-medium text-sm transition-colors"
+                className="w-full sm:min-w-[140px] sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg font-medium text-sm transition-colors"
               >
                 Get started
                 <ArrowRight className="w-4 h-4" />
@@ -89,7 +89,7 @@ export default function Home() {
             )}
             <button
               onClick={() => setIsSearchModalOpen(true)}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-muted hover:bg-accent text-muted-foreground hover:text-accent-foreground rounded-lg font-medium text-sm border border-border hover:border-ring transition-colors"
+              className="w-full sm:min-w-[140px] sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-muted hover:bg-accent text-muted-foreground hover:text-accent-foreground rounded-lg font-medium text-sm border border-border hover:border-ring transition-colors"
             >
               <Search className="w-4 h-4" />
               Explore

@@ -1212,7 +1212,9 @@ export function useNameMetadata({ initialName }: UseNameMetadataProps) {
 
   // Handle URL changes - for browser back/forward and sidebar clicks
   useEffect(() => {
-    const urlName = searchParams.get('name') ?? ''
+    const params = searchParams
+    if (!params) return
+    const urlName = params.get('name') ?? ''
 
     // If URL has no name and we have current name, reset to home
     if (!urlName && currentName) {

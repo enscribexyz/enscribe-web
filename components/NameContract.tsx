@@ -632,7 +632,7 @@ export default function NameContract() {
 
       {/* ENS Selection Modal */}
       <Dialog open={showENSModal} onOpenChange={setShowENSModal}>
-        <DialogContent className="max-w-3xl bg-white dark:bg-gray-900 shadow-lg rounded-lg">
+        <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col overflow-hidden bg-white dark:bg-gray-900 shadow-lg rounded-lg">
           <DialogHeader className="mb-4">
             <DialogTitle className="text-xl font-semibold text-gray-900 dark:text-white">
               {selectedAction === 'pick'
@@ -642,9 +642,9 @@ export default function NameContract() {
           </DialogHeader>
 
           {selectedAction === 'subname' && (
-            <div className="space-y-6 mb-6">
+            <div className="space-y-6 mb-6 min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
               {/* Choose Your Own Domain */}
-              <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+              <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 min-w-0">
                 <h3 className="text-base font-medium text-gray-900 dark:text-white mb-3">
                   Your Domains
                 </h3>
@@ -707,7 +707,7 @@ export default function NameContract() {
           )}
 
           {selectedAction !== 'subname' && (
-            <>
+            <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
               {fetchingENS ? (
                 <div className="flex justify-center items-center p-6">
                   <svg
@@ -735,7 +735,7 @@ export default function NameContract() {
                   </p>
                 </div>
               ) : (
-                <div className="space-y-4 px-1">
+                <div className="space-y-4 px-2 min-w-0">
                   {userOwnedDomains.length > 0 ? (
                     <DomainList
                       domains={userOwnedDomains}
@@ -769,7 +769,7 @@ export default function NameContract() {
                   )}
                 </div>
               )}
-            </>
+            </div>
           )}
         </DialogContent>
       </Dialog>
@@ -931,14 +931,14 @@ function DomainList({
   const sorted2LDs = Object.keys(domainGroups).sort()
 
   return (
-    <div className={`${maxHeightClass} overflow-y-auto pr-1`}>
+    <div className={`${maxHeightClass} overflow-y-auto overflow-x-hidden min-w-0 pr-2`}>
       <div className="space-y-4">
         {sorted2LDs.map((parent2LD) => (
           <div
             key={parent2LD}
-            className="border-b border-gray-200 dark:border-gray-700 pb-4 last:border-0"
+            className="border-b border-gray-200 dark:border-gray-700 pb-4 last:border-0 min-w-0"
           >
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 min-w-0">
               {domainGroups[parent2LD].map((domain, index) => (
                 <div
                   key={domain}
@@ -959,8 +959,8 @@ function DomainList({
         ))}
 
         {domainsWithLabelhash.length > 0 && (
-          <div className="pt-2">
-            <div className="flex flex-wrap gap-2">
+          <div className="pt-2 min-w-0">
+            <div className="flex flex-wrap gap-2 min-w-0">
               {domainsWithLabelhash.map((domain) => (
                 <div
                   key={domain}
