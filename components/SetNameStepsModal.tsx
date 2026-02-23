@@ -248,7 +248,7 @@ export default function SetNameStepsModal({
 
   const getPoapMintLink = async (): Promise<string | null> => {
     try {
-      let res = await fetch(`/api/v1/mint`, { method: 'POST' })
+      const res = await fetch(`/api/v1/mint`, { method: 'POST' })
       if (res.ok) {
         const data = await res.json()
         return data.link

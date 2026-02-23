@@ -29,7 +29,7 @@ const config = [
     },
     rules: {
       // Disallow boxed primitive types (String, Number, Boolean, etc.)
-      '@typescript-eslint/ban-types': 'error',
+      '@typescript-eslint/no-wrapper-object-types': 'error',
 
       // Warn on explicit any
       '@typescript-eslint/no-explicit-any': 'warn',
