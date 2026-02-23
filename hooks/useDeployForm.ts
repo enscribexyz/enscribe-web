@@ -29,6 +29,7 @@ import {
 import enscribeContractABI from '../contracts/Enscribe'
 import { isEmpty } from '@/utils/validation'
 import { checkRecordExists } from '@/utils/contractChecks'
+import { checkOperatorApproval, setOperatorApproval } from '@/utils/operatorAccess'
 
 const OWNABLE_FUNCTION_SELECTORS = [
   '8da5cb5b', // owner()
@@ -320,40 +321,15 @@ export function useDeployForm() {
       // First check if the record exists
       if (!(await recordExist(name))) return false
 
-      const parentNode = getParentNode(name)
-
-      if (chain?.id == CHAINS.BASE || chain?.id == CHAINS.BASE_SEPOLIA) {
-        return (await readContract(walletClient, {
-          address: config.ENS_REGISTRY as `0x${string}`,
-          abi: ensRegistryABI,
-          functionName: 'isApprovedForAll',
-          args: [walletAddress, config.ENSCRIBE_CONTRACT],
-        })) as boolean
-      } else {
-        const isWrapped = (await readContract(walletClient, {
-          address: config.NAME_WRAPPER as `0x${string}`,
-          abi: nameWrapperABI,
-          functionName: 'isWrapped',
-          args: [parentNode],
-        })) as boolean
-        if (isWrapped) {
-          // Wrapped Names
-          return (await readContract(walletClient, {
-            address: config.NAME_WRAPPER as `0x${string}`,
-            abi: nameWrapperABI,
-            functionName: 'isApprovedForAll',
-            args: [walletAddress, config.ENSCRIBE_CONTRACT],
-          })) as boolean
-        } else {
-          //Unwrapped Names
-          return (await readContract(walletClient, {
-            address: config.ENS_REGISTRY as `0x${string}`,
-            abi: ensRegistryABI,
-            functionName: 'isApprovedForAll',
-            args: [walletAddress, config.ENSCRIBE_CONTRACT],
-          })) as boolean
-        }
-      }
+      return checkOperatorApproval({
+        client: walletClient,
+        walletAddress,
+        enscribeContract: config.ENSCRIBE_CONTRACT,
+        ensRegistry: config.ENS_REGISTRY,
+        nameWrapper: config.NAME_WRAPPER,
+        name,
+        chainId: chain?.id ?? 0,
+      })
     } catch (err) {
       console.error('Approval check failed:', err)
       return false
@@ -394,6 +370,7 @@ export function useDeployForm() {
       !walletAddress ||
       !config?.ENS_REGISTRY ||
       !config?.ENSCRIBE_CONTRACT ||
+      !chain ||
       !getParentNode(parentName)
     )
       return
@@ -401,82 +378,20 @@ export function useDeployForm() {
     setAccessLoading(true)
 
     try {
-      const parentNode = getParentNode(parentName)
       if (!(await recordExist(parentName))) return
 
-      let tx
-
-      if (chain?.id == CHAINS.BASE || chain?.id == CHAINS.BASE_SEPOLIA) {
-        if (isSafeWallet) {
-          writeContract(walletClient, {
-            address: config.ENS_REGISTRY as `0x${string}`,
-            abi: ensRegistryABI,
-            functionName: 'setApprovalForAll',
-            args: [config.ENSCRIBE_CONTRACT, false],
-            account: walletAddress,
-          })
-          tx = 'safe wallet'
-        } else {
-          tx = await writeContract(walletClient, {
-            address: config.ENS_REGISTRY as `0x${string}`,
-            abi: ensRegistryABI,
-            functionName: 'setApprovalForAll',
-            args: [config.ENSCRIBE_CONTRACT, false],
-            account: walletAddress,
-          })
-
-          const txReceipt = await waitForTransactionReceipt(walletClient, {
-            hash: tx,
-          })
-        }
-      } else {
-        const isWrapped = await readContract(walletClient, {
-          address: config.NAME_WRAPPER as `0x${string}`,
-          abi: nameWrapperABI,
-          functionName: 'isWrapped',
-          args: [parentNode],
-        })
-
-        if (isSafeWallet) {
-          if (isWrapped) {
-            writeContract(walletClient, {
-              address: config.NAME_WRAPPER as `0x${string}`,
-              abi: nameWrapperABI,
-              functionName: 'setApprovalForAll',
-              args: [config.ENSCRIBE_CONTRACT, false],
-              account: walletAddress,
-            })
-          } else {
-            writeContract(walletClient, {
-              address: config.ENS_REGISTRY as `0x${string}`,
-              abi: ensRegistryABI,
-              functionName: 'setApprovalForAll',
-              args: [config.ENSCRIBE_CONTRACT, false],
-              account: walletAddress,
-            })
-          }
-          tx = 'safe wallet'
-        } else {
-          tx = isWrapped
-            ? await writeContract(walletClient, {
-                address: config.NAME_WRAPPER as `0x${string}`,
-                abi: nameWrapperABI,
-                functionName: 'setApprovalForAll',
-                args: [config.ENSCRIBE_CONTRACT, false],
-                account: walletAddress,
-              })
-            : await writeContract(walletClient, {
-                address: config.ENS_REGISTRY as `0x${string}`,
-                abi: ensRegistryABI,
-                functionName: 'setApprovalForAll',
-                args: [config.ENSCRIBE_CONTRACT, false],
-                account: walletAddress,
-              })
-          const txReceipt = await waitForTransactionReceipt(walletClient, {
-            hash: tx,
-          })
-        }
-      }
+      const tx = await setOperatorApproval({
+        walletClient,
+        chain,
+        enscribeContract: config.ENSCRIBE_CONTRACT,
+        ensRegistry: config.ENS_REGISTRY,
+        nameWrapper: config.NAME_WRAPPER,
+        parentName,
+        walletAddress,
+        approved: false,
+        isSafeWallet,
+        fireAndForgetForSafe: true,
+      })
 
       let contractType
       if (isOwnable) {
@@ -494,7 +409,7 @@ export function useDeployForm() {
         walletAddress,
         `${label}.${parentName}`,
         'revoke::setApprovalForAll',
-        tx,
+        tx ?? '',
         contractType,
         opType,
       )
@@ -521,6 +436,7 @@ export function useDeployForm() {
       !walletAddress ||
       !config?.ENS_REGISTRY ||
       !config?.ENSCRIBE_CONTRACT ||
+      !chain ||
       !getParentNode(parentName)
     )
       return
@@ -528,82 +444,20 @@ export function useDeployForm() {
     setAccessLoading(true)
 
     try {
-      const parentNode = getParentNode(parentName)
       if (!(await recordExist(parentName))) return
 
-      let tx
-
-      if (chain?.id == CHAINS.BASE || chain?.id == CHAINS.BASE_SEPOLIA) {
-        if (isSafeWallet) {
-          writeContract(walletClient, {
-            address: config.ENS_REGISTRY as `0x${string}`,
-            abi: ensRegistryABI,
-            functionName: 'setApprovalForAll',
-            args: [config.ENSCRIBE_CONTRACT, true],
-            account: walletAddress,
-          })
-          tx = 'safe wallet'
-        } else {
-          tx = await writeContract(walletClient, {
-            address: config.ENS_REGISTRY as `0x${string}`,
-            abi: ensRegistryABI,
-            functionName: 'setApprovalForAll',
-            args: [config.ENSCRIBE_CONTRACT, true],
-            account: walletAddress,
-          })
-
-          const txReceipt = await waitForTransactionReceipt(walletClient, {
-            hash: tx,
-          })
-        }
-      } else {
-        const isWrapped = (await readContract(walletClient, {
-          address: config.NAME_WRAPPER as `0x${string}`,
-          abi: nameWrapperABI,
-          functionName: 'isWrapped',
-          args: [parentNode],
-        })) as boolean
-
-        if (isSafeWallet) {
-          if (isWrapped) {
-            writeContract(walletClient, {
-              address: config.NAME_WRAPPER as `0x${string}`,
-              abi: nameWrapperABI,
-              functionName: 'setApprovalForAll',
-              args: [config.ENSCRIBE_CONTRACT, true],
-              account: walletAddress,
-            })
-          } else {
-            writeContract(walletClient, {
-              address: config.ENS_REGISTRY as `0x${string}`,
-              abi: ensRegistryABI,
-              functionName: 'setApprovalForAll',
-              args: [config.ENSCRIBE_CONTRACT, true],
-              account: walletAddress,
-            })
-          }
-          tx = 'safe wallet' as `0x${string}`
-        } else {
-          tx = isWrapped
-            ? await writeContract(walletClient, {
-                address: config.NAME_WRAPPER as `0x${string}`,
-                abi: nameWrapperABI,
-                functionName: 'setApprovalForAll',
-                args: [config.ENSCRIBE_CONTRACT, true],
-                account: walletAddress,
-              })
-            : await writeContract(walletClient, {
-                address: config.ENS_REGISTRY as `0x${string}`,
-                abi: ensRegistryABI,
-                functionName: 'setApprovalForAll',
-                args: [config.ENSCRIBE_CONTRACT, true],
-                account: walletAddress,
-              })
-          const txReceipt = await waitForTransactionReceipt(walletClient, {
-            hash: tx,
-          })
-        }
-      }
+      const tx = await setOperatorApproval({
+        walletClient,
+        chain,
+        enscribeContract: config.ENSCRIBE_CONTRACT,
+        ensRegistry: config.ENS_REGISTRY,
+        nameWrapper: config.NAME_WRAPPER,
+        parentName,
+        walletAddress,
+        approved: true,
+        isSafeWallet,
+        fireAndForgetForSafe: true,
+      })
 
       let contractType
       if (isOwnable) {
@@ -621,7 +475,7 @@ export function useDeployForm() {
         walletAddress,
         `${label}.${parentName}`,
         'grant::setApprovalForAll',
-        tx,
+        tx ?? '',
         contractType,
         opType,
       )
