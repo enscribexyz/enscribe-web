@@ -28,25 +28,17 @@ import {
 } from '../utils/constants'
 import ensRegistryABI from '../contracts/ENSRegistry'
 import { CircleAlert, Info, ShieldCheck } from 'lucide-react'
+import { Skeleton } from '@/components/ui/skeleton'
 import { getEnsName, namehash } from 'viem/ens'
 import { readContract, waitForTransactionReceipt } from 'viem/actions'
 import type { Address } from 'viem'
-import { getDeployedAddress } from '@/components/componentUtils'
-import { ethers } from 'ethers'
+import { getDeployedAddress } from '@/utils/componentUtils'
 import reverseRegistrarABI from '../contracts/ReverseRegistrar'
 import publicResolverABI from '../contracts/PublicResolver'
+import { getENS } from '@/utils/ens'
+import type { ContractRecord } from '@/types'
 
-interface Contract {
-  ensName: string
-  contractAddress: string
-  txHash: string
-  contractCreated: string
-  isOwnable: boolean
-  sourcifyVerification?: 'exact_match' | 'match' | 'unverified'
-  etherscanVerification?: 'verified' | 'unverified'
-  blockscoutVerification?: 'exact_match' | 'match' | 'unverified'
-  attestation?: 'audited' | 'unaudited'
-}
+type Contract = ContractRecord
 
 export default function ContractHistory() {
   const { address: walletAddress, isConnected, chain } = useAccount()
@@ -74,7 +66,6 @@ export default function ContractHistory() {
 
   useEffect(() => {
     // if (!isConnected || !walletAddress || !walletClient) return
-    console.log(`use effect called, chain: ${chainId}`)
     const controller = new AbortController()
     const signal = controller.signal
     let isMounted = true
@@ -88,7 +79,6 @@ export default function ContractHistory() {
       try {
         // const url = `${etherscanApi}&action=txlist&address=${address}`
 
-        console.log('etherscan api - ', etherscanApi)
         const res = await fetch(etherscanApi, { signal })
         const data = await res.json()
 
@@ -96,9 +86,6 @@ export default function ContractHistory() {
 
         for (const tx of data.result || []) {
           if (signal.aborted || !isMounted || !walletClient) {
-            console.log(
-              `signal aborted: ${signal.aborted}, isMounted: ${isMounted}, walletClient: ${walletClient}`,
-            )
             break
           }
 
@@ -128,7 +115,7 @@ export default function ContractHistory() {
             const blockscoutVerification = result.blockscout_verification
             const attestation = result.audit_status
             // const ensName = result.ens_name
-            const ensName = await getENS(contractAddr)
+            const ensName = await getENS(contractAddr, chainId)
 
             const contract: Contract = {
               ensName,
@@ -146,7 +133,6 @@ export default function ContractHistory() {
 
             if (isMounted) {
               if (ensName) {
-                console.log(`setWithENS`)
                 setWithENS((prev) => {
                   const alreadyExists = prev.some(
                     (c) => c.contractAddress === contract.contractAddress,
@@ -154,7 +140,6 @@ export default function ContractHistory() {
                   return alreadyExists ? prev : [contract, ...prev]
                 })
               } else {
-                console.log(`setWithoutENS`)
                 setWithoutENS((prev) => {
                   const alreadyExists = prev.some(
                     (c) => c.contractAddress === contract.contractAddress,
@@ -163,7 +148,6 @@ export default function ContractHistory() {
                 })
               }
             } else {
-              console.log('not mounted')
             }
           } else if (
             ['0xacd71554', '0x04917062', '0x7ed7e08c', '0x5a0dac49'].includes(
@@ -183,7 +167,7 @@ export default function ContractHistory() {
               const blockscoutVerification = result.blockscout_verification
               const attestation = result.audit_status
               // const ensName = result.ens_name
-              const ensName = await getENS(deployed)
+              const ensName = await getENS(deployed, chainId)
 
               const contract: Contract = {
                 ensName,
@@ -197,7 +181,6 @@ export default function ContractHistory() {
                 attestation,
               }
 
-              console.log('contract - ', contract)
 
               if (isMounted) {
                 if (ensName) {
@@ -261,41 +244,6 @@ export default function ContractHistory() {
     }
   }
 
-  /**
-   * resolves the ENS name for the given `addr`
-   * @param addr
-   */
-  const getENS = async (addr: string): Promise<string> => {
-    const provider = new ethers.BrowserProvider(walletClient!.transport, 'any')
-    const signer = provider.getSigner(walletAddress)
-
-    if (chain?.id === CHAINS.MAINNET || chain?.id === CHAINS.SEPOLIA) {
-      try {
-        return (await (await signer)?.provider.lookupAddress(addr)) || ''
-      } catch {
-        return ''
-      }
-    } else {
-      try {
-        const reverseRegistrarContract = new ethers.Contract(
-          config?.REVERSE_REGISTRAR!,
-          reverseRegistrarABI,
-          (await signer)?.provider,
-        )
-        const reversedNode = await reverseRegistrarContract.node(addr)
-        const resolverContract = new ethers.Contract(
-          config?.PUBLIC_RESOLVER!,
-          publicResolverABI,
-          (await signer)?.provider,
-        )
-        const name = await resolverContract.name(reversedNode)
-        return name || ''
-      } catch (error) {
-        return ''
-      }
-    }
-  }
-
   const checkIfOwnable = async (address: string): Promise<boolean> => {
     if (!walletClient) return false
 
@@ -328,7 +276,6 @@ export default function ContractHistory() {
 
       return resolvedAddr === walletAddress
     } catch (err) {
-      console.log('err ' + err)
       return false
     }
   }
@@ -642,11 +589,16 @@ export default function ContractHistory() {
                   )}
 
                   {processing && (
-                    <TableRow>
-                      <TableCell colSpan={4} className="text-center py-4">
-                        <div className="w-6 h-6 mx-auto border-4 border-gray-300 border-t-black rounded-full animate-spin"></div>
-                      </TableCell>
-                    </TableRow>
+                    <>
+                      {[...Array(3)].map((_, i) => (
+                        <TableRow key={`skel-without-${i}`}>
+                          <TableCell><Skeleton className="h-4 w-40" /></TableCell>
+                          <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                          <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+                          <TableCell><Skeleton className="h-8 w-28 mx-auto" /></TableCell>
+                        </TableRow>
+                      ))}
+                    </>
                   )}
                 </TableBody>
               </Table>
@@ -957,11 +909,16 @@ export default function ContractHistory() {
                   )}
 
                   {processing && (
-                    <TableRow>
-                      <TableCell colSpan={4} className="text-center py-4">
-                        <div className="w-6 h-6 mx-auto border-4 border-gray-300 border-t-black rounded-full animate-spin"></div>
-                      </TableCell>
-                    </TableRow>
+                    <>
+                      {[...Array(3)].map((_, i) => (
+                        <TableRow key={`skel-with-${i}`}>
+                          <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                          <TableCell><Skeleton className="h-4 w-40" /></TableCell>
+                          <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+                          <TableCell><Skeleton className="h-8 w-48 mx-auto" /></TableCell>
+                        </TableRow>
+                      ))}
+                    </>
                   )}
                 </TableBody>
               </Table>

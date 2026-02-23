@@ -2,77 +2,87 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
-}
-
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 3.9%;
+    /* Surfaces */
+    --background: 0 0% 98%;
+    --foreground: 224 15% 10%;
+
+    /* Cards / popovers sit slightly above background */
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 3.9%;
+    --card-foreground: 224 15% 10%;
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 3.9%;
-    --primary: 0 0% 9%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 0 0% 96.1%;
-    --secondary-foreground: 0 0% 9%;
-    --muted: 0 0% 96.1%;
-    --muted-foreground: 0 0% 45.1%;
-    --accent: 0 0% 96.1%;
-    --accent-foreground: 0 0% 9%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 89.8%;
-    --input: 0 0% 89.8%;
-    --ring: 0 0% 3.9%;
-    --chart-1: 12 76% 61%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
-    --radius: 0.5rem;
+    --popover-foreground: 224 15% 10%;
+
+    /* Brand — indigo */
+    --primary: 243 75% 59%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Subtle fills */
+    --secondary: 220 14% 94%;
+    --secondary-foreground: 224 15% 10%;
+    --muted: 220 14% 94%;
+    --muted-foreground: 220 9% 46%;
+    --accent: 243 75% 96%;
+    --accent-foreground: 243 75% 40%;
+
+    /* Feedback */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Chrome */
+    --border: 220 13% 88%;
+    --input: 220 13% 88%;
+    --ring: 243 75% 59%;
+
+    /* Sidebar */
+    --sidebar-bg: 224 25% 10%;
+    --sidebar-fg: 220 14% 75%;
+    --sidebar-fg-active: 0 0% 100%;
+    --sidebar-hover: 224 20% 16%;
+    --sidebar-border: 224 20% 18%;
+    --sidebar-active: 243 75% 59%;
+
+    --radius: 0.625rem;
   }
+
   .dark {
-    --background: 0 0% 15%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 20%;
-    --card-foreground: 0 0% 98%;
-    --popover: 0 0% 20%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 0 0% 9%;
-    --secondary: 0 0% 25%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 25%;
-    --muted-foreground: 0 0% 63.9%;
-    --accent: 0 0% 25%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 25%;
-    --input: 0 0% 25%;
-    --ring: 0 0% 83.1%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
+    color-scheme: dark;
+
+    /* Surfaces — true dark, not gray */
+    --background: 224 25% 8%;
+    --foreground: 220 14% 92%;
+
+    --card: 224 22% 12%;
+    --card-foreground: 220 14% 92%;
+    --popover: 224 22% 12%;
+    --popover-foreground: 220 14% 92%;
+
+    /* Brand — slightly lighter indigo in dark */
+    --primary: 243 80% 68%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 224 18% 18%;
+    --secondary-foreground: 220 14% 92%;
+    --muted: 224 18% 18%;
+    --muted-foreground: 220 10% 55%;
+    --accent: 243 40% 22%;
+    --accent-foreground: 243 80% 78%;
+
+    --destructive: 0 63% 40%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 224 18% 20%;
+    --input: 224 18% 20%;
+    --ring: 243 80% 68%;
+
+    /* Sidebar — same dark panel in both modes */
+    --sidebar-bg: 224 28% 6%;
+    --sidebar-fg: 220 12% 62%;
+    --sidebar-fg-active: 0 0% 100%;
+    --sidebar-hover: 224 22% 12%;
+    --sidebar-border: 224 22% 14%;
+    --sidebar-active: 243 80% 68%;
   }
 }
 
@@ -81,41 +91,6 @@ body {
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans;
   }
-}
-
-/* Force dark mode styles to take precedence */
-.dark {
-  color-scheme: dark;
-}
-
-.dark body {
-  background-color: hsl(0 0% 15%);
-  color: hsl(0 0% 98%);
-}
-
-/* Ensure dark mode classes work properly - but exclude theme toggle button */
-.dark .bg-white:not([data-theme-toggle]) {
-  background-color: hsl(0 0% 20%) !important;
-}
-
-.dark .text-gray-900 {
-  color: hsl(0 0% 98%) !important;
-}
-
-/* Additional dark mode overrides for better compatibility */
-.dark .bg-gray-100 {
-  background-color: hsl(0 0% 15%) !important;
-}
-
-.dark .bg-gray-50 {
-  background-color: hsl(0 0% 20%) !important;
-}
-
-/* Ensure transitions work smoothly */
-* {
-  transition-property: background-color, border-color, color, fill, stroke;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 150ms;
 }

@@ -4,8 +4,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import {
   ConstructorArg,
   encodeConstructorArgs,
-  encodeConstructorArgs,
-} from '../components/componentUtils'
+} from '../utils/componentUtils'
 
 describe('encodeConstructorArgsViem', () => {
   const mockSetError = vi.fn()

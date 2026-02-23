@@ -16,7 +16,6 @@ export async function checkIfProxy(
   try {
     // Construct the API URL with chainId parameter
     const url = `${ETHERSCAN_API}&chainid=${chainId}&module=contract&action=getsourcecode&address=${address}`
-    console.log('Checking if proxy contract:', url)
 
     const response = await fetch(url)
     const data = await response.json()
@@ -26,7 +25,6 @@ export async function checkIfProxy(
 
       // Check if it's identified as a proxy
       if (contractInfo.Proxy === '1' && contractInfo.Implementation) {
-        console.log('Proxy contract detected:', contractInfo.Implementation)
         return {
           isProxy: true,
           implementationAddress: contractInfo.Implementation,

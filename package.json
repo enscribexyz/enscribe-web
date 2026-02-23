@@ -7,10 +7,13 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "vitest"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "analyze": "ANALYZE=true next build"
   },
   "dependencies": {
-    "@heroicons/react": "^2.2.0",
     "@radix-ui/react-accordion": "^1.2.8",
     "@radix-ui/react-checkbox": "^1.3.2",
     "@radix-ui/react-dialog": "^1.1.6",
@@ -26,7 +29,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "ethereum-identity-kit": "^0.2.48",
-    "ethers": "^6.13.5",
+    "framer-motion": "^12.34.2",
     "json-parse-safe": "^2.0.0",
     "lucide-react": "^0.479.0",
     "next": "^15.3.8",
@@ -40,13 +43,24 @@
     "wagmi": "^2.14.12"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "^3.3.3",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/node": "^20.17.19",
     "@types/react": "^19.0.10",
     "@types/react-dom": "^19",
+    "@typescript-eslint/eslint-plugin": "^8.56.0",
+    "@typescript-eslint/parser": "^8.56.0",
+    "@vitejs/plugin-react": "^4.7.0",
+    "@vitest/coverage-v8": "^4.0.18",
+    "eslint-config-next": "^15.3.8",
+    "jsdom": "^26.1.0",
     "postcss": "^8",
     "prettier": "3.5.3",
     "tailwindcss": "^3.4.1",
     "typescript": "^5.7.3",
+    "vite-tsconfig-paths": "^6.1.1",
     "vitest": "^4.0.8"
   }
 }

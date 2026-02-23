@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { SunIcon, MoonIcon } from '@heroicons/react/24/outline'
+import { Sun, Moon } from 'lucide-react'
 import { useTheme } from '@/hooks/useTheme'
 import { Button } from '@/components/ui/button'
 
@@ -46,26 +46,21 @@ export function ThemeToggle() {
 
   // Debug logging
   React.useEffect(() => {
-    console.log('Theme toggle - Current theme:', theme, 'isDark:', isDark)
   }, [theme, isDark])
 
   return (
     <Button
-      variant="outline"
+      variant="ghost"
       size="sm"
       onClick={toggleTheme}
       data-theme-toggle="true"
-      className={`h-9 w-9 p-0 transition-colors ${
-        isDark
-          ? '!bg-white !border-gray-300 hover:!bg-gray-100 !text-gray-900'
-          : '!bg-gray-800 !border-gray-600 hover:!bg-gray-700 !text-white'
-      }`}
+      className="h-9 w-9 p-0 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
       title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
     >
       {isDark ? (
-        <SunIcon className="h-4 w-4" />
+        <Sun className="h-4 w-4" />
       ) : (
-        <MoonIcon className="h-4 w-4" />
+        <Moon className="h-4 w-4" />
       )}
       <span className="sr-only">Toggle theme</span>
     </Button>

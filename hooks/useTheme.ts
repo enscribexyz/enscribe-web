@@ -48,10 +48,8 @@ export function ThemeProvider({
         ? 'dark'
         : 'light'
       root.classList.add(systemTheme)
-      console.log('Applied system theme:', systemTheme)
     } else {
       root.classList.add(theme)
-      console.log('Applied theme:', theme)
     }
 
     // Dispatch a custom event to notify components of theme change

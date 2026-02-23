@@ -1,8 +1,8 @@
 import type { Config } from 'tailwindcss'
+import { fontFamily } from 'tailwindcss/defaultTheme'
 
 export default {
   content: [
-    './pages/**/*.{js,ts,jsx,tsx,mdx}',
     './components/**/*.{js,ts,jsx,tsx,mdx}',
     './app/**/*.{js,ts,jsx,tsx,mdx}',
     './node_modules/@shadcn/ui/**/*.{js,ts,jsx,tsx}',
@@ -15,17 +15,14 @@ export default {
         foreground: 'hsl(var(--foreground))',
         primary: {
           DEFAULT: 'hsl(var(--primary))',
-          dark: '#4F46E5',
           foreground: 'hsl(var(--primary-foreground))',
         },
         secondary: {
           DEFAULT: 'hsl(var(--secondary))',
-          dark: '#0D9488',
           foreground: 'hsl(var(--secondary-foreground))',
         },
         accent: {
           DEFAULT: 'hsl(var(--accent))',
-          dark: '#CA8A04',
           foreground: 'hsl(var(--accent-foreground))',
         },
         muted: {
@@ -47,6 +44,14 @@ export default {
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',
         ring: 'hsl(var(--ring))',
+        sidebar: {
+          DEFAULT: 'hsl(var(--sidebar-bg))',
+          foreground: 'hsl(var(--sidebar-fg))',
+          'foreground-active': 'hsl(var(--sidebar-fg-active))',
+          hover: 'hsl(var(--sidebar-hover))',
+          border: 'hsl(var(--sidebar-border))',
+          active: 'hsl(var(--sidebar-active))',
+        },
         chart: {
           '1': 'hsl(var(--chart-1))',
           '2': 'hsl(var(--chart-2))',
@@ -68,6 +73,9 @@ export default {
         lg: 'var(--radius)',
         md: 'calc(var(--radius) - 2px)',
         sm: 'calc(var(--radius) - 4px)',
+      },
+      fontFamily: {
+        sans: ['var(--font-inter)', ...fontFamily.sans],
       },
       fontSize: {
         sm: ['0.875rem', '1.5rem'],

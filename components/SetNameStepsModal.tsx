@@ -9,8 +9,9 @@ import {
 import { Button } from '@/components/ui/button'
 import { CheckCircle, Loader2, XCircle, Clock, ChevronDown, ChevronUp } from 'lucide-react'
 import { CONTRACTS, TOPIC0 } from '../utils/constants'
+import { useChainConfig } from '@/hooks/useChainConfig'
 import { useAccount, useWalletClient } from 'wagmi'
-import { useRouter } from 'next/router'
+import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { X } from 'lucide-react'
 import {
@@ -27,19 +28,10 @@ import {
   waitForTransactionReceipt,
   writeContract,
 } from 'viem/actions'
-import { getDeployedAddress, isTestNet } from '@/components/componentUtils'
+import { getDeployedAddress, isTestNet } from '@/utils/componentUtils'
 import { method } from 'es-toolkit/compat'
 
-export interface Step {
-  title: string
-  action: () => Promise<`0x${string}` | string | void>
-  chainId?: number // Add chainId to track which chain the transaction happens on
-}
-
-export interface BatchEntry {
-  address: string
-  label: string
-}
+import type { Step, BatchResult } from '@/types'
 
 export interface SetNameStepsModalProps {
   open: boolean
@@ -52,7 +44,7 @@ export interface SetNameStepsModalProps {
   isPrimaryNameSet?: boolean
   isSafeWallet?: boolean
   walletAddress?: string
-  batchEntries?: BatchEntry[]
+  batchEntries?: BatchResult[]
   parentName?: string
 }
 
@@ -94,18 +86,16 @@ export default function SetNameStepsModal({
 
   const { chain, address } = useAccount()
   const router = useRouter()
-  const config = chain?.id ? CONTRACTS[chain.id] : undefined
+  const config = useChainConfig()
   const { data: walletClient } = useWalletClient()
 
   if(!walletAddress){walletAddress = address}
 
   // Reset state when modal opens or closes
   useEffect(() => {
-    console.log('Modal state changed', { open })
 
     // Reset all state when modal opens
     if (open && steps && steps.length > 0) {
-      console.log('Resetting modal state')
       setCurrentStep(0)
       setExecuting(false)
       setStepStatuses(Array(steps.length).fill('pending'))
@@ -118,7 +108,6 @@ export default function SetNameStepsModal({
 
       // For Safe wallets, automatically mark all steps as completed since we don't wait for receipts
       if (isSafeWallet) {
-        console.log('Safe wallet detected - auto-completing all steps')
         setStepStatuses(Array(steps.length).fill('completed'))
         setAllStepsCompleted(true)
       }
@@ -126,7 +115,6 @@ export default function SetNameStepsModal({
 
     // Also reset when modal closes to ensure fresh state next time
     if (!open) {
-      console.log('Modal closed, cleaning up state')
       setCurrentStep(0)
       setExecuting(false)
       setAllStepsCompleted(false)
@@ -155,16 +143,9 @@ export default function SetNameStepsModal({
 
   // Auto-start the first step when modal opens
   useEffect(() => {
-    console.log('Auto-start effect triggered', {
-      open,
-      stepsLength: steps?.length,
-      executing,
-      currentStep,
-    })
 
     // Only run this effect when the modal first opens
     if (open && steps && steps.length > 0 && currentStep === 0 && !executing) {
-      console.log('Starting first step automatically')
       setTimeout(() => {
         runStep(0)
       }, 100)
@@ -192,10 +173,8 @@ export default function SetNameStepsModal({
     let tx = null
     let errorMain = null
     setExecuting(true)
-    console.log(`executing ${steps[index].title}`)
 
     tx = await steps[index].action().catch((error) => {
-      console.log('error', error)
       updateStepStatus(index, 'error')
       setErrorMessage(
         error?.message || error.toString() || 'Unknown error occurred.',
@@ -213,9 +192,6 @@ export default function SetNameStepsModal({
           // For Safe wallets, don't wait for transaction receipt
           // The transaction will be executed in the Safe app
           txHash = tx as string
-          console.log(
-            'Safe wallet detected - skipping transaction receipt wait',
-          )
         } else {
           // For regular wallets, wait for transaction receipt
           txReceipt = await waitForTransactionReceipt(walletClient, {
@@ -272,7 +248,7 @@ export default function SetNameStepsModal({
 
   const getPoapMintLink = async (): Promise<string | null> => {
     try {
-      let res = await fetch(`/api/v1/mint`, { method: 'POST' })
+      const res = await fetch(`/api/v1/mint`, { method: 'POST' })
       if (res.ok) {
         const data = await res.json()
         return data.link
@@ -321,10 +297,6 @@ export default function SetNameStepsModal({
           // Navigate to the explore page when closing a successful modal for single contract
           const address = internalContractAddress || contractAddress
           if (address && chain?.id) {
-            console.log(
-              'Redirecting to explore page:',
-              `/explore/${chain.id}/${address}`,
-            )
             router.push(`/explore/${chain.id}/${address}`)
           }
           onClose(lastTxHash)
@@ -332,7 +304,6 @@ export default function SetNameStepsModal({
       } else {
         // Return error message or INCOMPLETE status
         const result = errorMessage ? `ERROR: ${errorMessage}` : 'INCOMPLETE'
-        console.log('Modal closed with result:', result)
         onClose(result)
       }
     }
