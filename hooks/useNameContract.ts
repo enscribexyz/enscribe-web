@@ -7,23 +7,13 @@ import nameWrapperABI from '../contracts/NameWrapper'
 import publicResolverABI from '../contracts/PublicResolver'
 import reverseRegistrarABI from '@/contracts/ReverseRegistrar'
 import { useAccount, useWalletClient, useSwitchChain } from 'wagmi'
-import {
-  optimism,
-  optimismSepolia,
-  arbitrum,
-  arbitrumSepolia,
-  scroll,
-  scrollSepolia,
-  base,
-  baseSepolia,
-  linea,
-  lineaSepolia,
-} from 'wagmi/chains'
 import { useToast } from '@/hooks/use-toast'
 import { CONTRACTS, CHAINS } from '../utils/constants'
 import { useChainConfig } from '@/hooks/useChainConfig'
 import { useSafeWallet } from '@/hooks/useSafeWallet'
-import { getChainName } from '@/lib/chains'
+import { getChainName, type L2ChainName } from '@/lib/chains'
+import { isEmpty, isAddressEmpty as isAddressEmptyCheck, isValidAddress as isValidAddressCheck } from '@/utils/validation'
+import { getL2ChainId, getL2ViemChain, getL2ChainDisplayName } from '@/lib/l2ChainConfig'
 import { getENS, fetchAssociatedNamesCount, getParentNode, fetchOwnedDomains } from '../utils/ens'
 import type { Step } from '@/types'
 import { v4 as uuid } from 'uuid'
@@ -504,15 +494,7 @@ export function useNameContract() {
       // L2 Forward Resolution steps
       for (const selectedChain of selectedL2ChainNames) {
         const isL1Mainnet = chain?.id === CHAINS.MAINNET
-        const chainConfigs = {
-          Optimism: isL1Mainnet ? CHAINS.OPTIMISM : CHAINS.OPTIMISM_SEPOLIA,
-          Arbitrum: isL1Mainnet ? CHAINS.ARBITRUM : CHAINS.ARBITRUM_SEPOLIA,
-          Scroll: isL1Mainnet ? CHAINS.SCROLL : CHAINS.SCROLL_SEPOLIA,
-          Base: isL1Mainnet ? CHAINS.BASE : CHAINS.BASE_SEPOLIA,
-          Linea: isL1Mainnet ? CHAINS.LINEA : CHAINS.LINEA_SEPOLIA,
-        }
-
-        const l2ChainId = chainConfigs[selectedChain as keyof typeof chainConfigs]
+        const l2ChainId = getL2ChainId(selectedChain as L2ChainName, isL1Mainnet)
         const l2Config = CONTRACTS[l2ChainId]
         const coinType = Number(l2Config.COIN_TYPE || '60')
 
@@ -529,15 +511,7 @@ export function useNameContract() {
       // L2 Primary Name steps
       for (const selectedChain of selectedL2ChainNames) {
         const isL1Mainnet = chain?.id === CHAINS.MAINNET
-        const chainConfigs = {
-          Optimism: isL1Mainnet ? CHAINS.OPTIMISM : CHAINS.OPTIMISM_SEPOLIA,
-          Arbitrum: isL1Mainnet ? CHAINS.ARBITRUM : CHAINS.ARBITRUM_SEPOLIA,
-          Scroll: isL1Mainnet ? CHAINS.SCROLL : CHAINS.SCROLL_SEPOLIA,
-          Base: isL1Mainnet ? CHAINS.BASE : CHAINS.BASE_SEPOLIA,
-          Linea: isL1Mainnet ? CHAINS.LINEA : CHAINS.LINEA_SEPOLIA,
-        }
-
-        const l2ChainId = chainConfigs[selectedChain as keyof typeof chainConfigs]
+        const l2ChainId = getL2ChainId(selectedChain as L2ChainName, isL1Mainnet)
         const l2Config = CONTRACTS[l2ChainId]
 
         // Check if contract is ownable on this L2 chain
@@ -674,9 +648,6 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
     // }
   }
 
-  function isEmpty(value: string) {
-    return value == null || value.trim().length === 0
-  }
 
   const checkIfAddressEmpty = (existingContractAddress: string): boolean => {
     const addrEmpty = isEmpty(existingContractAddress)
@@ -1091,41 +1062,15 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
         chain: any
       }> = []
 
-      // Map selected chain names to their configurations
-      const isL1Mainnet = chain?.id === CHAINS.MAINNET
-      const chainConfigs = {
-        Optimism: {
-          chainId: isL1Mainnet ? CHAINS.OPTIMISM : CHAINS.OPTIMISM_SEPOLIA,
-          chain: isL1Mainnet ? optimism : optimismSepolia,
-        },
-        Arbitrum: {
-          chainId: isL1Mainnet ? CHAINS.ARBITRUM : CHAINS.ARBITRUM_SEPOLIA,
-          chain: isL1Mainnet ? arbitrum : arbitrumSepolia,
-        },
-        Scroll: {
-          chainId: isL1Mainnet ? CHAINS.SCROLL : CHAINS.SCROLL_SEPOLIA,
-          chain: isL1Mainnet ? scroll : scrollSepolia,
-        },
-        Base: {
-          chainId: isL1Mainnet ? CHAINS.BASE : CHAINS.BASE_SEPOLIA,
-          chain: isL1Mainnet ? base : baseSepolia,
-        },
-        Linea: {
-          chainId: isL1Mainnet ? CHAINS.LINEA : CHAINS.LINEA_SEPOLIA,
-          chain: isL1Mainnet ? linea : lineaSepolia,
-        },
-      }
-
       // Add selected chains to balance check
+      const isL1Mainnet = chain?.id === CHAINS.MAINNET
       for (const selectedChain of selectedL2ChainNames) {
-        const config = chainConfigs[selectedChain as keyof typeof chainConfigs]
-        if (config) {
-          l2ChainsForBalanceCheck.push({
-            name: selectedChain,
-            chainId: config.chainId,
-            chain: config.chain,
-          })
-        }
+        const l2Name = selectedChain as L2ChainName
+        l2ChainsForBalanceCheck.push({
+          name: selectedChain,
+          chainId: getL2ChainId(l2Name, isL1Mainnet),
+          chain: getL2ViemChain(l2Name, isL1Mainnet),
+        })
       }
 
       // Check balances on all selected L2 chains using RPC calls (in parallel)
@@ -1794,37 +1739,14 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
         chain: any
       }> = []
 
-      // Map selected chain names to their configurations for steps
-      const stepChainConfigs = {
-        Optimism: {
-          chainId: isL1Mainnet ? CHAINS.OPTIMISM : CHAINS.OPTIMISM_SEPOLIA,
-          chain: isL1Mainnet ? optimism : optimismSepolia,
-        },
-        Arbitrum: {
-          chainId: isL1Mainnet ? CHAINS.ARBITRUM : CHAINS.ARBITRUM_SEPOLIA,
-          chain: isL1Mainnet ? arbitrum : arbitrumSepolia,
-        },
-        Scroll: {
-          chainId: isL1Mainnet ? CHAINS.SCROLL : CHAINS.SCROLL_SEPOLIA,
-          chain: isL1Mainnet ? scroll : scrollSepolia,
-        },
-        Base: {
-          chainId: isL1Mainnet ? CHAINS.BASE : CHAINS.BASE_SEPOLIA,
-          chain: isL1Mainnet ? base : baseSepolia,
-        },
-        Linea: {
-          chainId: isL1Mainnet ? CHAINS.LINEA : CHAINS.LINEA_SEPOLIA,
-          chain: isL1Mainnet ? linea : lineaSepolia,
-        },
-      }
-
       // Add selected chains to steps
       for (const selectedChain of selectedL2ChainNames) {
-        const config =
-          stepChainConfigs[selectedChain as keyof typeof stepChainConfigs]
-        if (config) {
-          selectedL2Chains.push({ name: selectedChain, ...config })
-        }
+        const l2Name = selectedChain as L2ChainName
+        selectedL2Chains.push({
+          name: selectedChain,
+          chainId: getL2ChainId(l2Name, isL1Mainnet),
+          chain: getL2ViemChain(l2Name, isL1Mainnet),
+        })
       }
 
       // Second: Add all L2 forward resolution steps (on current chain)

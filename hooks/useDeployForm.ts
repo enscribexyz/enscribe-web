@@ -27,6 +27,7 @@ import {
   writeContract,
 } from 'viem/actions'
 import enscribeContractABI from '../contracts/Enscribe'
+import { isEmpty } from '@/utils/validation'
 
 const OWNABLE_FUNCTION_SELECTORS = [
   '8da5cb5b', // owner()
@@ -170,10 +171,6 @@ export function useDeployForm() {
     const newArgs = [...args]
     newArgs.splice(index, 1)
     setArgs(newArgs)
-  }
-
-  function isEmpty(value: string) {
-    return value == null || value.trim().length === 0
   }
 
   const handleAbiInput = (text: string) => {

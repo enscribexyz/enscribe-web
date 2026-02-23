@@ -4,8 +4,9 @@ import { useAccount, useWalletClient, useSwitchChain } from 'wagmi'
 import { useSafeWallet } from '@/hooks/useSafeWallet'
 import { useToast } from '@/hooks/use-toast'
 import { CONTRACTS, CHAINS } from '../utils/constants'
-import { L2_CHAIN_NAMES, getChainName } from '@/lib/chains'
+import { L2_CHAIN_NAMES, getChainName, type L2ChainName } from '@/lib/chains'
 import { useChainConfig } from '@/hooks/useChainConfig'
+import { getL2ChainId, getL2ViemChain, getL2ChainDisplayName } from '@/lib/l2ChainConfig'
 import { isAddress, encodeFunctionData, namehash } from 'viem'
 import { getParentNode, fetchOwnedDomains } from '@/utils/ens'
 import { readContract, writeContract, waitForTransactionReceipt } from 'viem/actions'
@@ -16,6 +17,7 @@ import nameWrapperABI from '../contracts/NameWrapper'
 import reverseRegistrarABI from '@/contracts/ReverseRegistrar'
 import ownableContractABI from '@/contracts/Ownable'
 import type { Step, BatchFormEntry } from '@/types'
+import { isEmpty, isAddressEmpty, isValidAddress } from '@/utils/validation'
 
 export const L2_CHAIN_OPTIONS = L2_CHAIN_NAMES
 
@@ -601,15 +603,7 @@ export function useBatchNaming() {
       const isL1Mainnet = chain?.id === CHAINS.MAINNET
 
       for (const chainName of selectedL2ChainNames) {
-        const chainConfigs = {
-          Optimism: isL1Mainnet ? CHAINS.OPTIMISM : CHAINS.OPTIMISM_SEPOLIA,
-          Arbitrum: isL1Mainnet ? CHAINS.ARBITRUM : CHAINS.ARBITRUM_SEPOLIA,
-          Scroll: isL1Mainnet ? CHAINS.SCROLL : CHAINS.SCROLL_SEPOLIA,
-          Base: isL1Mainnet ? CHAINS.BASE : CHAINS.BASE_SEPOLIA,
-          Linea: isL1Mainnet ? CHAINS.LINEA : CHAINS.LINEA_SEPOLIA,
-        }
-
-        const chainId = chainConfigs[chainName as keyof typeof chainConfigs]
+        const chainId = getL2ChainId(chainName as L2ChainName, isL1Mainnet)
         if (chainId) {
           coinTypes.push(BigInt(CONTRACTS[chainId].COIN_TYPE))
         }
@@ -704,32 +698,12 @@ export function useBatchNaming() {
     }
   }
 
-
-  function isEmpty(value: string) {
-    return value == null || value.trim().length === 0
-  }
-
-  const checkIfAddressEmpty = (address: string): boolean => {
-    return isEmpty(address)
-  }
-
-  const isAddressValidCheck = (address: string): boolean => {
-    if (isEmpty(address)) {
-      return false
-    }
-
-    if (!isAddress(address)) {
-      return false
-    }
-    return true
-  }
-
   const checkIfOwnable = async (
     contractAddress: string
   ): Promise<boolean> => {
     if (
-      checkIfAddressEmpty(contractAddress) ||
-      !isAddressValidCheck(contractAddress) ||
+      isAddressEmpty(contractAddress) ||
+      !isValidAddress(contractAddress) ||
       !walletClient
     ) {
       return false
@@ -753,8 +727,8 @@ export function useBatchNaming() {
     contractAddress: string
   ): Promise<boolean> => {
     if (
-      checkIfAddressEmpty(contractAddress) ||
-      !isAddressValidCheck(contractAddress) ||
+      isAddressEmpty(contractAddress) ||
+      !isValidAddress(contractAddress) ||
       !walletClient ||
       !config?.ENS_REGISTRY ||
       !walletAddress
@@ -794,8 +768,8 @@ export function useBatchNaming() {
     contractAddress: string
   ): Promise<boolean> => {
     if (
-      checkIfAddressEmpty(contractAddress) ||
-      !isAddressValidCheck(contractAddress) ||
+      isAddressEmpty(contractAddress) ||
+      !isValidAddress(contractAddress) ||
       !walletClient ||
       !config?.ENS_REGISTRY ||
       !walletAddress
@@ -827,8 +801,8 @@ export function useBatchNaming() {
     l2ChainId: number
   ): Promise<boolean> => {
     if (
-      checkIfAddressEmpty(contractAddress) ||
-      !isAddressValidCheck(contractAddress)
+      isAddressEmpty(contractAddress) ||
+      !isValidAddress(contractAddress)
     ) {
       return false
     }
@@ -863,8 +837,8 @@ export function useBatchNaming() {
     l2ChainId: number
   ): Promise<boolean> => {
     if (
-      checkIfAddressEmpty(contractAddress) ||
-      !isAddressValidCheck(contractAddress) ||
+      isAddressEmpty(contractAddress) ||
+      !isValidAddress(contractAddress) ||
       !walletAddress
     ) {
       return false
@@ -1310,16 +1284,9 @@ export function useBatchNaming() {
       }
 
       const isL1Mainnet = chain?.id === CHAINS.MAINNET
-      const chainConfigs = {
-        Optimism: isL1Mainnet ? CHAINS.OPTIMISM : CHAINS.OPTIMISM_SEPOLIA,
-        Arbitrum: isL1Mainnet ? CHAINS.ARBITRUM : CHAINS.ARBITRUM_SEPOLIA,
-        Scroll: isL1Mainnet ? CHAINS.SCROLL : CHAINS.SCROLL_SEPOLIA,
-        Base: isL1Mainnet ? CHAINS.BASE : CHAINS.BASE_SEPOLIA,
-        Linea: isL1Mainnet ? CHAINS.LINEA : CHAINS.LINEA_SEPOLIA,
-      }
 
       for (const chainName of selectedL2ChainNames) {
-        const chainId = chainConfigs[chainName as keyof typeof chainConfigs]
+        const chainId = getL2ChainId(chainName as L2ChainName, isL1Mainnet)
         if (chainId) {
           coinTypes.push(BigInt(CONTRACTS[chainId].COIN_TYPE))
         }
@@ -1481,39 +1448,6 @@ export function useBatchNaming() {
       if (selectedL2ChainNames.length > 0) {
         const isL1Mainnet = chain?.id === CHAINS.MAINNET
 
-        const stepChainConfigs = {
-          Optimism: {
-            chainId: isL1Mainnet ? CHAINS.OPTIMISM : CHAINS.OPTIMISM_SEPOLIA,
-            chain: isL1Mainnet
-              ? { id: CHAINS.OPTIMISM, name: 'Optimism' }
-              : { id: CHAINS.OPTIMISM_SEPOLIA, name: 'Optimism Sepolia' },
-          },
-          Arbitrum: {
-            chainId: isL1Mainnet ? CHAINS.ARBITRUM : CHAINS.ARBITRUM_SEPOLIA,
-            chain: isL1Mainnet
-              ? { id: CHAINS.ARBITRUM, name: 'Arbitrum' }
-              : { id: CHAINS.ARBITRUM_SEPOLIA, name: 'Arbitrum Sepolia' },
-          },
-          Scroll: {
-            chainId: isL1Mainnet ? CHAINS.SCROLL : CHAINS.SCROLL_SEPOLIA,
-            chain: isL1Mainnet
-              ? { id: CHAINS.SCROLL, name: 'Scroll' }
-              : { id: CHAINS.SCROLL_SEPOLIA, name: 'Scroll Sepolia' },
-          },
-          Base: {
-            chainId: isL1Mainnet ? CHAINS.BASE : CHAINS.BASE_SEPOLIA,
-            chain: isL1Mainnet
-              ? { id: CHAINS.BASE, name: 'Base' }
-              : { id: CHAINS.BASE_SEPOLIA, name: 'Base Sepolia' },
-          },
-          Linea: {
-            chainId: isL1Mainnet ? CHAINS.LINEA : CHAINS.LINEA_SEPOLIA,
-            chain: isL1Mainnet
-              ? { id: CHAINS.LINEA, name: 'Linea' }
-              : { id: CHAINS.LINEA_SEPOLIA, name: 'Linea Sepolia' },
-          },
-        }
-
         const selectedL2Chains: Array<{
           name: string
           chainId: number
@@ -1521,8 +1455,11 @@ export function useBatchNaming() {
         }> = []
 
         for (const selectedChain of selectedL2ChainNames) {
-          const config =
-            stepChainConfigs[selectedChain as keyof typeof stepChainConfigs]
+          const l2Name = selectedChain as L2ChainName
+          const config = {
+            chainId: getL2ChainId(l2Name, isL1Mainnet),
+            chain: { id: getL2ChainId(l2Name, isL1Mainnet), name: getL2ChainDisplayName(l2Name, isL1Mainnet) },
+          }
           if (config) {
             selectedL2Chains.push({ name: selectedChain, ...config })
           }
