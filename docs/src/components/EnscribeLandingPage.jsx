@@ -7,9 +7,8 @@ import { FaGithub, FaYoutube, FaTelegram, FaDiscord } from "react-icons/fa"
 import { FaXTwitter } from "react-icons/fa6"
 import { SiFarcaster } from "react-icons/si";
 import { HiArrowRight, HiMenu, HiX, HiChevronDown } from "react-icons/hi"
+import {usePluginData} from '@docusaurus/useGlobalData';
 import HeroNameIt from "./HeroNameIt";
-
-import blogPostListProp from "@generated/docusaurus-plugin-content-blog/default/blog-post-list-prop-default"
 
 /* ─── Animated number counter ─── */
 function AnimatedNumber({ target, suffix = "", prefix = "" }) {
@@ -45,8 +44,9 @@ function AnimatedNumber({ target, suffix = "", prefix = "" }) {
 /* ─── Blog carousel ─── */
 function LatestPostsCarousel({ limit = 6 }) {
   const scrollerRef = useRef(null)
+  const {recentPosts} = usePluginData('docusaurus-plugin-related-posts');
 
-  const items = (blogPostListProp?.items || []).slice(0, limit)
+  const items = (recentPosts || []).slice(0, limit)
 
   // If blog plugin is disabled or there are no posts
   if (!items.length) return null

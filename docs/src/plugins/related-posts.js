@@ -9,11 +9,23 @@ module.exports = function relatedPostsPlugin() {
       const blogContent =
         allContent['docusaurus-plugin-content-blog']?.default;
       if (!blogContent) {
-        setGlobalData({relatedPosts: {}});
+        setGlobalData({relatedPosts: {}, recentPosts: []});
         return;
       }
 
       const {blogPosts} = blogContent;
+
+      // ── Recent posts for landing-page carousel ──
+      const recentPosts = blogPosts.slice(0, 6).map((post) => {
+        const {permalink, title, description, date, authors} = post.metadata;
+        return {
+          permalink,
+          title,
+          description: description || null,
+          date: typeof date === 'string' ? date : date.toISOString(),
+          authorName: authors?.[0]?.name ?? null,
+        };
+      });
 
       // Build tag label → posts index
       const tagIndex = new Map();
@@ -58,7 +70,7 @@ module.exports = function relatedPostsPlugin() {
           .map(({score, ...rest}) => rest);
       }
 
-      setGlobalData({relatedPosts});
+      setGlobalData({relatedPosts, recentPosts});
     },
   };
 };
