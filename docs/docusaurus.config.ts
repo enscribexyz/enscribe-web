@@ -165,6 +165,7 @@ const config = {
             label: "Guides",
             docsPluginId: "guides",
           },
+          { to: "/api-reference", label: "API", position: "left" },
           { to: "/blog", label: "Blog", position: "left" },
           { to: "/audit", label: "Services", position: "left" },
           {
@@ -265,4 +266,3 @@ const config = {
 }
 
 module.exports = config
-

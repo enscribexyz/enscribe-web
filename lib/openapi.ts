@@ -13,11 +13,9 @@ export const ENSCRIBE_OPENAPI_SPEC = {
     },
   ],
   tags: [
-    { name: 'Utility', description: 'Utility endpoints for name generation and minting.' },
-    { name: 'Metrics', description: 'Metrics ingestion endpoints.' },
+    { name: 'Utility', description: 'Utility endpoints for name generation.' },
     { name: 'Config', description: 'Chain configuration discovery endpoints.' },
     { name: 'Metadata', description: 'ENS text-record metadata lookup endpoints.' },
-    { name: 'Scoring', description: 'Address scoring endpoints.' },
     { name: 'Verification', description: 'Contract verification endpoints.' },
   ],
   paths: {
@@ -35,69 +33,6 @@ export const ENSCRIBE_OPENAPI_SPEC = {
               'text/plain': {
                 schema: { type: 'string' },
                 example: 'curious-lion-4821',
-              },
-            },
-          },
-        },
-      },
-    },
-    '/api/v1/metrics': {
-      post: {
-        tags: ['Metrics'],
-        operationId: 'logMetrics',
-        summary: 'Insert a metrics record',
-        description:
-          'Logs contract naming metrics into Supabase. The server does not validate required fields before insert.',
-        requestBody: {
-          required: true,
-          content: {
-            'application/json': {
-              schema: {
-                $ref: '#/components/schemas/MetricsRequest',
-              },
-            },
-          },
-        },
-        responses: {
-          '200': {
-            description: 'Metrics logged',
-            content: {
-              'application/json': {
-                schema: { $ref: '#/components/schemas/StatusSuccessResponse' },
-              },
-            },
-          },
-          '500': {
-            description: 'Insert/logging failure',
-            content: {
-              'application/json': {
-                schema: { $ref: '#/components/schemas/StatusMessageResponse' },
-              },
-            },
-          },
-        },
-      },
-    },
-    '/api/v1/mint': {
-      post: {
-        tags: ['Utility'],
-        operationId: 'getNextPoapLink',
-        summary: 'Get next POAP mint link',
-        description: 'Fetches the next mint link via a Supabase RPC call.',
-        responses: {
-          '200': {
-            description: 'POAP link fetched',
-            content: {
-              'application/json': {
-                schema: { $ref: '#/components/schemas/MintSuccessResponse' },
-              },
-            },
-          },
-          '500': {
-            description: 'RPC/logging failure',
-            content: {
-              'application/json': {
-                schema: { $ref: '#/components/schemas/StatusMessageResponse' },
               },
             },
           },
@@ -194,55 +129,6 @@ export const ENSCRIBE_OPENAPI_SPEC = {
           },
           '500': {
             description: 'Internal error',
-            content: {
-              'application/json': {
-                schema: { $ref: '#/components/schemas/ErrorResponse' },
-              },
-            },
-          },
-        },
-      },
-    },
-    '/api/v1/bs/{chainId}/{address}': {
-      get: {
-        tags: ['Scoring'],
-        operationId: 'getAddressScore',
-        summary: 'Get ENS score for an address',
-        description:
-          'Returns a score based on number of forward names, primary name, and metadata presence.',
-        parameters: [
-          {
-            name: 'chainId',
-            in: 'path',
-            required: true,
-            schema: {
-              type: 'string',
-              pattern: '^[0-9]+$',
-            },
-            example: '8453',
-          },
-          {
-            name: 'address',
-            in: 'path',
-            required: true,
-            schema: {
-              type: 'string',
-              pattern: '^0x[a-fA-F0-9]{40}$',
-            },
-            example: '0x1234567890abcdef1234567890abcdef12345678',
-          },
-        ],
-        responses: {
-          '200': {
-            description: 'Computed score',
-            content: {
-              'application/json': {
-                schema: { $ref: '#/components/schemas/BsScoreResponse' },
-              },
-            },
-          },
-          '400': {
-            description: 'Invalid params',
             content: {
               'application/json': {
                 schema: { $ref: '#/components/schemas/ErrorResponse' },
@@ -370,45 +256,6 @@ export const ENSCRIBE_OPENAPI_SPEC = {
           error: { type: 'string' },
         },
       },
-      StatusSuccessResponse: {
-        type: 'object',
-        required: ['status'],
-        properties: {
-          status: { type: 'string', example: 'success' },
-        },
-      },
-      StatusMessageResponse: {
-        type: 'object',
-        required: ['status'],
-        properties: {
-          status: { type: 'string' },
-        },
-      },
-      MetricsRequest: {
-        type: 'object',
-        properties: {
-          contract_address: { type: 'string', example: '0x1234567890abcdef1234567890abcdef12345678' },
-          ens_name: { type: 'string', example: 'vault.eth' },
-          deployer_address: { type: 'string', example: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' },
-          network: { type: 'string', example: 'base' },
-          timestamp: { type: 'string', description: 'ISO 8601 timestamp', example: '2026-02-23T12:00:00.000Z' },
-          source: { type: 'string', example: 'web' },
-          op_type: { type: 'string', example: 'name_contract' },
-          co_id: { type: 'string', example: 'session-123' },
-          step: { type: 'string', example: 'complete' },
-          txn_hash: { type: 'string', example: '0xdeadbeef' },
-          contract_type: { type: 'string', example: 'upgradeable' },
-        },
-        additionalProperties: true,
-      },
-      MintSuccessResponse: {
-        type: 'object',
-        required: ['status', 'link'],
-        properties: {
-          status: { type: 'string', example: 'success' },
-          link: { type: ['string', 'null'], example: 'https://poap.xyz/mint/xyz' },
-        },
-      },
       ChainConfigResponse: {
         type: 'object',
         required: [
@@ -447,19 +294,6 @@ export const ENSCRIBE_OPENAPI_SPEC = {
           'com.linkedin': { type: 'string' },
         },
         additionalProperties: false,
-      },
-      BsScoreResponse: {
-        type: 'object',
-        required: ['score'],
-        properties: {
-          score: {
-            type: 'number',
-            description: 'Score from 0 to 100.',
-            minimum: 0,
-            maximum: 100,
-            example: 75,
-          },
-        },
       },
       VerificationStatusResponse: {
         type: 'object',
