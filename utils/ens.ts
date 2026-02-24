@@ -3,7 +3,7 @@ import { getEnsName, readContract } from 'viem/actions'
 import { namehash } from 'viem/ens'
 import L2ReverseRegistrarABI from '@/contracts/L2ReverseRegistrar'
 import { getPublicClient } from '@/lib/viemClient'
-import type { ENSDomain } from '@/types'
+import type { ENSDomain, TextRecords } from '@/types'
 
 /**
  * Safely computes the namehash of an ENS name, returning '' on error.
@@ -16,23 +16,6 @@ export function getParentNode(name: string): `0x${string}` | '' {
     return ''
   }
 }
-
-const METADATA_TEXT_KEYS = new Set([
-  'alias',
-  'avatar',
-  'name',
-  'description',
-  'header',
-  'url',
-  'category',
-  'license',
-  'docs',
-  'audits',
-  'com.github',
-  'com.twitter',
-  'org.telegram',
-  'com.linkedin',
-])
 
 /**
  * Fetches the primary ENS name (reverse resolution) for an address
@@ -117,6 +100,51 @@ const shortenENSName = (name: string, maxLength: number = 13): string => {
   if (availableForLabel <= 0) return name
 
   return label.slice(0, availableForLabel) + ellipsis + suffix
+}
+
+const buildContractMetadataUrl = (chainId: number, ensName: string): string => {
+  const path = `/api/v1/contractMetadata/${chainId}/${encodeURIComponent(ensName)}`
+
+  if (typeof window !== 'undefined') return path
+
+  const baseUrlFromEnv =
+    process.env.APP_URL ||
+    process.env.NEXT_PUBLIC_APP_URL ||
+    process.env.NEXT_PUBLIC_SITE_URL
+
+  if (baseUrlFromEnv) {
+    return `${baseUrlFromEnv.replace(/\/$/, '')}${path}`
+  }
+
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}${path}`
+  }
+
+  const port = process.env.PORT || '3000'
+  return `http://127.0.0.1:${port}${path}`
+}
+
+const hasMetadataFromContractMetadataApi = async (
+  chainId: number,
+  ensName?: string,
+): Promise<boolean> => {
+  if (!ensName) return false
+
+  try {
+    const response = await fetch(buildContractMetadataUrl(chainId, ensName))
+    if (!response.ok) return false
+
+    const metadata = (await response.json()) as TextRecords
+    return Object.values(metadata).some(
+      (value) => typeof value === 'string' && value.trim().length > 0,
+    )
+  } catch (error) {
+    console.error(
+      '[fetchForwardNameSummary] Error fetching metadata from contractMetadata API:',
+      error,
+    )
+    return false
+  }
 }
 
 /**
@@ -207,9 +235,6 @@ export const fetchForwardNameSummary = async (
           query GetForwardNameSummary($address: String!) {
             domains(first: 2, where: { resolvedAddress: $address }) {
               name
-              resolver {
-                texts
-              }
             }
           }
         `,
@@ -227,21 +252,14 @@ export const fetchForwardNameSummary = async (
     }
 
     if (domains.length > 1) {
-      const names = domains
-        .map((domain) =>
-          typeof domain?.name === 'string' ? domain.name : undefined,
-        )
-        .filter((name): name is string => Boolean(name))
       return { count: domains.length, singleNameHasMetadata: false }
     }
 
     const domain = domains[0]
     const name = typeof domain?.name === 'string' ? domain.name : undefined
-    const texts = Array.isArray(domain?.resolver?.texts)
-      ? (domain.resolver.texts as string[])
-      : []
-    const singleNameHasMetadata = texts.some((key) =>
-      METADATA_TEXT_KEYS.has(key),
+    const singleNameHasMetadata = await hasMetadataFromContractMetadataApi(
+      chainId,
+      name,
     )
 
     return {
