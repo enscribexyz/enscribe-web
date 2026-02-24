@@ -2,6 +2,12 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "cleanUrls": true,
   "trailingSlash": false,
+  "rewrites": [
+    {
+      "source": "/api/v1/(.*)",
+      "destination": "https://app.enscribe.xyz/api/v1/$1"
+    }
+  ],
   "headers": [
     {
       "source": "/blog/page/(.*)",

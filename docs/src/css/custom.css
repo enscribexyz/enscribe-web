@@ -309,3 +309,39 @@ html[data-theme="light"] .project-logo {
     grid-template-columns: repeat(3, 1fr) !important;
   }
 }
+
+/* ── OpenAPI docs: match site styling ── */
+:root {
+  --openapi-card-background-color: var(--ifm-card-background-color);
+  --openapi-input-background: var(--ifm-background-surface-color);
+  --openapi-input-border: var(--ifm-toc-border-color);
+  --openapi-explorer-border-color: var(--ifm-toc-border-color);
+}
+
+html[data-theme="light"] {
+  --openapi-card-background-color: var(--ifm-card-background-color);
+  --openapi-input-background: var(--ifm-card-background-color);
+}
+
+.theme-api-markdown .openapi-left-panel__container,
+.theme-api-markdown .openapi-right-panel__container {
+  border-color: var(--ifm-toc-border-color);
+}
+
+.theme-api-markdown .openapi-explorer__request-form {
+  background-color: var(--ifm-card-background-color);
+  box-shadow: none;
+}
+
+.theme-api-markdown .openapi-explorer__request-btn {
+  background-color: var(--ifm-color-primary);
+  color: #ffffff;
+}
+
+.theme-api-markdown .openapi-explorer__request-btn:hover {
+  background-color: var(--ifm-color-primary-dark);
+}
+
+.theme-api-markdown .openapi-explorer__code-block {
+  background-color: #020617;
+}

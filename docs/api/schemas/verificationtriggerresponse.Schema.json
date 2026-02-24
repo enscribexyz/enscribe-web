@@ -1,0 +1,1 @@
+{"schema":{"type":"object","additionalProperties":false,"required":["sourcify","etherscan","attestation"],"properties":{"sourcify":{"type":"string"},"etherscan":{"type":"string"},"attestation":{"type":"string"}},"title":"VerificationTriggerResponse"},"schemaType":"response"}

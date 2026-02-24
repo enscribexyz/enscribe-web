@@ -239,6 +239,7 @@ export default function EnscribeLandingPage() {
                 { label: "Features", to: "#features" },
                 { label: "Services", to: "#services" },
                 { label: "Docs", to: "/docs" },
+                { label: "API", to: "/api/enscribe-api" },
                 { label: "Guides", to: "/guides" },
                 { label: "Blog", to: "/blog" },
               ].map(({ label, to }) => (
@@ -279,6 +280,7 @@ export default function EnscribeLandingPage() {
                     { label: "Features", to: "#features" },
                     { label: "Services", to: "#services" },
                     { label: "Docs", to: "/docs" },
+                    { label: "API", to: "/api/enscribe-api" },
                     { label: "Guides", to: "/guides" },
                     { label: "Blog", to: "/blog" },
                   ].map(({ label, to }) => (

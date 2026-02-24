@@ -51,6 +51,36 @@ const config = {
          editUrl: 'https://github.com/enscribexyz/enscribe/tree/main/docs',
        },
      ],
+     [
+       '@docusaurus/plugin-content-docs',
+       {
+         id: 'api',
+         path: 'api',
+         routeBasePath: 'api',
+         sidebarPath: require.resolve('./api-sidebars.ts'),
+         docItemComponent: '@theme/ApiItem',
+         editUrl: 'https://github.com/enscribexyz/enscribe/tree/main/docs',
+       },
+     ],
+     [
+       'docusaurus-plugin-openapi-docs',
+       {
+         id: 'api',
+         docsPluginId: 'api',
+         config: {
+           enscribe: {
+             specPath: 'openapi/enscribe.yaml',
+             outputDir: 'api',
+             showSchemas: true,
+             sidebarOptions: {
+               groupPathsBy: 'tag',
+               categoryLinkSource: 'tag',
+               sidebarCollapsed: false,
+             },
+           },
+         },
+       },
+     ],
   ],
 
   markdown: {
@@ -59,7 +89,7 @@ const config = {
       onBrokenMarkdownLinks: "warn",
     },
   },
-  themes: ['@docusaurus/theme-mermaid'],
+  themes: ['@docusaurus/theme-mermaid', 'docusaurus-theme-openapi-docs'],
 
   presets: [
     [
@@ -165,6 +195,13 @@ const config = {
             label: "Guides",
             docsPluginId: "guides",
           },
+          {
+            type: "docSidebar",
+            sidebarId: "apiSidebar",
+            position: "left",
+            label: "API",
+            docsPluginId: "api",
+          },
           { to: "/blog", label: "Blog", position: "left" },
           { to: "/audit", label: "Services", position: "left" },
           {
@@ -182,6 +219,10 @@ const config = {
         indexName: 'enscribe',
 
         askAi: 'CPzOUStt6qk8',
+      },
+      api: {
+        authPersistance: 'localStorage',
+        requestTimeout: 60000,
       },
       footer: {
         style: "dark",
@@ -265,4 +306,3 @@ const config = {
 }
 
 module.exports = config
-

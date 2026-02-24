@@ -1,0 +1,1 @@
+{"parameters":[{"name":"chainId","in":"path","required":true,"description":"EVM chain ID.","schema":{"type":"string","pattern":"^[0-9]+$"},"example":"8453"},{"name":"name","in":"path","required":true,"description":"Fully qualified ENS name.","schema":{"type":"string"},"example":"vault.app.enscribe.eth"}]}

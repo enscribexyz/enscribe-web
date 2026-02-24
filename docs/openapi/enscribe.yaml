@@ -1,0 +1,301 @@
+openapi: 3.1.0
+info:
+  title: Enscribe API
+  version: 1.0.0
+  description: API reference for Enscribe v1 endpoints.
+servers:
+  - url: /
+    description: Docs origin (proxied to app.enscribe.xyz in production)
+  - url: https://app.enscribe.xyz
+    description: Direct API host
+tags:
+  - name: Utility
+    description: Utility endpoints.
+  - name: Config
+    description: Chain config lookup endpoints.
+  - name: Metadata
+    description: ENS text-record metadata lookup endpoints.
+  - name: Verification
+    description: Contract verification endpoints.
+paths:
+  /api/v1/name:
+    get:
+      tags:
+        - Utility
+      operationId: generateName
+      summary: Generate a random contract name
+      description: Returns a random two-word slug with a 4-digit suffix.
+      responses:
+        "200":
+          description: Generated name
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: curious-lion-4821
+  /api/v1/config/{chainId}:
+    get:
+      tags:
+        - Config
+      operationId: getChainConfig
+      summary: Get chain config addresses
+      parameters:
+        - $ref: "#/components/parameters/ChainIdPathParam"
+      responses:
+        "200":
+          description: Chain config
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChainConfigResponse"
+        "400":
+          description: Invalid chain ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                invalidChainId:
+                  value:
+                    error: Invalid chainId parameter
+        "404":
+          description: No config for chain
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                missingConfig:
+                  value:
+                    error: No config found for chainId
+  /api/v1/contractMetadata/{chainId}/{name}:
+    get:
+      tags:
+        - Metadata
+      operationId: getContractMetadata
+      summary: Fetch ENS text-record metadata
+      parameters:
+        - $ref: "#/components/parameters/ChainIdPathParam"
+        - name: name
+          in: path
+          required: true
+          description: Fully qualified ENS name.
+          schema:
+            type: string
+          example: vault.app.enscribe.eth
+      responses:
+        "200":
+          description: Text records resolved for the name.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContractMetadataResponse"
+        "400":
+          description: Invalid params or unsupported chain
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /api/v1/verification/{networkId}/{contractAddress}:
+    get:
+      tags:
+        - Verification
+      operationId: getVerificationStatus
+      summary: Get verification status
+      parameters:
+        - $ref: "#/components/parameters/NetworkIdPathParam"
+        - $ref: "#/components/parameters/ContractAddressPathParam"
+      responses:
+        "200":
+          description: Verification status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VerificationStatusResponse"
+        "400":
+          description: Invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      tags:
+        - Verification
+      operationId: triggerVerification
+      summary: Trigger verification workflow
+      parameters:
+        - $ref: "#/components/parameters/NetworkIdPathParam"
+        - $ref: "#/components/parameters/ContractAddressPathParam"
+      responses:
+        "200":
+          description: Verification workflow request IDs
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VerificationTriggerResponse"
+        "400":
+          description: Invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+components:
+  parameters:
+    ChainIdPathParam:
+      name: chainId
+      in: path
+      required: true
+      description: EVM chain ID.
+      schema:
+        type: string
+        pattern: "^[0-9]+$"
+      example: "8453"
+    NetworkIdPathParam:
+      name: networkId
+      in: path
+      required: true
+      description: EVM network ID.
+      schema:
+        type: string
+        pattern: "^[0-9]+$"
+      example: "1"
+    ContractAddressPathParam:
+      name: contractAddress
+      in: path
+      required: true
+      description: Contract address in checksum or lowercase format.
+      schema:
+        type: string
+        pattern: "^0x[a-fA-F0-9]{40}$"
+      example: "0x1234567890abcdef1234567890abcdef12345678"
+  schemas:
+    ChainConfigResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - reverse_registrar_addr
+        - ens_registry_addr
+        - public_resolver_addr
+        - name_wrapper_addr
+        - enscribe_addr
+        - parent_name
+      properties:
+        reverse_registrar_addr:
+          type: string
+          description: Reverse registrar contract address.
+        ens_registry_addr:
+          type: string
+          description: ENS registry contract address.
+        public_resolver_addr:
+          type: string
+          description: Public resolver contract address.
+        name_wrapper_addr:
+          type: string
+          description: ENS name wrapper contract address.
+        enscribe_addr:
+          type: string
+          description: Enscribe contract address.
+        parent_name:
+          type: string
+          description: Parent ENS name configured for Enscribe on this chain.
+    ContractMetadataResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+        alias:
+          type: string
+        description:
+          type: string
+        url:
+          type: string
+        avatar:
+          type: string
+        header:
+          type: string
+        category:
+          type: string
+        license:
+          type: string
+        docs:
+          type: string
+        audits:
+          type: string
+        com.github:
+          type: string
+        com.twitter:
+          type: string
+        org.telegram:
+          type: string
+        com.linkedin:
+          type: string
+    VerificationStatusResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - sourcify_verification
+        - etherscan_verification
+        - blockscout_verification
+        - audit_status
+        - attestation_tx_hash
+        - diligence_audit
+        - openZepplin_audit
+        - cyfrin_audit
+      properties:
+        sourcify_verification:
+          type: string
+        etherscan_verification:
+          type: string
+        blockscout_verification:
+          type: string
+        audit_status:
+          type: string
+        attestation_tx_hash:
+          type: string
+        diligence_audit:
+          type: string
+        openZepplin_audit:
+          type: string
+        cyfrin_audit:
+          type: string
+    VerificationTriggerResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - sourcify
+        - etherscan
+        - attestation
+      properties:
+        sourcify:
+          type: string
+        etherscan:
+          type: string
+        attestation:
+          type: string
+    ErrorResponse:
+      type: object
+      additionalProperties: true
+      required:
+        - error
+      properties:
+        error:
+          type: string
