@@ -1,3 +1,5 @@
+'use client'
+
 import dynamic from 'next/dynamic'
 
 const AfterAuthRedirect = dynamic(() => import('./after-auth-redirect'), {
