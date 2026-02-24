@@ -102,36 +102,20 @@ const shortenENSName = (name: string, maxLength: number = 13): string => {
   return label.slice(0, availableForLabel) + ellipsis + suffix
 }
 
-const buildContractMetadataUrl = (chainId: number, ensName: string): string => {
-  const path = `/api/v1/contractMetadata/${chainId}/${encodeURIComponent(ensName)}`
-
-  if (typeof window !== 'undefined') return path
-
-  const baseUrlFromEnv =
-    process.env.APP_URL ||
-    process.env.NEXT_PUBLIC_APP_URL ||
-    process.env.NEXT_PUBLIC_SITE_URL
-
-  if (baseUrlFromEnv) {
-    return `${baseUrlFromEnv.replace(/\/$/, '')}${path}`
-  }
-
-  if (process.env.VERCEL_URL) {
-    return `https://${process.env.VERCEL_URL}${path}`
-  }
-
-  const port = process.env.PORT || '3000'
-  return `http://127.0.0.1:${port}${path}`
-}
-
 const hasMetadataFromContractMetadataApi = async (
   chainId: number,
+  apiBaseUrl: string | undefined,
   ensName?: string,
 ): Promise<boolean> => {
   if (!ensName) return false
 
   try {
-    const response = await fetch(buildContractMetadataUrl(chainId, ensName))
+    const metadataPath = `/api/v1/contractMetadata/${chainId}/${encodeURIComponent(ensName)}`
+    const metadataUrl = apiBaseUrl ? `${apiBaseUrl}${metadataPath}` : metadataPath
+
+    const response = await fetch(
+      metadataUrl,
+    )
     if (!response.ok) return false
 
     const metadata = (await response.json()) as TextRecords
@@ -212,6 +196,7 @@ export const fetchAssociatedNamesCount = async (
 export const fetchForwardNameSummary = async (
   address: string,
   chainId: number,
+  apiBaseUrl?: string,
 ): Promise<{
   count: number
   singleName?: string
@@ -259,6 +244,7 @@ export const fetchForwardNameSummary = async (
     const name = typeof domain?.name === 'string' ? domain.name : undefined
     const singleNameHasMetadata = await hasMetadataFromContractMetadataApi(
       chainId,
+      apiBaseUrl,
       name,
     )
 
