@@ -2,12 +2,13 @@
 
 import React, { useState } from 'react'
 import Layout from '../components/Layout'
-import { FileText, Layers, Rocket, Search, ArrowRight } from 'lucide-react'
+import { FileText, Layers, Rocket, Search, ArrowRight, LayoutDashboard } from 'lucide-react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import SearchModal from '../components/SearchModal'
 import { motion, type Variants } from 'framer-motion'
 import { useAccount } from 'wagmi'
+import { useAuth } from '@clerk/nextjs'
 
 const ConnectButton = dynamic(
   () => import('@rainbow-me/rainbowkit').then((m) => m.ConnectButton),
@@ -53,6 +54,7 @@ const cardVariants: Variants = {
 export default function Home() {
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false)
   const { isConnected } = useAccount()
+  const { isSignedIn } = useAuth()
 
   return (
     <Layout>
@@ -101,6 +103,25 @@ export default function Home() {
             </button>
           </div>
         </motion.div>
+
+        {/* Dashboard CTA for authenticated users */}
+        {isSignedIn && (
+          <motion.div
+            className="flex justify-center"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3 }}
+          >
+            <Link
+              href="/dashboard"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-card hover:bg-accent text-foreground rounded-xl font-medium text-sm border border-border hover:border-ring transition-all shadow-sm"
+            >
+              <LayoutDashboard className="w-4 h-4" />
+              Go to Dashboard
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </motion.div>
+        )}
 
         {/* Feature cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
