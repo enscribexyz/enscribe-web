@@ -309,3 +309,53 @@ html[data-theme="light"] .project-logo {
     grid-template-columns: repeat(3, 1fr) !important;
   }
 }
+
+/* ── API reference (Scalar standalone) ── */
+.api-reference-root {
+  width: 100%;
+  min-height: calc(100vh - var(--ifm-navbar-height));
+}
+
+.api-reference-root .scalar-api-reference {
+  --scalar-font: var(--ifm-font-family-base);
+  --scalar-font-code: var(--ifm-font-family-monospace);
+  --scalar-border-width: 1px;
+}
+
+html[data-theme='dark'] .api-reference-root .scalar-api-reference {
+  --scalar-color-1: var(--ifm-font-color-base);
+  --scalar-color-2: var(--ifm-color-emphasis-700);
+  --scalar-color-3: var(--ifm-color-emphasis-500);
+  --scalar-color-accent: var(--ifm-color-primary);
+  --scalar-background-1: var(--ifm-background-color);
+  --scalar-background-2: var(--ifm-background-surface-color);
+  --scalar-background-3: #1a2438;
+  --scalar-border-color: var(--ifm-toc-border-color);
+  --scalar-sidebar-background-1: var(--ifm-background-surface-color);
+  --scalar-sidebar-color-1: var(--ifm-font-color-base);
+  --scalar-sidebar-color-2: var(--ifm-color-emphasis-700);
+  --scalar-sidebar-color-active: var(--ifm-color-primary);
+}
+
+html[data-theme='light'] .api-reference-root .scalar-api-reference {
+  --scalar-color-1: var(--ifm-font-color-base);
+  --scalar-color-2: var(--ifm-color-emphasis-700);
+  --scalar-color-3: var(--ifm-color-emphasis-600);
+  --scalar-color-accent: var(--ifm-color-primary);
+  --scalar-background-1: var(--ifm-background-color);
+  --scalar-background-2: var(--ifm-background-surface-color);
+  --scalar-background-3: #edf2f7;
+  --scalar-border-color: var(--ifm-toc-border-color);
+  --scalar-sidebar-background-1: var(--ifm-background-surface-color);
+  --scalar-sidebar-color-1: var(--ifm-font-color-base);
+  --scalar-sidebar-color-2: var(--ifm-color-emphasis-700);
+  --scalar-sidebar-color-active: var(--ifm-color-primary);
+}
+
+.api-reference-root .scalar-api-reference .references-layout {
+  min-height: calc(100vh - var(--ifm-navbar-height));
+}
+
+.api-reference-root .scalar-api-reference .sidebar-search-key {
+  font-family: var(--ifm-font-family-monospace);
+}
