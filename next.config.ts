@@ -1,8 +1,10 @@
 import type { NextConfig } from 'next'
+import path from 'path'
 
 const nextConfig: NextConfig = {
   /* config options here */
   reactStrictMode: true,
+  outputFileTracingRoot: path.join(__dirname, './'),
   transpilePackages: ['ethereum-identity-kit'],
   webpack: (config) => {
     // This is necessary for the ethereum-identity-kit package to be handled correctly
