@@ -1,9 +1,9 @@
 import { CHAINS, CONTRACTS } from './constants'
-import { getEnsName, readContract } from 'viem/actions'
+import { getEnsName, getEnsText, readContract } from 'viem/actions'
 import { namehash } from 'viem/ens'
 import L2ReverseRegistrarABI from '@/contracts/L2ReverseRegistrar'
 import { getPublicClient } from '@/lib/viemClient'
-import type { ENSDomain, TextRecords } from '@/types'
+import type { ENSDomain } from '@/types'
 
 /**
  * Safely computes the namehash of an ENS name, returning '' on error.
@@ -102,29 +102,70 @@ const shortenENSName = (name: string, maxLength: number = 13): string => {
   return label.slice(0, availableForLabel) + ellipsis + suffix
 }
 
-const hasMetadataFromContractMetadataApi = async (
+const METADATA_DIRECT_KEYS = ['alias'] as const
+const METADATA_FALLBACK_KEYS = [
+  'avatar',
+  'name',
+  'description',
+  'header',
+  'url',
+  'category',
+  'license',
+  'docs',
+  'audits',
+  'com.github',
+  'com.twitter',
+  'org.telegram',
+  'com.linkedin',
+] as const
+
+const getParentDomains = (ensName: string): string[] => {
+  const parts = ensName.split('.')
+  const parents: string[] = []
+
+  for (let i = 1; i < parts.length - 1; i++) {
+    parents.push(parts.slice(i).join('.'))
+  }
+
+  return parents
+}
+
+const hasMetadataUsingContractMetadataRules = async (
   chainId: number,
-  apiBaseUrl: string | undefined,
   ensName?: string,
 ): Promise<boolean> => {
   if (!ensName) return false
 
+  const client = getPublicClient(chainId)
+  if (!client) return false
+
+  const readText = async (name: string, key: string): Promise<string> => {
+    try {
+      const value = await getEnsText(client, { name, key })
+      return value?.trim() || ''
+    } catch {
+      return ''
+    }
+  }
+
   try {
-    const metadataPath = `/api/v1/contractMetadata/${chainId}/${encodeURIComponent(ensName)}`
-    const metadataUrl = apiBaseUrl ? `${apiBaseUrl}${metadataPath}` : metadataPath
+    for (const key of METADATA_DIRECT_KEYS) {
+      const value = await readText(ensName, key)
+      if (value) return true
+    }
 
-    const response = await fetch(
-      metadataUrl,
-    )
-    if (!response.ok) return false
+    const domainChain = [ensName, ...getParentDomains(ensName)]
+    for (const key of METADATA_FALLBACK_KEYS) {
+      for (const domain of domainChain) {
+        const value = await readText(domain, key)
+        if (value) return true
+      }
+    }
 
-    const metadata = (await response.json()) as TextRecords
-    return Object.values(metadata).some(
-      (value) => typeof value === 'string' && value.trim().length > 0,
-    )
+    return false
   } catch (error) {
     console.error(
-      '[fetchForwardNameSummary] Error fetching metadata from contractMetadata API:',
+      '[fetchForwardNameSummary] Error fetching metadata using contractMetadata rules:',
       error,
     )
     return false
@@ -196,7 +237,6 @@ export const fetchAssociatedNamesCount = async (
 export const fetchForwardNameSummary = async (
   address: string,
   chainId: number,
-  apiBaseUrl?: string,
 ): Promise<{
   count: number
   singleName?: string
@@ -242,9 +282,8 @@ export const fetchForwardNameSummary = async (
 
     const domain = domains[0]
     const name = typeof domain?.name === 'string' ? domain.name : undefined
-    const singleNameHasMetadata = await hasMetadataFromContractMetadataApi(
+    const singleNameHasMetadata = await hasMetadataUsingContractMetadataRules(
       chainId,
-      apiBaseUrl,
       name,
     )
 
