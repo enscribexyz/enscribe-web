@@ -98,6 +98,37 @@ const config = {
       ({
         docs: {
           sidebarPath: require.resolve("./sidebars.js"),
+          sidebarItemsGenerator: async ({
+            defaultSidebarItemsGenerator,
+            ...args
+          }) => {
+            const items = await defaultSidebarItemsGenerator(args)
+            const apiItem = { type: 'link', label: 'API', href: '/api/enscribe-api' }
+
+            const devToolsIndex = items.findIndex(
+              (item) =>
+                item.type === 'category' &&
+                Array.isArray(item.items) &&
+                item.items.some(
+                  (child) =>
+                    typeof child === 'object' &&
+                    child !== null &&
+                    child.type === 'doc' &&
+                    typeof child.id === 'string' &&
+                    child.id.startsWith('dev-tools/'),
+                ),
+            )
+
+            if (devToolsIndex === -1) {
+              return [...items, apiItem]
+            }
+
+            return [
+              ...items.slice(0, devToolsIndex + 1),
+              apiItem,
+              ...items.slice(devToolsIndex + 1),
+            ]
+          },
           editUrl:
             'https://github.com/enscribexyz/enscribe/tree/main/docs',
         },
@@ -194,13 +225,6 @@ const config = {
             position: "left",
             label: "Guides",
             docsPluginId: "guides",
-          },
-          {
-            type: "docSidebar",
-            sidebarId: "apiSidebar",
-            position: "left",
-            label: "API",
-            docsPluginId: "api",
           },
           { to: "/blog", label: "Blog", position: "left" },
           { to: "/audit", label: "Services", position: "left" },
