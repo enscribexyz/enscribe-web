@@ -61,8 +61,16 @@ const writeScoreCache = (chainId: number, address: string, score: number) => {
   }
 }
 
-const computeScore = async (chainId: number, address: string): Promise<number> => {
-  const forwardSummary = await fetchForwardNameSummary(address, chainId)
+const computeScore = async (
+  chainId: number,
+  address: string,
+  apiBaseUrl: string,
+): Promise<number> => {
+  const forwardSummary = await fetchForwardNameSummary(
+    address,
+    chainId,
+    apiBaseUrl,
+  )
 
   if (forwardSummary.count === 0) {
     return SCORE_NO_ENS_RECORD
@@ -88,7 +96,7 @@ const computeScore = async (chainId: number, address: string): Promise<number> =
 }
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ chainId: string; address: string }> },
 ) {
   const { chainId, address } = await params
@@ -114,10 +122,11 @@ export async function GET(
     return NextResponse.json({ score: cachedScore })
   }
 
+  const apiBaseUrl = req.nextUrl.origin
   const cacheKey = getCacheKey(chainIdNum, address)
   let lookupPromise = inFlightScoreLookups.get(cacheKey)
   if (!lookupPromise) {
-    lookupPromise = computeScore(chainIdNum, address)
+    lookupPromise = computeScore(chainIdNum, address, apiBaseUrl)
       .then((score) => {
         writeScoreCache(chainIdNum, address, score)
         return score
