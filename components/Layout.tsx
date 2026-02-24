@@ -16,6 +16,8 @@ import {
   User,
   List,
   Tag,
+  LayoutDashboard,
+  LogIn,
 } from 'lucide-react'
 import ChainSelector from './ChainSelector'
 import SearchModal from './SearchModal'
@@ -25,6 +27,7 @@ import { SidebarNav } from './navigation/SidebarNav'
 import { useAccount } from 'wagmi'
 import { useRouter, usePathname, useParams } from 'next/navigation'
 import { useSelectedChain } from '@/hooks/useSelectedChain'
+import { useAuth } from '@clerk/nextjs'
 
 interface LayoutProps {
   children: React.ReactNode
@@ -48,6 +51,7 @@ export default function Layout({ children }: LayoutProps) {
   const router = useRouter()
   const pathname = usePathname()
   const params = useParams()
+  const { isSignedIn } = useAuth()
 
   const navigation = useMemo(
     () => [
@@ -146,8 +150,28 @@ export default function Layout({ children }: LayoutProps) {
         </nav>
       </div>
 
+      {/* Dashboard link */}
+      <div className="px-3 pb-1 shrink-0">
+        <Link
+          href={isSignedIn ? '/dashboard' : '/sign-in'}
+          className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium bg-primary/10 text-primary hover:bg-primary/20 rounded-lg transition-colors"
+        >
+          <LayoutDashboard className="w-4 h-4 shrink-0" />
+          {isSignedIn ? 'Team Dashboard' : 'Sign in for Dashboard'}
+        </Link>
+      </div>
+
       {/* Footer links */}
       <div className="px-3 py-3 border-t border-sidebar-border flex gap-1 shrink-0">
+        {!isSignedIn && (
+          <Link
+            href="/sign-up"
+            className="flex items-center gap-2 flex-1 px-3 py-2 text-sm text-sidebar-foreground hover:text-sidebar-foreground-active hover:bg-sidebar-hover rounded-md transition-colors"
+          >
+            <LogIn className="w-4 h-4 shrink-0" />
+            Sign Up
+          </Link>
+        )}
         <Link
           href={productLink || '/'}
           target="_blank"
