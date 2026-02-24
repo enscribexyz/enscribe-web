@@ -17,6 +17,7 @@ import {
   List,
   Tag,
   LayoutDashboard,
+  LogOut,
 } from 'lucide-react'
 import ChainSelector from './ChainSelector'
 import SearchModal from './SearchModal'
@@ -26,7 +27,7 @@ import { SidebarNav } from './navigation/SidebarNav'
 import { useAccount } from 'wagmi'
 import { useRouter, usePathname, useParams } from 'next/navigation'
 import { useSelectedChain } from '@/hooks/useSelectedChain'
-import { useAuth } from '@clerk/nextjs'
+import { useAuth, SignOutButton } from '@clerk/nextjs'
 
 interface LayoutProps {
   children: React.ReactNode
@@ -158,6 +159,14 @@ export default function Layout({ children }: LayoutProps) {
           <LayoutDashboard className="w-4 h-4 shrink-0" />
           {isSignedIn ? 'Team Dashboard' : 'Sign in for Dashboard'}
         </Link>
+        {isSignedIn && (
+          <SignOutButton>
+            <button className="flex items-center gap-3 w-full px-3 py-2 mt-1 text-sm text-sidebar-foreground hover:text-sidebar-foreground-active hover:bg-sidebar-hover rounded-md transition-colors">
+              <LogOut className="w-4 h-4 shrink-0" />
+              Sign Out
+            </button>
+          </SignOutButton>
+        )}
       </div>
 
       {/* Footer links */}

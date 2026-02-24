@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { FileText, Tag, Layers, Activity, ArrowRight } from 'lucide-react'
 import { useOrg } from '@/components/providers/org-provider'
 import { createClient } from '@/lib/supabase/client'
@@ -57,7 +56,6 @@ function LoadingSkeleton() {
 
 export default function OrgOverviewPage() {
   const { orgId, orgSlug, orgName, isLoaded } = useOrg()
-  const router = useRouter()
   const [contracts, setContracts] = useState<Contract[]>([])
   const [operations, setOperations] = useState<NamingOperation[]>([])
   const [loading, setLoading] = useState(true)
@@ -91,14 +89,8 @@ export default function OrgOverviewPage() {
     load()
   }, [orgId])
 
-  // Show loading skeleton while Clerk loads org context
-  if (!isLoaded) {
-    return <LoadingSkeleton />
-  }
-
-  // If org context loaded but no slug, redirect to dashboard to select/create org
-  if (!orgSlug) {
-    router.replace('/dashboard')
+  // Show loading skeleton while Clerk loads or org sync is in progress
+  if (!isLoaded || !orgSlug) {
     return <LoadingSkeleton />
   }
 
