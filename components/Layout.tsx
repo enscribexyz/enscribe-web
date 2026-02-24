@@ -17,7 +17,6 @@ import {
   List,
   Tag,
   LayoutDashboard,
-  LogIn,
 } from 'lucide-react'
 import ChainSelector from './ChainSelector'
 import SearchModal from './SearchModal'
@@ -163,15 +162,6 @@ export default function Layout({ children }: LayoutProps) {
 
       {/* Footer links */}
       <div className="px-3 py-3 border-t border-sidebar-border flex gap-1 shrink-0">
-        {!isSignedIn && (
-          <Link
-            href="/sign-up"
-            className="flex items-center gap-2 flex-1 px-3 py-2 text-sm text-sidebar-foreground hover:text-sidebar-foreground-active hover:bg-sidebar-hover rounded-md transition-colors"
-          >
-            <LogIn className="w-4 h-4 shrink-0" />
-            Sign Up
-          </Link>
-        )}
         <Link
           href={productLink || '/'}
           target="_blank"

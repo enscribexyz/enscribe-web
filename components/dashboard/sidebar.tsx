@@ -73,12 +73,30 @@ export function DashboardSidebar({ open, onClose }: SidebarProps) {
 
         {/* Nav */}
         <nav className="px-3 py-4 space-y-1">
+          {!orgSlug && (
+            <p className="px-3 py-2 text-xs text-sidebar-foreground/50">
+              Select or create an organization above to get started.
+            </p>
+          )}
           {navItems.map((item) => {
             const Icon = item.icon
             const isActive =
               item.href === basePath
                 ? pathname === basePath
                 : pathname?.startsWith(item.href)
+
+            if (!orgSlug) {
+              return (
+                <span
+                  key={item.name}
+                  className="flex items-center gap-3 px-3 py-2 text-sm rounded-md text-sidebar-foreground/30 pointer-events-none"
+                >
+                  <Icon className="w-4 h-4 shrink-0" />
+                  {item.name}
+                </span>
+              )
+            }
+
             return (
               <Link
                 key={item.href}
