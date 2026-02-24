@@ -14,6 +14,8 @@
     "analyze": "ANALYZE=true next build"
   },
   "dependencies": {
+    "@clerk/nextjs": "^6.38.2",
+    "@clerk/themes": "^2.4.55",
     "@radix-ui/react-accordion": "^1.2.8",
     "@radix-ui/react-checkbox": "^1.3.2",
     "@radix-ui/react-dialog": "^1.1.6",
@@ -24,10 +26,13 @@
     "@radix-ui/react-toast": "^1.2.7",
     "@radix-ui/react-tooltip": "^1.1.8",
     "@rainbow-me/rainbowkit": "^2.2.4",
+    "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.49.4",
     "@tanstack/react-query": "^5.80.7",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "cmdk": "^1.1.1",
+    "date-fns": "^4.1.0",
     "ethereum-identity-kit": "^0.2.48",
     "framer-motion": "^12.34.2",
     "json-parse-safe": "^2.0.0",
@@ -35,12 +40,14 @@
     "next": "^15.3.8",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
+    "sonner": "^2.0.7",
     "tailwind-merge": "^3.0.2",
     "tailwindcss-animate": "^1.0.7",
     "unique-names-generator": "^4.7.1",
     "uuid": "^11.1.0",
     "viem": "^2.39.0",
-    "wagmi": "^2.14.12"
+    "wagmi": "^2.14.12",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.3",

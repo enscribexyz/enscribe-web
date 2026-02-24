@@ -29,6 +29,10 @@
     /* Feedback */
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
 
     /* Chrome */
     --border: 220 13% 88%;
@@ -71,6 +75,10 @@
 
     --destructive: 0 63% 40%;
     --destructive-foreground: 0 0% 100%;
+    --success: 142 70% 45%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
 
     --border: 224 18% 20%;
     --input: 224 18% 20%;
