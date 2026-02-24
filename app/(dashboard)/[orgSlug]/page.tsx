@@ -2,13 +2,62 @@
 
 import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { FileText, Tag, Layers, Activity, ArrowRight } from 'lucide-react'
 import { useOrg } from '@/components/providers/org-provider'
 import { createClient } from '@/lib/supabase/client'
+import { Skeleton } from '@/components/ui/skeleton'
 import type { Contract, NamingOperation } from '@/types/contracts'
 
+function LoadingSkeleton() {
+  return (
+    <div className="space-y-8">
+      {/* Header skeleton */}
+      <div>
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-4 w-64 mt-2" />
+      </div>
+
+      {/* Stats skeleton */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="rounded-xl border border-border bg-card p-5">
+            <div className="flex items-center gap-3">
+              <Skeleton className="w-10 h-10 rounded-lg" />
+              <div>
+                <Skeleton className="h-7 w-12" />
+                <Skeleton className="h-3 w-20 mt-1" />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Quick actions skeleton */}
+      <div>
+        <Skeleton className="h-6 w-32 mb-3" />
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {[1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className="flex items-start gap-3 p-4 rounded-xl border border-border bg-card"
+            >
+              <Skeleton className="w-9 h-9 rounded-lg shrink-0" />
+              <div className="flex-1">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-3 w-36 mt-1.5" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function OrgOverviewPage() {
-  const { orgId, orgSlug, orgName } = useOrg()
+  const { orgId, orgSlug, orgName, isLoaded } = useOrg()
+  const router = useRouter()
   const [contracts, setContracts] = useState<Contract[]>([])
   const [operations, setOperations] = useState<NamingOperation[]>([])
   const [loading, setLoading] = useState(true)
@@ -41,6 +90,17 @@ export default function OrgOverviewPage() {
 
     load()
   }, [orgId])
+
+  // Show loading skeleton while Clerk loads org context
+  if (!isLoaded) {
+    return <LoadingSkeleton />
+  }
+
+  // If org context loaded but no slug, redirect to dashboard to select/create org
+  if (!orgSlug) {
+    router.replace('/dashboard')
+    return <LoadingSkeleton />
+  }
 
   const basePath = `/dashboard/${orgSlug}`
   const namedCount = contracts.filter((c) => c.status === 'named').length
