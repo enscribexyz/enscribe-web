@@ -4,7 +4,7 @@ export const ENSCRIBE_OPENAPI_SPEC = {
     title: 'Enscribe API',
     version: '1.0.0',
     description:
-      'API reference for Enscribe v1 endpoints exposed from the Next.js application.',
+      'API reference for Enscribe v1 endpoints',
   },
   servers: [
     {

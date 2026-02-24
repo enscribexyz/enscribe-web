@@ -3,7 +3,7 @@
   "info": {
     "title": "Enscribe API",
     "version": "1.0.0",
-    "description": "API reference for Enscribe v1 endpoints exposed from the Next.js application."
+    "description": "API reference for Enscribe v1 endpoints"
   },
   "servers": [
     {
