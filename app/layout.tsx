@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from 'next'
 import Script from 'next/script'
 import { Inter } from 'next/font/google'
+import { ClerkProvider } from '@clerk/nextjs'
+import { dark } from '@clerk/themes'
 import { Providers } from './providers'
 import '@rainbow-me/rainbowkit/styles.css'
 import '@/styles/globals.css'
@@ -71,7 +73,16 @@ export default function RootLayout({
           gtag('js', new Date());
           gtag('config', 'G-ZP0CQ3RP8K');
         `}</Script>
-        <Providers>{children}</Providers>
+        <ClerkProvider
+          appearance={{
+            baseTheme: dark,
+            variables: {
+              colorPrimary: 'hsl(243, 75%, 59%)',
+            },
+          }}
+        >
+          <Providers>{children}</Providers>
+        </ClerkProvider>
       </body>
     </html>
   )
