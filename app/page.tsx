@@ -2,7 +2,18 @@
 
 import React, { useState } from 'react'
 import Layout from '../components/Layout'
-import { FileText, Layers, Rocket, Search, ArrowRight, LayoutDashboard } from 'lucide-react'
+import {
+  FileText,
+  Layers,
+  Rocket,
+  Search,
+  ArrowRight,
+  LayoutDashboard,
+  Users,
+  Activity,
+  Settings,
+  LogIn,
+} from 'lucide-react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import SearchModal from '../components/SearchModal'
@@ -39,6 +50,29 @@ const features = [
     icon: Layers,
     href: '/batchNaming',
     accent: 'bg-violet-500/10 text-violet-500',
+  },
+]
+
+const dashboardFeatures = [
+  {
+    title: 'Contract Inventory',
+    description: 'Track all your named contracts across chains in one place.',
+    icon: FileText,
+  },
+  {
+    title: 'Team Collaboration',
+    description: 'Manage naming operations with your organization members.',
+    icon: Users,
+  },
+  {
+    title: 'Activity Log',
+    description: 'Full audit trail of all naming operations and changes.',
+    icon: Activity,
+  },
+  {
+    title: 'Org Settings',
+    description: 'Configure namespaces, delegation, and team permissions.',
+    icon: Settings,
   },
 ]
 
@@ -104,26 +138,7 @@ export default function Home() {
           </div>
         </motion.div>
 
-        {/* Dashboard CTA for authenticated users */}
-        {isSignedIn && (
-          <motion.div
-            className="flex justify-center"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.3 }}
-          >
-            <Link
-              href="/dashboard"
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-card hover:bg-accent text-foreground rounded-xl font-medium text-sm border border-border hover:border-ring transition-all shadow-sm"
-            >
-              <LayoutDashboard className="w-4 h-4" />
-              Go to Dashboard
-              <ArrowRight className="w-4 h-4" />
-            </Link>
-          </motion.div>
-        )}
-
-        {/* Feature cards */}
+        {/* Quick Tools */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {features.map((feature, i) => {
             const Icon = feature.icon
@@ -160,6 +175,96 @@ export default function Home() {
             )
           })}
         </div>
+
+        {/* Team Dashboard Section — always visible */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.3 }}
+        >
+          <div className="rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/5 via-card to-card p-6 sm:p-8">
+            <div className="flex flex-col gap-6">
+              {/* Section header */}
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <LayoutDashboard className="w-4 h-4 text-primary" />
+                    </div>
+                    <span className="text-xs font-semibold uppercase tracking-wider text-primary">
+                      New
+                    </span>
+                  </div>
+                  <h2 className="text-xl sm:text-2xl font-bold text-foreground">
+                    Team Dashboard
+                  </h2>
+                  <p className="text-sm text-muted-foreground max-w-lg">
+                    Manage your organization&apos;s smart contract names from a
+                    single dashboard. Track contracts, coordinate with your team,
+                    and keep a full audit trail.
+                  </p>
+                </div>
+
+                {/* CTA */}
+                <div className="flex flex-col gap-2 sm:items-end shrink-0">
+                  {isSignedIn ? (
+                    <Link
+                      href="/dashboard"
+                      className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl font-medium text-sm transition-colors shadow-sm"
+                    >
+                      <LayoutDashboard className="w-4 h-4" />
+                      Open Dashboard
+                      <ArrowRight className="w-4 h-4" />
+                    </Link>
+                  ) : (
+                    <>
+                      <Link
+                        href="/sign-up"
+                        className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl font-medium text-sm transition-colors shadow-sm"
+                      >
+                        <Users className="w-4 h-4" />
+                        Create Account
+                        <ArrowRight className="w-4 h-4" />
+                      </Link>
+                      <Link
+                        href="/sign-in"
+                        className="inline-flex items-center justify-center gap-2 px-4 py-2 text-muted-foreground hover:text-foreground text-sm transition-colors"
+                      >
+                        <LogIn className="w-3.5 h-3.5" />
+                        Already have an account? Sign in
+                      </Link>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Dashboard feature grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {dashboardFeatures.map((feat) => {
+                  const Icon = feat.icon
+                  return (
+                    <div
+                      key={feat.title}
+                      className="flex items-start gap-3 p-3 rounded-lg bg-background/50 border border-border/50"
+                    >
+                      <div className="w-8 h-8 rounded-md bg-muted flex items-center justify-center shrink-0">
+                        <Icon className="w-4 h-4 text-muted-foreground" />
+                      </div>
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-sm font-medium text-foreground">
+                          {feat.title}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {feat.description}
+                        </span>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        </motion.div>
       </div>
 
       <SearchModal
