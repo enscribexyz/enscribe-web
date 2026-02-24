@@ -113,9 +113,7 @@ const hasMetadataFromContractMetadataApi = async (
     const metadataPath = `/api/v1/contractMetadata/${chainId}/${encodeURIComponent(ensName)}`
     const metadataUrl = apiBaseUrl ? `${apiBaseUrl}${metadataPath}` : metadataPath
 
-    const response = await fetch(
-      metadataUrl,
-    )
+    const response = await fetch(metadataUrl)
     if (!response.ok) return false
 
     const metadata = (await response.json()) as TextRecords
