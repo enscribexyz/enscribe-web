@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getENS, fetchForwardNameSummary } from '@/utils/ens'
+import { getENS, fetchForwardNameSummary, hasNameMetadata } from '@/utils/ens'
 
 const SCORE_NO_ENS_RECORD = 0
 const SCORE_MULTIPLE_FORWARD_NAMES = 25
@@ -66,6 +66,18 @@ const computeScore = async (
   address: string,
   apiBaseUrl: string,
 ): Promise<number> => {
+  const primaryENS = await getENS(address, chainId)
+  if (primaryENS) {
+    const primaryHasMetadata = await hasNameMetadata(
+      chainId,
+      primaryENS,
+      apiBaseUrl,
+    )
+    return primaryHasMetadata
+      ? SCORE_PRIMARY_AND_METADATA
+      : SCORE_PRIMARY_OR_METADATA
+  }
+
   const forwardSummary = await fetchForwardNameSummary(
     address,
     chainId,
@@ -80,15 +92,9 @@ const computeScore = async (
     return SCORE_MULTIPLE_FORWARD_NAMES
   }
 
-  const primaryENS = await getENS(address, chainId)
-  const hasPrimaryName = Boolean(primaryENS)
   const hasMetadata = forwardSummary.singleNameHasMetadata
 
-  if (hasPrimaryName && hasMetadata) {
-    return SCORE_PRIMARY_AND_METADATA
-  }
-
-  if (hasPrimaryName || hasMetadata) {
+  if (hasMetadata) {
     return SCORE_PRIMARY_OR_METADATA
   }
 

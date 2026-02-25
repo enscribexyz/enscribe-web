@@ -129,6 +129,13 @@ const hasMetadataFromContractMetadataApi = async (
   }
 }
 
+export const hasNameMetadata = async (
+  chainId: number,
+  ensName?: string,
+  apiBaseUrl?: string,
+): Promise<boolean> =>
+  hasMetadataFromContractMetadataApi(chainId, apiBaseUrl, ensName)
+
 /**
  * Fetches the count (and optionally a single name) of ENS names that resolve to the given address
  * @param address - The address to look up
