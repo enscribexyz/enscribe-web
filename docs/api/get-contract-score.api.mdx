@@ -1,0 +1,69 @@
+---
+id: get-contract-score
+title: "Get contract ENS score"
+description: "Returns an Enscribe score from 0 to 100 for an address on a chain."
+sidebar_label: "Get contract ENS score"
+hide_title: true
+hide_table_of_contents: true
+api: eJzVVUtv2kAQ/iurVQ+JmmITHgncaCERh1ZR0vaCqLTYA2xq72521whq+b93xjaPQNqqVS49sezO45tvZj7n3IuF4/0Jf4i0BT694NqAFV5qNY55ny/Af9DKWxH5yuKCx+AiKw2ZoME9+Mwqx4RiI0UPM2COLNnc6pSFzGvWDEM215ZsRBxbcI5pPLJoKaRqYEgjrEjBgyUoOVf4B0OXz4jigkvKZIRf4tnCUyYtIDhvMziGM/r6sQrLxkOK7KIlpIL3c+43hoI6b6ValDk9JiSfb5PwXW/69g0vLjisRWoSMrxud1p4s0NTI/8rNIMo0pnyDGuPaha3DPwO3DMc4Tq+jgfd9zeX3V63LW56wysYxT0IW6NOq93sDFtXYtDrhu0OL6YEyBmtHDgKexmG9PMcVNlHhnZZ4hEEAQPlyU4Yk8iobH7w6Mg4P8WoZ48QkSMWIslUJHeWhsZLSjoXiYNDXibcbUfLHNjl9fU+sEQcC7AYOZVKplnK+yGexbo64xAVSIyXvqSlrOK+LpYXBb21Xyp3rFYikfFuKqgZ+16+cvXVEBwWD9Zqe1p8dX3a+YMKR2RyVGHn5QppkEXCqqD/WVH4iKu/1LXaVJu5xD+BMDJYNYNyToK8VoMiyOvuFbRBYFdb1chsQl4nCjXUEeqNlQts/xkCXkuISZWQmgbUktVYb34wfMfnOIvI8bzc/Srm0nvj+kFw7HGaCgnCFR/cjdlSO18upFRzXXKyZWCrkmiFAQh+5dxshI3wJCTFsjAHCyqCUkV3AVZNBio2GhcH5QR5NJgzFWWPa9G6Bb9XntGnh0qaj5Pk+4l5HT2v++9h7QOT4CWhK7nM6+5OcDIlld8sdbAC1d8rfn+7oshgSSV65PlMOPhik6Kg66cM7Abv8bgSVooZ0YtzEEtH53inRb+s9ey+nulzdvzdeLGC+lKoDSEXSUb/8PgdNgefK5qbf8Lwh6/FP0DaklhM0XQJIkZ5JYqqV8wHxh/4nYgFze9uOW9Hn3FhfwJ2ysc5
+sidebar_class_name: "get api-method"
+info_path: api//enscribe-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Get contract ENS score"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/api/v1/score/{chainId}/{address}"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Returns an Enscribe score from 0 to 100 for an address on a chain.
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+>
+  <Translate id="theme.openapi.request.title">Request</Translate>
+</Heading>
+
+<ParamsDetails
+  {...require("./get-contract-score.ParamsDetails.json")}
+>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./get-contract-score.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./get-contract-score.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

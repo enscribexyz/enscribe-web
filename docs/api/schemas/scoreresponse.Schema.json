@@ -1,0 +1,1 @@
+{"schema":{"type":"object","additionalProperties":false,"required":["score"],"properties":{"score":{"type":"integer","minimum":0,"maximum":100}},"title":"ScoreResponse"},"schemaType":"response"}

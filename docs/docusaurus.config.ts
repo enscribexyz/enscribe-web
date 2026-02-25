@@ -51,6 +51,36 @@ const config = {
          editUrl: 'https://github.com/enscribexyz/enscribe/tree/main/docs',
        },
      ],
+     [
+       '@docusaurus/plugin-content-docs',
+       {
+         id: 'api',
+         path: 'api',
+         routeBasePath: 'api',
+         sidebarPath: require.resolve('./api-sidebars.ts'),
+         docItemComponent: '@theme/ApiItem',
+         editUrl: 'https://github.com/enscribexyz/enscribe/tree/main/docs',
+       },
+     ],
+     [
+       'docusaurus-plugin-openapi-docs',
+       {
+         id: 'api',
+         docsPluginId: 'api',
+         config: {
+           enscribe: {
+             specPath: 'openapi/enscribe.yaml',
+             outputDir: 'api',
+             showSchemas: true,
+             sidebarOptions: {
+               groupPathsBy: 'tag',
+               categoryLinkSource: 'tag',
+               sidebarCollapsed: false,
+             },
+           },
+         },
+       },
+     ],
   ],
 
   markdown: {
@@ -59,7 +89,7 @@ const config = {
       onBrokenMarkdownLinks: "warn",
     },
   },
-  themes: ['@docusaurus/theme-mermaid'],
+  themes: ['@docusaurus/theme-mermaid', 'docusaurus-theme-openapi-docs'],
 
   presets: [
     [
@@ -68,6 +98,37 @@ const config = {
       ({
         docs: {
           sidebarPath: require.resolve("./sidebars.js"),
+          sidebarItemsGenerator: async ({
+            defaultSidebarItemsGenerator,
+            ...args
+          }) => {
+            const items = await defaultSidebarItemsGenerator(args)
+            const apiItem = { type: 'link', label: 'API', href: '/api/enscribe-api' }
+
+            const devToolsIndex = items.findIndex(
+              (item) =>
+                item.type === 'category' &&
+                Array.isArray(item.items) &&
+                item.items.some(
+                  (child) =>
+                    typeof child === 'object' &&
+                    child !== null &&
+                    child.type === 'doc' &&
+                    typeof child.id === 'string' &&
+                    child.id.startsWith('dev-tools/'),
+                ),
+            )
+
+            if (devToolsIndex === -1) {
+              return [...items, apiItem]
+            }
+
+            return [
+              ...items.slice(0, devToolsIndex + 1),
+              apiItem,
+              ...items.slice(devToolsIndex + 1),
+            ]
+          },
           editUrl:
             'https://github.com/enscribexyz/enscribe/tree/main/docs',
         },
@@ -183,6 +244,33 @@ const config = {
 
         askAi: 'CPzOUStt6qk8',
       },
+      languageTabs: [
+        { language: 'curl' },
+        { language: 'csharp' },
+        { language: 'dart' },
+        { language: 'go' },
+        { language: 'http' },
+        { language: 'java' },
+        { language: 'javascript' },
+        { language: 'kotlin' },
+        { language: 'c' },
+        { language: 'nodejs' },
+        { language: 'objective-c' },
+        { language: 'ocaml' },
+        { language: 'php' },
+        { language: 'postman-cli' },
+        { language: 'powershell' },
+        { language: 'python' },
+        { language: 'r' },
+        { language: 'ruby' },
+        { language: 'rust' },
+        { language: 'shell' },
+        { language: 'swift' },
+      ],
+      api: {
+        authPersistance: 'localStorage',
+        requestTimeout: 60000,
+      },
       footer: {
         style: "dark",
         links: [
@@ -265,4 +353,3 @@ const config = {
 }
 
 module.exports = config
-
