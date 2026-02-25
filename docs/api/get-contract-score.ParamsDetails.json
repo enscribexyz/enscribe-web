@@ -1,0 +1,1 @@
+{"parameters":[{"name":"chainId","in":"path","required":true,"description":"EVM chain ID.","schema":{"type":"string","pattern":"^[0-9]+$"},"example":"8453"},{"name":"address","in":"path","required":true,"description":"Account or contract address.","schema":{"type":"string"},"example":"0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045"}]}

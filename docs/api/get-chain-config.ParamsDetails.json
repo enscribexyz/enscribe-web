@@ -1,0 +1,1 @@
+{"parameters":[{"name":"chainId","in":"path","required":true,"description":"EVM chain ID.","schema":{"type":"string","pattern":"^[0-9]+$"},"example":"8453"}]}
