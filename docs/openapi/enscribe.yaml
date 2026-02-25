@@ -15,6 +15,8 @@ tags:
     description: Chain config lookup endpoints.
   - name: Metadata
     description: ENS text-record metadata lookup endpoints.
+  - name: Score
+    description: Contract discoverability scoring endpoints.
   - name: Verification
     description: Contract verification endpoints.
 paths:
@@ -102,6 +104,35 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /api/v1/score/{chainId}/{address}:
+    get:
+      tags:
+        - Score
+      operationId: getContractScore
+      summary: Get contract ENS score
+      description: Returns an Enscribe score from 0 to 100 for an address on a chain.
+      parameters:
+        - $ref: "#/components/parameters/ChainIdPathParam"
+        - $ref: "#/components/parameters/AddressPathParam"
+      responses:
+        "200":
+          description: Score result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScoreResponse"
+        "400":
+          description: Invalid chain ID or address
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /api/v1/verification/{networkId}/{contractAddress}:
     get:
       tags:
@@ -118,33 +149,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/VerificationStatusResponse"
-        "400":
-          description: Invalid parameters
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "500":
-          description: Internal error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-    post:
-      tags:
-        - Verification
-      operationId: triggerVerification
-      summary: Trigger verification workflow
-      parameters:
-        - $ref: "#/components/parameters/NetworkIdPathParam"
-        - $ref: "#/components/parameters/ContractAddressPathParam"
-      responses:
-        "200":
-          description: Verification workflow request IDs
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/VerificationTriggerResponse"
         "400":
           description: Invalid parameters
           content:
@@ -186,6 +190,14 @@ components:
         type: string
         pattern: "^0x[a-fA-F0-9]{40}$"
       example: "0x1234567890abcdef1234567890abcdef12345678"
+    AddressPathParam:
+      name: address
+      in: path
+      required: true
+      description: Account or contract address.
+      schema:
+        type: string
+      example: "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045"
   schemas:
     ChainConfigResponse:
       type: object
@@ -248,6 +260,16 @@ components:
           type: string
         com.linkedin:
           type: string
+    ScoreResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - score
+      properties:
+        score:
+          type: integer
+          minimum: 0
+          maximum: 100
     VerificationStatusResponse:
       type: object
       additionalProperties: false
@@ -276,20 +298,6 @@ components:
         openZepplin_audit:
           type: string
         cyfrin_audit:
-          type: string
-    VerificationTriggerResponse:
-      type: object
-      additionalProperties: false
-      required:
-        - sourcify
-        - etherscan
-        - attestation
-      properties:
-        sourcify:
-          type: string
-        etherscan:
-          type: string
-        attestation:
           type: string
     ErrorResponse:
       type: object

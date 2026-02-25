@@ -59,6 +59,23 @@ const sidebar: SidebarsConfig = {
     },
     {
       type: "category",
+      label: "Score",
+      link: {
+        type: "doc",
+        id: "score",
+      },
+      collapsed: false,
+      items: [
+        {
+          type: "doc",
+          id: "get-contract-score",
+          label: "Get contract ENS score",
+          className: "api-method get",
+        },
+      ],
+    },
+    {
+      type: "category",
       label: "Verification",
       link: {
         type: "doc",
@@ -71,12 +88,6 @@ const sidebar: SidebarsConfig = {
           id: "get-verification-status",
           label: "Get verification status",
           className: "api-method get",
-        },
-        {
-          type: "doc",
-          id: "trigger-verification",
-          label: "Trigger verification workflow",
-          className: "api-method post",
         },
       ],
     },
@@ -99,14 +110,14 @@ const sidebar: SidebarsConfig = {
         },
         {
           type: "doc",
-          id: "schemas/verificationstatusresponse",
-          label: "VerificationStatusResponse",
+          id: "schemas/scoreresponse",
+          label: "ScoreResponse",
           className: "schema",
         },
         {
           type: "doc",
-          id: "schemas/verificationtriggerresponse",
-          label: "VerificationTriggerResponse",
+          id: "schemas/verificationstatusresponse",
+          label: "VerificationStatusResponse",
           className: "schema",
         },
         {
