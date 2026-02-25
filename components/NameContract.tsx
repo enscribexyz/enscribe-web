@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect, useRef } from 'react'
 import { useNameContract } from '@/hooks/useNameContract'
 import {
   Dialog,
@@ -24,8 +24,33 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { ContractStatusPanel } from '@/components/naming/ContractStatusPanel'
 import { SubmitButton } from '@/components/naming/SubmitButton'
 import { L2ChainPickerDialog } from '@/components/naming/L2ChainPickerDialog'
+import { useSearchParams } from 'next/navigation'
 
 export default function NameContract() {
+  const searchParams = useSearchParams()
+  const hasTrackedBlockscoutLoadRef = useRef(false)
+
+  useEffect(() => {
+    const utm = searchParams.get('utm')?.toLowerCase()
+    if (utm !== 'blockscout' || hasTrackedBlockscoutLoadRef.current) return
+
+    hasTrackedBlockscoutLoadRef.current = true
+
+    const gtag = (
+      window as Window & {
+        gtag?: (...args: unknown[]) => void
+      }
+    ).gtag
+
+    if (typeof gtag === 'function') {
+      gtag('event', 'name_contract_page_load', {
+        source: 'blockscout',
+        utm: 'blockscout',
+        page_path: window.location.pathname,
+      })
+    }
+  }, [searchParams])
+
   const {
     // Hook instances
     chain,
