@@ -81,6 +81,7 @@ export default function NameContract() {
     loading,
     isAddressEmpty,
     isAddressInvalid,
+    isBlockscoutRedirectChecking,
     isContractExists,
     isOwnable,
     isContractOwner,
@@ -140,6 +141,22 @@ export default function NameContract() {
     setIsPrimaryNameSet,
     setDropdownValue,
   } = useNameContract()
+
+  if (isBlockscoutRedirectChecking) {
+    return (
+      <div className="w-full max-w-5xl mx-auto bg-white dark:bg-gray-800 shadow-lg rounded-xl p-8 border border-gray-200 dark:border-gray-700">
+        <h2 className="text-3xl font-semibold text-gray-900 dark:text-white">
+          Checking Contract Name
+        </h2>
+        <p className="mt-3 text-gray-600 dark:text-gray-300">
+          Verifying whether this contract already has a primary ENS name.
+        </p>
+        <div className="mt-6 h-2 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+          <div className="h-full w-1/3 animate-pulse rounded-full bg-indigo-500" />
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="w-full max-w-5xl mx-auto bg-white dark:bg-gray-800 shadow-lg rounded-xl p-8 border border-gray-200 dark:border-gray-700">

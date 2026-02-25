@@ -172,7 +172,13 @@ export const checkIfSafe = async (connector: any): Promise<boolean> => {
     }
 
     // Method 4: Check WalletConnect session metadata (existing method for WalletConnect-based Safe)
-    const connectorProvider: any = await connector?.getProvider()
+    let connectorProvider: any
+    if (typeof connector?.getProvider === 'function') {
+      connectorProvider = await connector.getProvider()
+    } else if ('provider' in connector) {
+      connectorProvider = connector.provider
+    }
+
     if (!connectorProvider) {
       return false
     }
@@ -182,8 +188,8 @@ export const checkIfSafe = async (connector: any): Promise<boolean> => {
       return false
     }
 
-    const { name: peerName } = session.peer.metadata
-    return peerName.startsWith('Safe')
+    const peerName = session?.peer?.metadata?.name
+    return typeof peerName === 'string' && peerName.startsWith('Safe')
   } catch (error) {
     console.error('Error detecting Safe wallet:', error)
     // Don't throw the error, just return false to fall back to regular wallet behavior

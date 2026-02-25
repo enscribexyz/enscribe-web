@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useCopyToClipboard } from '@/hooks/useCopyToClipboard'
 import { useRouter, useSearchParams } from 'next/navigation'
 import contractABI from '../contracts/Enscribe'
@@ -28,7 +28,6 @@ import {
 } from '@/lib/l2ChainConfig'
 import {
   getENS,
-  fetchAssociatedNamesCount,
   getParentNode,
   fetchOwnedDomains,
 } from '../utils/ens'
@@ -131,6 +130,9 @@ export function useNameContract() {
   const { copied, copyToClipboard, resetCopied } = useCopyToClipboard()
   const [allCallData, setAllCallData] = useState<string>('')
   const [isCallDataOpen, setIsCallDataOpen] = useState<boolean>(false)
+  const [isBlockscoutRedirectChecking, setIsBlockscoutRedirectChecking] =
+    useState(false)
+  const blockscoutCheckKeyRef = useRef<string | null>(null)
 
   const corelationId = uuid()
   const opType = 'nameexisting'
@@ -308,44 +310,56 @@ export function useNameContract() {
     if (!params) return
     const run = async () => {
       const contractParam = params.get('contract')
-      if (!contractParam || !isAddress(contractParam)) {
-        return
+
+      const utm = params.get('utm')?.toLowerCase()
+      const chainIdParam = params.get('chainId')
+      const blockscoutCheckKey = `${utm || ''}:${contractParam || ''}:${chainIdParam || ''}`
+
+      if (
+        utm === 'blockscout' &&
+        blockscoutCheckKeyRef.current !== blockscoutCheckKey
+      ) {
+        blockscoutCheckKeyRef.current = blockscoutCheckKey
+        setIsBlockscoutRedirectChecking(true)
+
+        if (contractParam && isAddress(contractParam)) {
+          const addr = contractParam
+          const urlChainId =
+            chainIdParam != null ? Number(chainIdParam) : null
+          const redirectChainId =
+            urlChainId != null &&
+            !Number.isNaN(urlChainId) &&
+            CONTRACTS[urlChainId]
+              ? urlChainId
+              : chain?.id
+
+          if (redirectChainId) {
+            try {
+              const primaryName = await getENS(addr, redirectChainId)
+              if (primaryName && primaryName.length > 0) {
+                router.replace(`/explore/${redirectChainId}/${addr}`)
+                return
+              }
+            } catch (error) {
+              console.error(
+                'Error checking ENS for blockscout redirect:',
+                error,
+              )
+            }
+          }
+        }
+
+        setIsBlockscoutRedirectChecking(false)
       }
 
-      const addr = contractParam
-
-      // Blockscout redirect: run even when wallet is disconnected (use URL chainId when no wallet)
-      const chainIdParam = params.get('chainId')
-      const urlChainId = chainIdParam != null ? Number(chainIdParam) : null
-      const redirectChainId =
-        urlChainId != null && !Number.isNaN(urlChainId) && CONTRACTS[urlChainId]
-          ? urlChainId
-          : chain?.id
-
-      if (params.get('utm') === 'blockscout' && redirectChainId) {
-        try {
-          const primaryName = await getENS(addr, redirectChainId)
-          if (primaryName && primaryName.length > 0) {
-            router.replace(`/explore/${redirectChainId}/${addr}`)
-            return
-          }
-          const { count } = await fetchAssociatedNamesCount(
-            addr,
-            redirectChainId,
-          )
-          if (count > 0) {
-            router.replace(`/explore/${redirectChainId}/${addr}`)
-            return
-          }
-        } catch (error) {
-          console.error('Error checking ENS for blockscout redirect:', error)
-        }
-        // No redirect happened; fall through to form population if wallet is connected
+      if (!contractParam || !isAddress(contractParam)) {
+        return
       }
 
       // Populate form only when wallet is connected
       if (!walletClient) return
 
+      const addr = contractParam
       setExistingContractAddress(addr)
       isAddressValid(addr)
       await checkIfOwnable(addr)
@@ -2170,6 +2184,7 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
     setAllCallData,
     isCallDataOpen,
     setIsCallDataOpen,
+    isBlockscoutRedirectChecking,
 
     // Derived constants
     corelationId,
