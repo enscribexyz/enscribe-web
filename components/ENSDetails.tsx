@@ -202,7 +202,7 @@ export default function ENSDetails({
                                     fill="currentColor"
                                     xmlns="http://www.w3.org/2000/svg"
                                     aria-hidden="true"
-                                    shape-rendering="geometricPrecision"
+                                    shapeRendering="geometricPrecision"
                                   >
                                     {/* Solid flower-like silhouette using overlapping petals */}
                                     <g fill="currentColor">
