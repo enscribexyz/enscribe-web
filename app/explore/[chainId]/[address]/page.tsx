@@ -1,7 +1,7 @@
 'use client'
 
-import { useParams } from 'next/navigation'
-import { useState, useEffect, useCallback } from 'react'
+import { useParams, useSearchParams } from 'next/navigation'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { isAddress, parseAbi } from 'viem/utils'
 import { toCoinType } from 'viem'
 import { getPublicClient } from '@/lib/viemClient'
@@ -23,8 +23,10 @@ import { readContract } from 'viem/actions'
 
 export default function ExploreAddressPage() {
   const params = useParams<{ chainId: string; address: string }>()
+  const searchParams = useSearchParams()
   const chainId = params?.chainId
   const address = params?.address
+  const trackedBlockscoutHitRef = useRef<string | null>(null)
 
   const [resolvedAddress, setResolvedAddress] = useState<string | null>(null)
   const [isENSName, setIsENSName] = useState(false)
@@ -44,6 +46,29 @@ export default function ExploreAddressPage() {
   const [contractDeployerPrimaryName, setContractDeployerPrimaryName] =
     useState<string | null>(null)
   const { chain: walletChain } = useAccount()
+
+  useEffect(() => {
+    const utm = searchParams.get('utm')?.toLowerCase()
+    if (utm !== 'blockscout') return
+
+    const trackingKey = `${chainId || ''}:${address || ''}:${utm}`
+    if (trackedBlockscoutHitRef.current === trackingKey) return
+    trackedBlockscoutHitRef.current = trackingKey
+
+    const gtag = (
+      window as Window & {
+        gtag?: (...args: unknown[]) => void
+      }
+    ).gtag
+
+    if (typeof gtag === 'function') {
+      gtag('event', 'explore_page_hit', {
+        source: 'blockscout',
+        utm: 'blockscout',
+        page_path: window.location.pathname,
+      })
+    }
+  }, [searchParams, chainId, address])
 
   const fetchPrimaryNameForContractDeployer = async (
     contractDeployerAddress: string,
