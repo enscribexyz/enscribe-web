@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react'
+import React from 'react'
 import { useNameContract } from '@/hooks/useNameContract'
 import {
   Dialog,
@@ -24,33 +24,8 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { ContractStatusPanel } from '@/components/naming/ContractStatusPanel'
 import { SubmitButton } from '@/components/naming/SubmitButton'
 import { L2ChainPickerDialog } from '@/components/naming/L2ChainPickerDialog'
-import { useSearchParams } from 'next/navigation'
 
 export default function NameContract() {
-  const searchParams = useSearchParams()
-  const hasTrackedBlockscoutLoadRef = useRef(false)
-
-  useEffect(() => {
-    const utm = searchParams.get('utm')?.toLowerCase()
-    if (utm !== 'blockscout' || hasTrackedBlockscoutLoadRef.current) return
-
-    hasTrackedBlockscoutLoadRef.current = true
-
-    const gtag = (
-      window as Window & {
-        gtag?: (...args: unknown[]) => void
-      }
-    ).gtag
-
-    if (typeof gtag === 'function') {
-      gtag('event', 'name_contract_page_load', {
-        source: 'blockscout',
-        utm: 'blockscout',
-        page_path: window.location.pathname,
-      })
-    }
-  }, [searchParams])
-
   const {
     // Hook instances
     chain,
@@ -81,7 +56,6 @@ export default function NameContract() {
     loading,
     isAddressEmpty,
     isAddressInvalid,
-    isBlockscoutRedirectChecking,
     isContractExists,
     isOwnable,
     isContractOwner,
@@ -141,22 +115,6 @@ export default function NameContract() {
     setIsPrimaryNameSet,
     setDropdownValue,
   } = useNameContract()
-
-  if (isBlockscoutRedirectChecking) {
-    return (
-      <div className="w-full max-w-5xl mx-auto bg-white dark:bg-gray-800 shadow-lg rounded-xl p-8 border border-gray-200 dark:border-gray-700">
-        <h2 className="text-3xl font-semibold text-gray-900 dark:text-white">
-          Checking Contract Name
-        </h2>
-        <p className="mt-3 text-gray-600 dark:text-gray-300">
-          Verifying whether this contract already has a primary ENS name.
-        </p>
-        <div className="mt-6 h-2 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
-          <div className="h-full w-1/3 animate-pulse rounded-full bg-indigo-500" />
-        </div>
-      </div>
-    )
-  }
 
   return (
     <div className="w-full max-w-5xl mx-auto bg-white dark:bg-gray-800 shadow-lg rounded-xl p-8 border border-gray-200 dark:border-gray-700">
