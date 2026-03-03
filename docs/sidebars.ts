@@ -2,7 +2,20 @@ import type {SidebarsConfig} from '@docusaurus/plugin-content-docs';
 
 const sidebars: SidebarsConfig = {
   docsSidebar: [
-    {type: 'doc', id: 'introduction/index', label: 'Start here'},
+    {type: 'doc', id: 'introduction/index', label: 'Quick Start'},
+    {
+      type: 'category',
+      label: 'Using Enscribe',
+      items: [
+        {type: 'doc', id: 'getting-started/index', label: 'Overview'},
+        'getting-started/explore-addresses',
+        'getting-started/naming-existing-contracts',
+        'getting-started/contract-deployment-service',
+        'getting-started/deployment-history',
+        'getting-started/my-account-view',
+        'getting-started/using-safe-wallet',
+      ],
+    },
     {
       type: 'category',
       label: 'Concepts',
@@ -11,19 +24,6 @@ const sidebars: SidebarsConfig = {
         'introduction/what-is-ens',
         'introduction/naming-contracts',
         'introduction/supported-networks',
-      ],
-    },
-    {
-      type: 'category',
-      label: 'How-to',
-      items: [
-        'getting-started/index',
-        'getting-started/explore-addresses',
-        'getting-started/naming-existing-contracts',
-        'getting-started/contract-deployment-service',
-        'getting-started/deployment-history',
-        'getting-started/my-account-view',
-        'getting-started/using-safe-wallet',
       ],
     },
     {
