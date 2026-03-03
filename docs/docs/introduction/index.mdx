@@ -1,7 +1,7 @@
 ---
 sidebar_position: 1
 slug: /
-description: Learn what Enscribe does, why smart contract naming matters, and how to start either by naming contracts or exploring named contracts.
+description: Start using Enscribe quickly with a clear first task, then move into concepts and detailed how-to guides.
 keywords:
   - enscribe
   - ens
@@ -11,48 +11,35 @@ keywords:
   - contract explorer
 ---
 
-# Introduction
+# Start here
 
 import AppUrl from '@site/src/components/AppUrl';
-import DocCardList from '@theme/DocCardList';
 
-Most wallets and apps still show smart contracts as hex addresses. That makes it hard to confirm what you are about to sign or interact with.
+Use this page to get running quickly, then move into concepts and detailed guides.
 
-Enscribe helps teams assign ENS names and metadata to smart contracts, so contract identity is legible in onchain interfaces.
+## Choose your first task
 
-## Start in two ways
+### Option 1: Explore first (no setup required)
 
-If you already have contracts to name:
-- [Launch the Enscribe app](https://app.enscribe.xyz)
+- [Open a live contract example](https://app.enscribe.xyz/explore/1/0x9b95a964db0ab154a587cc667b4964bd5dd8de81)
+- Follow [Exploring accounts, contracts and ENS names](/docs/getting-started/explore-addresses)
+
+This is the fastest path if you do not have an ENS name or a contract yet.
+
+### Option 2: Name contracts now
+
+- Launch the app: <AppUrl label="app.enscribe.xyz" />
 - Follow [Name existing contracts](/docs/getting-started/naming-existing-contracts)
 - Or use [Contract deployment service](/docs/getting-started/contract-deployment-service)
 
-If you do not have an ENS name or a contract yet:
-- Start with [Exploring accounts, contracts and ENS names](/docs/getting-started/explore-addresses)
-- [View contract details](https://app.enscribe.xyz/explore/1/0x9b95a964db0ab154a587cc667b4964bd5dd8de81)
+## Learn the concepts
 
-## Why this matters
+- [What is Enscribe](/docs/introduction/what-is-enscribe)
+- [What is ENS](/docs/introduction/what-is-ens)
+- [Naming smart contracts](/docs/introduction/naming-contracts)
+- [Supported networks](/docs/introduction/supported-networks)
 
-Named contracts reduce ambiguity and improve trust signals in signing flows, dashboards, explorers, and protocol operations.
+## Continue with implementation guides
 
-Without naming:
-- Teams share stale address lists across docs and chats
-- Users approve actions against unreadable addresses
-- Integrators spend time mapping "which address is which"
-
-With naming:
-- Contracts become readable and searchable
-- Primary names and forward resolution can be validated onchain
-- Metadata and verification links are easier to find and share
-
-## Before and after
-
-Without ENS naming in wallet prompts:
-![Wallet transaction with hex address](/img/metamask-tx.png)
-
-With ENS naming:
-![Metamask name contract transaction](/img/metamask-enscribed-tx.png)
-
-Use the sections below to go deeper into ENS, Enscribe, and implementation details.
-
-<DocCardList />
+- [How-to guides](/docs/getting-started)
+- [Reference pages](/docs/getting-started/bytcode-abi)
