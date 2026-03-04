@@ -1,0 +1,22 @@
+---
+sidebar_position: 1
+description: Technical reference pages for Enscribe contract naming setup and operations.
+keywords:
+  - enscribe reference
+  - contract bytecode
+  - contract abi
+  - operator role
+---
+
+# Overview
+
+import DocCardList from '@theme/DocCardList';
+import {useCurrentSidebarCategory} from '@docusaurus/theme-common';
+
+This section contains technical references related to contract naming operations.
+
+<DocCardList
+  items={useCurrentSidebarCategory().items.filter(
+    (item) => item.label?.toLowerCase() !== 'overview',
+  )}
+/>

@@ -12,8 +12,9 @@ keywords:
 # Overview
 
 import DocCardList from '@theme/DocCardList';
+import {useCurrentSidebarCategory} from '@docusaurus/theme-common';
 
-Use this section for step-by-step execution workflows. If you need background first, read [Concepts](/docs/introduction/what-is-enscribe).
+This section explains step-by-step execution workflows. If you need background first, read [Concepts](/docs/introduction/what-is-enscribe).
 
 ## Explore and inspect identity
 
@@ -35,4 +36,8 @@ Use this section for step-by-step execution workflows. If you need background fi
 
 - [Bytecode and ABIs](/docs/getting-started/bytcode-abi)
 
-<DocCardList />
+<DocCardList
+  items={useCurrentSidebarCategory().items.filter(
+    (item) => item.label?.toLowerCase() !== 'overview',
+  )}
+/>

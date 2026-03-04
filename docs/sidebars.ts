@@ -20,6 +20,7 @@ const sidebars: SidebarsConfig = {
       type: 'category',
       label: 'Concepts',
       items: [
+        {type: 'doc', id: 'introduction/overview', label: 'Overview'},
         'introduction/what-is-enscribe',
         'introduction/what-is-ens',
         'introduction/naming-contracts',
@@ -30,16 +31,16 @@ const sidebars: SidebarsConfig = {
       type: 'category',
       label: 'Reference',
       items: [
+        {type: 'doc', id: 'reference/index', label: 'Overview'},
         'getting-started/bytcode-abi',
         'getting-started/opearator-role',
-        'faqs',
       ],
     },
     {
       type: 'category',
       label: 'Advanced',
       items: [
-        'advanced/index',
+        {type: 'doc', id: 'advanced/index', label: 'Overview'},
         'advanced/ens-terms',
         'advanced/l1-l2-chains',
         'advanced/design-architecture',
@@ -49,13 +50,14 @@ const sidebars: SidebarsConfig = {
       type: 'category',
       label: 'Developer tools',
       items: [
-        'dev-tools/index',
+        {type: 'doc', id: 'dev-tools/index', label: 'Overview'},
         'dev-tools/enscribe-ts',
         'dev-tools/hardhat-enscribe',
         'dev-tools/enscribe-sol',
       ],
     },
     {type: 'link', label: 'API', href: '/api/enscribe-api'},
+    {type: 'doc', id: 'faqs', label: 'FAQs'},
     {type: 'doc', id: 'brand', label: 'Brand'},
   ],
 };

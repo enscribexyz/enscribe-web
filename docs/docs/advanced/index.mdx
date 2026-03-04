@@ -6,9 +6,14 @@ sidebar_position: 3
 
 import AppUrl from '@site/src/components/AppUrl';
 import DocCardList from '@theme/DocCardList';
+import {useCurrentSidebarCategory} from '@docusaurus/theme-common';
 
-In this section we dive deeper into Enscribe's contract and platform architecture.
+This section explains Enscribe's contract and platform architecture in more detail.
 
 We cover ENS in additional depth and support for ENS in L1 and L2 chains.
 
-<DocCardList />
+<DocCardList
+  items={useCurrentSidebarCategory().items.filter(
+    (item) => item.label?.toLowerCase() !== 'overview',
+  )}
+/>

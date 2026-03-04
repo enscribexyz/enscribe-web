@@ -1,0 +1,22 @@
+---
+sidebar_position: 1
+description: Core concepts for understanding Enscribe, ENS naming, and supported networks.
+keywords:
+  - enscribe concepts
+  - ens
+  - smart contract naming
+  - supported networks
+---
+
+# Overview
+
+import DocCardList from '@theme/DocCardList';
+import {useCurrentSidebarCategory} from '@docusaurus/theme-common';
+
+This section explains the concepts behind Enscribe and ENS naming for smart contracts.
+
+<DocCardList
+  items={useCurrentSidebarCategory().items.filter(
+    (item) => item.label?.toLowerCase() !== 'overview',
+  )}
+/>
