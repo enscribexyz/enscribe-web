@@ -16,6 +16,7 @@ import {
   User,
   List,
   Tag,
+  Bot,
 } from 'lucide-react'
 import ChainSelector from './ChainSelector'
 import SearchModal from './SearchModal'
@@ -55,6 +56,7 @@ export default function Layout({ children }: LayoutProps) {
       { name: 'Batch Naming', href: '/batchNaming', icon: List },
       { name: 'Deploy Contract', href: '/deploy', icon: PencilLine },
       { name: 'Name Explorer', href: '/nameMetadata', icon: Tag },
+      { name: 'AI', href: '/ai', icon: Bot },
       ...(isConnected
         ? [
             {

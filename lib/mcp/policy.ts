@@ -10,6 +10,12 @@ export type PolicyValidationResult =
 const ZERO_VALUE = '0x'
 
 const SELECTORS = {
+  setSubnodeRecordRegistry: toFunctionSelector(
+    'function setSubnodeRecord(bytes32 node, bytes32 label, address owner, address resolver, uint64 ttl)',
+  ),
+  setSubnodeRecordWrapper: toFunctionSelector(
+    'function setSubnodeRecord(bytes32 parentNode, string label, address owner, address resolver, uint64 ttl, uint32 fuses, uint64 expiry)',
+  ),
   setAddr: toFunctionSelector('function setAddr(bytes32 node, address a)'),
   setName: toFunctionSelector('function setName(bytes32 node, string name)'),
   setNameForAddrL1: toFunctionSelector(
@@ -36,6 +42,12 @@ function maybeSetAddressPolicy(
 export function buildPrimaryNamePolicy(config: NetworkConfig): TargetSelectorPolicy {
   const policy = new Map<string, Set<string>>()
 
+  maybeSetAddressPolicy(policy, config.ENS_REGISTRY, [
+    SELECTORS.setSubnodeRecordRegistry,
+  ])
+  maybeSetAddressPolicy(policy, config.NAME_WRAPPER, [
+    SELECTORS.setSubnodeRecordWrapper,
+  ])
   maybeSetAddressPolicy(policy, config.PUBLIC_RESOLVER, [
     SELECTORS.setAddr,
     SELECTORS.setName,

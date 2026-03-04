@@ -2,12 +2,14 @@ import { randomUUID } from 'crypto'
 import {
   encodeFunctionData,
   isAddress,
+  keccak256,
   namehash,
   parseAbi,
   parseTransaction,
+  toBytes,
   zeroAddress,
 } from 'viem'
-import { getEnsName, readContract } from 'viem/actions'
+import { getEnsAddress, getEnsName, readContract } from 'viem/actions'
 import { normalize } from 'viem/ens'
 import { getPublicClient } from '@/lib/viemClient'
 import { checkContractOwner, checkOwnable, checkReverseClaimable } from '@/utils/contractChecks'
@@ -22,7 +24,14 @@ import {
 } from '@/lib/mcp/operationStore'
 
 const ENS_REGISTRY_ABI = parseAbi([
+  'function owner(bytes32 node) view returns (address)',
   'function resolver(bytes32 node) view returns (address)',
+  'function setSubnodeRecord(bytes32 node, bytes32 label, address owner, address resolver, uint64 ttl)',
+])
+
+const NAME_WRAPPER_ABI = parseAbi([
+  'function isWrapped(bytes32 node) view returns (bool)',
+  'function setSubnodeRecord(bytes32 parentNode, string label, address owner, address resolver, uint64 ttl, uint32 fuses, uint64 expiry) returns (bytes32)',
 ])
 
 const RESOLVER_ABI = parseAbi([
@@ -84,6 +93,13 @@ type ResolutionSnapshot = {
   reverseName: string | null
 }
 
+type EnsNameParts = {
+  label: string
+  parentName: string
+  parentNode: `0x${string}`
+  labelHash: `0x${string}`
+}
+
 function requireAddress(value: string, field: string): `0x${string}` {
   if (!isAddress(value)) {
     throw new Error(`Invalid ${field}.`)
@@ -135,14 +151,36 @@ function validateChainAndAddresses(input: PreflightInput): {
   contractAddress: `0x${string}`
   normalizedName: string
   nameNode: `0x${string}`
+  nameParts: EnsNameParts
 } {
   const config = ensureChainConfig(input.chainId)
   const walletAddress = requireAddress(input.walletAddress, 'walletAddress')
   const contractAddress = requireAddress(input.contractAddress, 'contractAddress')
   const normalizedName = normalizeEnsName(input.ensName)
-  const nameNode = namehash(normalizedName)
+  const labels = normalizedName.split('.').filter(Boolean)
+  if (labels.length < 2) {
+    throw new Error('ENS name must include at least one parent label.')
+  }
 
-  return { config, walletAddress, contractAddress, normalizedName, nameNode }
+  const label = labels[0]
+  const parentName = labels.slice(1).join('.')
+  const nameNode = namehash(normalizedName)
+  const parentNode = namehash(parentName)
+  const labelHash = keccak256(toBytes(label))
+
+  return {
+    config,
+    walletAddress,
+    contractAddress,
+    normalizedName,
+    nameNode,
+    nameParts: {
+      label,
+      parentName,
+      parentNode,
+      labelHash,
+    },
+  }
 }
 
 async function getResolverAddress(args: {
@@ -161,6 +199,46 @@ async function getResolverAddress(args: {
   })) as string
 
   return resolverAddress
+}
+
+async function getNodeOwner(args: {
+  chainId: number
+  ensRegistry: string
+  node: `0x${string}`
+}): Promise<string> {
+  const client = getPublicClient(args.chainId)
+  if (!client) throw new Error(`No RPC client for chain ${args.chainId}.`)
+
+  const owner = (await readContract(client, {
+    address: args.ensRegistry as `0x${string}`,
+    abi: ENS_REGISTRY_ABI,
+    functionName: 'owner',
+    args: [args.node],
+  })) as string
+
+  return owner
+}
+
+async function isParentWrapped(args: {
+  chainId: number
+  nameWrapper: string
+  parentNode: `0x${string}`
+}): Promise<boolean> {
+  if (!isAddress(args.nameWrapper)) return false
+
+  const client = getPublicClient(args.chainId)
+  if (!client) return false
+
+  try {
+    return (await readContract(client, {
+      address: args.nameWrapper as `0x${string}`,
+      abi: NAME_WRAPPER_ABI,
+      functionName: 'isWrapped',
+      args: [args.parentNode],
+    })) as boolean
+  } catch {
+    return false
+  }
 }
 
 async function getForwardAddress(args: {
@@ -237,6 +315,9 @@ async function getResolutionSnapshot(args: {
   normalizedName: string
   contractAddress: `0x${string}`
 }): Promise<ResolutionSnapshot> {
+  const client = getPublicClient(args.chainId)
+  if (!client) throw new Error(`No RPC client for chain ${args.chainId}.`)
+
   const resolverAddress = await getResolverAddress({
     chainId: args.chainId,
     ensRegistry: args.ensRegistry,
@@ -255,11 +336,28 @@ async function getResolutionSnapshot(args: {
     l2ReverseRegistrar: args.l2ReverseRegistrar,
   })
 
+  // Fallback: some names may resolve through wildcard/universal resolution even
+  // when the node resolver in registry is unset. This avoids false negatives in
+  // "already set" detection.
+  let fallbackForwardAddress: string | null = null
+  if (!forwardAddress && resolverAddress === zeroAddress) {
+    try {
+      const resolved = await getEnsAddress(client, {
+        name: args.normalizedName,
+      })
+      if (resolved && isAddress(resolved) && resolved !== zeroAddress) {
+        fallbackForwardAddress = resolved
+      }
+    } catch {
+      // ignore fallback errors and keep null
+    }
+  }
+
   return {
     normalizedName: args.normalizedName,
     nameNode: args.nameNode,
     resolverAddress,
-    forwardAddress,
+    forwardAddress: forwardAddress ?? fallbackForwardAddress,
     reverseName,
   }
 }
@@ -285,7 +383,14 @@ export class PrimaryNamingMcpService {
   ) {}
 
   async preflight(input: PreflightInput) {
-    const { config, walletAddress, contractAddress, normalizedName, nameNode } =
+    const {
+      config,
+      walletAddress,
+      contractAddress,
+      normalizedName,
+      nameNode,
+      nameParts,
+    } =
       validateChainAndAddresses(input)
 
     const client = getPublicClient(input.chainId)
@@ -317,6 +422,22 @@ export class PrimaryNamingMcpService {
       normalizedName,
       contractAddress,
     })
+
+    const [nameNodeOwner, parentWrapped] = await Promise.all([
+      getNodeOwner({
+        chainId: input.chainId,
+        ensRegistry: config.ENS_REGISTRY,
+        node: nameNode,
+      }),
+      isParentWrapped({
+        chainId: input.chainId,
+        nameWrapper: config.NAME_WRAPPER,
+        parentNode: nameParts.parentNode,
+      }),
+    ])
+
+    const subnameExists =
+      isAddress(nameNodeOwner) && nameNodeOwner !== zeroAddress
 
     const canSetViaOwnable = isOwnable && isContractOwner
     const canSetViaReverseClaimer = canUseReverseClaimerPath({
@@ -365,6 +486,15 @@ export class PrimaryNamingMcpService {
         currentName: snapshot.reverseName,
         alreadySet: compareName(snapshot.reverseName, normalizedName),
       },
+      subname: {
+        exists: subnameExists,
+        owner: nameNodeOwner,
+        label: nameParts.label,
+        parentName: nameParts.parentName,
+        parentNode: nameParts.parentNode,
+        labelHash: nameParts.labelHash,
+        parentWrapped,
+      },
       warnings,
     }
   }
@@ -372,47 +502,112 @@ export class PrimaryNamingMcpService {
   async buildPlan(input: BuildPlanInput) {
     const preflight = await this.preflight(input)
     const config = ensureChainConfig(input.chainId)
+    const notes: string[] = []
 
-    if (!preflight.canSetPrimaryName && !input.allowForwardOnly) {
+    if (
+      !preflight.canSetPrimaryName &&
+      !preflight.reverseResolution.alreadySet &&
+      !input.allowForwardOnly
+    ) {
       throw new Error(
         'Primary name cannot be set by current wallet/contract permissions. Set allowForwardOnly=true to generate forward-only plan.',
       )
     }
 
     const steps: PlanStep[] = []
+    const willCreateSubname = !preflight.subname?.exists
 
-    if (!preflight.forwardResolution.alreadySet) {
-      if (!isAddress(preflight.resolverAddress) || preflight.resolverAddress === zeroAddress) {
-        throw new Error(
-          'Resolver is not configured for this ENS name. Cannot generate forward-resolution transaction.',
-        )
+    // Step 1: Create subname (if missing). For wrapped parents, call NameWrapper.
+    if (willCreateSubname && preflight.subname) {
+      if (preflight.subname.parentWrapped) {
+        if (!isAddress(config.NAME_WRAPPER)) {
+          throw new Error('NameWrapper is not configured for this chain.')
+        }
+
+        steps.push({
+          id: 'create-subname-wrapped',
+          chainId: input.chainId,
+          to: config.NAME_WRAPPER as `0x${string}`,
+          data: encodeFunctionData({
+            abi: NAME_WRAPPER_ABI,
+            functionName: 'setSubnodeRecord',
+            args: [
+              preflight.subname.parentNode as `0x${string}`,
+              preflight.subname.label,
+              preflight.walletAddress as `0x${string}`,
+              config.PUBLIC_RESOLVER as `0x${string}`,
+              BigInt(0),
+              0,
+              BigInt(0),
+            ],
+          }),
+          value: '0x0',
+          method:
+            'setSubnodeRecord(bytes32,string,address,address,uint64,uint32,uint64)',
+          description: `Create subname ${preflight.ensName}`,
+        })
+      } else {
+        steps.push({
+          id: 'create-subname',
+          chainId: input.chainId,
+          to: config.ENS_REGISTRY as `0x${string}`,
+          data: encodeFunctionData({
+            abi: ENS_REGISTRY_ABI,
+            functionName: 'setSubnodeRecord',
+            args: [
+              preflight.subname.parentNode as `0x${string}`,
+              preflight.subname.labelHash as `0x${string}`,
+              preflight.walletAddress as `0x${string}`,
+              config.PUBLIC_RESOLVER as `0x${string}`,
+              BigInt(0),
+            ],
+          }),
+          value: '0x0',
+          method: 'setSubnodeRecord(bytes32,bytes32,address,address,uint64)',
+          description: `Create subname ${preflight.ensName}`,
+        })
       }
-
-      steps.push({
-        id: 'set-forward-resolution',
-        chainId: input.chainId,
-        to: preflight.resolverAddress as `0x${string}`,
-        data: encodeFunctionData({
-          abi: RESOLVER_ABI,
-          functionName: 'setAddr',
-          args: [preflight.nameNode, preflight.contractAddress],
-        }),
-        value: '0x0',
-        method: 'setAddr(bytes32,address)',
-        description: `Set forward resolution for ${preflight.ensName} -> ${preflight.contractAddress}`,
-      })
     }
 
+    // Step 2: Set forward resolution (skip as no-op if already set).
+    if (!preflight.forwardResolution.alreadySet) {
+      const canSetForwardResolver =
+        isAddress(preflight.resolverAddress) &&
+        preflight.resolverAddress !== zeroAddress
+
+      if (canSetForwardResolver || willCreateSubname) {
+        const forwardResolver = canSetForwardResolver
+          ? (preflight.resolverAddress as `0x${string}`)
+          : (config.PUBLIC_RESOLVER as `0x${string}`)
+
+        steps.push({
+          id: 'set-forward-resolution',
+          chainId: input.chainId,
+          to: forwardResolver,
+          data: encodeFunctionData({
+            abi: RESOLVER_ABI,
+            functionName: 'setAddr',
+            args: [preflight.nameNode, preflight.contractAddress],
+          }),
+          value: '0x0',
+          method: 'setAddr(bytes32,address)',
+          description: `Set forward resolution for ${preflight.ensName} -> ${preflight.contractAddress}`,
+        })
+      } else {
+        notes.push(
+          'Forward resolution appears unset but resolver is missing. Forward step was skipped; create/configure resolver on the ENS node first.',
+        )
+      }
+    } else {
+      notes.push('Forward resolution already set. Skipping forward step.')
+    }
+
+    // Step 3: Set reverse resolution (skip as no-op if already set).
     if (!preflight.reverseResolution.alreadySet && preflight.canSetPrimaryName) {
       if (preflight.recommendedPath === 'ownable') {
         if (isMainnetEnsChain(input.chainId)) {
           if (!isAddress(config.REVERSE_REGISTRAR)) {
             throw new Error('Reverse registrar is not configured for this chain.')
-          }
-          if (!isAddress(preflight.resolverAddress) || preflight.resolverAddress === zeroAddress) {
-            throw new Error(
-              'A valid resolver is required to set primary name on this chain.',
-            )
           }
 
           steps.push({
@@ -425,7 +620,7 @@ export class PrimaryNamingMcpService {
               args: [
                 preflight.contractAddress,
                 preflight.walletAddress,
-                preflight.resolverAddress as `0x${string}`,
+                config.PUBLIC_RESOLVER as `0x${string}`,
                 preflight.ensName,
               ],
             }),
@@ -454,29 +649,31 @@ export class PrimaryNamingMcpService {
         }
       } else if (preflight.recommendedPath === 'reverse-claimer') {
         if (!isAddress(preflight.resolverAddress) || preflight.resolverAddress === zeroAddress) {
-          throw new Error(
-            'Reverse-claimer path requires a valid resolver for the ENS name.',
+          notes.push(
+            'Reverse-claimer path requires a resolver on the ENS node. Reverse step was skipped.',
           )
+        } else {
+          const reverseNode = namehash(
+            `${preflight.contractAddress.slice(2).toLowerCase()}.addr.reverse`,
+          )
+
+          steps.push({
+            id: 'set-primary-name-reverse-claimer',
+            chainId: input.chainId,
+            to: preflight.resolverAddress as `0x${string}`,
+            data: encodeFunctionData({
+              abi: RESOLVER_ABI,
+              functionName: 'setName',
+              args: [reverseNode, preflight.ensName],
+            }),
+            value: '0x0',
+            method: 'setName(bytes32,string)',
+            description: `Set reverse record ${preflight.contractAddress} -> ${preflight.ensName}`,
+          })
         }
-
-        const reverseNode = namehash(
-          `${preflight.contractAddress.slice(2).toLowerCase()}.addr.reverse`,
-        )
-
-        steps.push({
-          id: 'set-primary-name-reverse-claimer',
-          chainId: input.chainId,
-          to: preflight.resolverAddress as `0x${string}`,
-          data: encodeFunctionData({
-            abi: RESOLVER_ABI,
-            functionName: 'setName',
-            args: [reverseNode, preflight.ensName],
-          }),
-          value: '0x0',
-          method: 'setName(bytes32,string)',
-          description: `Set reverse record ${preflight.contractAddress} -> ${preflight.ensName}`,
-        })
       }
+    } else if (preflight.reverseResolution.alreadySet) {
+      notes.push('Reverse resolution already set. Skipping reverse step.')
     }
 
     const operationId = randomUUID()
@@ -495,10 +692,12 @@ export class PrimaryNamingMcpService {
       plan: steps,
       preflight,
       isNoop: steps.length === 0,
-      notes:
-        steps.length === 0
+      notes: [
+        ...(steps.length === 0
           ? ['No on-chain writes required. Forward and reverse mappings already match.']
-          : [],
+          : []),
+        ...notes,
+      ],
       next: {
         submitTool: 'ens_submit_signed_txs',
         statusTool: 'ens_get_primary_name_status',
