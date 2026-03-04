@@ -1,0 +1,13 @@
+.docFooter {
+  border-top: 1px solid var(--ifm-toc-border-color);
+  padding-top: 1rem;
+}
+
+.helpText {
+  margin: 0.75rem 0 0;
+  color: var(--ifm-font-color-base);
+}
+
+.helpLink {
+  font-weight: 600;
+}

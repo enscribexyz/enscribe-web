@@ -1,30 +1,37 @@
 ---
 sidebar_position: 1
+description: Enscribe helps teams name smart contracts with ENS, attach metadata, and make contract identity verifiable across onchain interfaces.
+keywords:
+  - what is enscribe
+  - ens smart contracts
+  - contract naming
+  - onchain identity
+  - contract metadata
 ---
 
 # What is Enscribe?
 
-The Ethereum Name Service (ENS) protocol was created to allow users to replace hexadecimal Ethereum wallet addresses with human-readable names. However, ENS addresses are rarely used to refer to smart contracts. 
-If they were, it could provide web3 users with a much higher degree of trust in the code they are interacting with.
+Enscribe is infrastructure for smart contract identity on ENS.
 
-The reason this isn’t done currently is that setting ENS records requires manual steps after a contract has been deployed such as interfacing with smart contracts on Etherscan, which is manual and a clunky process.
+It helps teams:
+- Name new contracts at deployment time
+- Name existing contracts after deployment
+- Add and inspect contract metadata and verification context
+- Explore contract and account identity across multiple chains
 
-We have created **ENS**cribe to easily name existing and streamline the deployment of new smart contracts.
+## Why Enscribe exists
 
-This service can be used to ensure that smart contracts have valid ENS records associated with them at deployment time, so they are guaranteed to have a human-readable name associated with them. In addition, 
-it also provides tooling for streamlining the process of naming existing contracts, so developers have a choice between a fine-grained deployment approach and one that provides a simplified UX.
+In many apps and wallets, contracts still appear as raw hex addresses. That creates operational and security risk because users and teams cannot quickly tell what a contract is.
 
-This provides trust and transparency for end users who can ascertain the identity of the person or organisation that deployed the contract.
+Enscribe reduces that ambiguity by making ENS-based contract naming and metadata management practical in day-to-day workflows.
 
-To unpack this further, imagine when performing a swap on Uniswap: instead of being shown a random contract address, you were presented with an ENS name for the contract such as `v1.uniswap.eth`. 
-In addition, imagine if you could click on that link to see the contract ENS record along with attestations of firms that have audited that specific contract.
+## What you can do in Enscribe
 
-We wish to get to a point where the Web3 user experience is something akin to the Web2 user experience, where users can have trust in ENS names they are interacting with in apps, much like how they trust 
-DNS names underpinned by TLS certificates that they interact with in their browsers.
+1. Deploy and name in one flow
+2. Name existing contracts with forward resolution and, when supported, primary names
+3. Browse named contracts and accounts in Explore mode
+4. Track contracts in deployment history
 
-![DNS](/img/dns.png)
+## Next concept
 
-This could greatly help users understand who they are interacting with in their on-chain activities, instead of relying on address tags in services such as Etherscan.
-
-**Enscribe** is a new service that wants to fix this problem. This service provides tooling for easily managing naming for smart contracts and provides a contract deployment service for Ethereum that guarantees 
-that when a contract is deployed using it, it comes with an ENS name.
+Continue to [Naming smart contracts](./naming-contracts).

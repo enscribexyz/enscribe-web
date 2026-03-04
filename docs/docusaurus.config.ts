@@ -83,6 +83,8 @@ const config = {
      ],
   ],
 
+  clientModules: [require.resolve('./src/gtagShim.ts')],
+
   markdown: {
     mermaid: true,
     hooks: {

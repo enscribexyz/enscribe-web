@@ -6,9 +6,14 @@ sidebar_position: 4
 
 import AppUrl from '@site/src/components/AppUrl';
 import DocCardList from '@theme/DocCardList';
+import {useCurrentSidebarCategory} from '@docusaurus/theme-common';
 
-In this section we take a look at the dev tooling for naming your contracts.
+This section explains the developer tooling for naming contracts.
 
-We cover a Hardhat v3 plugin and the core enscribe library.
+We cover the Hardhat v3 Enscribe plugin, the Foundry Enscribe library and the core Typescript Enscribe library.
 
-<DocCardList />
+<DocCardList
+  items={useCurrentSidebarCategory().items.filter(
+    (item) => item.label?.toLowerCase() !== 'overview',
+  )}
+/>

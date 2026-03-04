@@ -1,99 +1,89 @@
 ---
 sidebar_position: 4
-title: Exploring Accounts, Contracts and ENS Names
+title: Exploring accounts, contracts, and ENS names
+description: Explore contract and account identity across supported chains, without connecting a wallet or owning an ENS name.
+keywords:
+  - enscribe explore
+  - ens lookup
+  - contract identity
+  - smart contract metadata
+  - address explorer
 ---
 
-# Exploring Accounts, Contracts and ENS Names
+# Exploring accounts, contracts, and ENS names
 
-Enscribe allows you to explore contracts and accounts across multiple networks with integrated ENS support. This guide explains how to search for and view details of any Ethereum address or ENS name across supported chains.
+import AppUrl from '@site/src/components/AppUrl';
 
-## Universal Search
+Explore mode is the fastest way to try Enscribe if you do not have an ENS name or a contract to name yet.
 
-The search bar lets you look up any Ethereum address or ENS name without connecting your wallet. Simply paste a 0x address or type an ENS name, and Enscribe will show you the relevant details.
+## Try it now
 
-![Universal Search Bar](../../blog/2025-06-10-explore-and-search-address/searchbar.png)
+- Open a live Enscribe-named contract:
+  <AppUrl path="explore/1/0x9b95a964db0ab154a587cc667b4964bd5dd8de81" label="Explore an Enscribe contract on Ethereum" />
+- Open a known protocol contract:
+  <AppUrl path="explore/1/0x66a9893cC07D91D95644AEDD05D03f95e1dBA8Af" label="Explore a Uniswap contract on Ethereum" />
+- You can also paste any address or ENS name in the app search bar.
 
-The search works with:
-- Standard Ethereum addresses (0x...)
+## Universal search
+
+Search works without wallet connection. Paste a `0x...` address or type an ENS name.
+
+![Universal search bar](../../blog/2025-06-10-explore-and-search-address/searchbar.png)
+
+Search supports:
+- Ethereum addresses (`0x...`)
 - ENS names
-- Automatic detection of which chain to use
+- Chain-aware routing to the correct contract/account page
 
-ENS resolution works correctly across different networks, using mainnet resolvers for production chains and Sepolia for test networks, directing you to the right page based on chain context.
+## Direct URL format
 
-## Direct URL Access
+You can share any contract/account with:
 
-You can directly access any address using this standardized URL format:
-
-```
+```text
 https://app.enscribe.xyz/explore/<chainId>/<address>
 ```
 
-This URL structure makes it easy to bookmark and share addresses with others.
+This format is useful for support docs, runbooks, and team handoffs.
 
-## Contract Details View
+## What you can inspect on contract pages
 
-When viewing a contract, you'll see:
+- Primary ENS name and expiry state
+- Verification status across Sourcify, Etherscan, and Blockscout
+- Links to verified source code
+- Names resolving to the contract
+- Names owned or managed by the contract
 
-- The contract's primary ENS name (if registered) with color-coded expiry status icons:
-  - Green checkmark: Valid registration (more than 3 months until expiry)
-  - Yellow exclamation: Expiring soon (within 3 months)
-  - Red X: Expired (in grace period)
-- Verification status across multiple sources (Sourcify, Etherscan, Blockscout)
-- Direct links to view verified source code
-- "Verify" button option for unverified contracts
-- All ENS names associated with this contract address
-- ENS names owned or managed by this contract with expiration status
-- Copy buttons for addresses and names with visual confirmation
+![Contract details view](../../blog/2025-06-10-explore-and-search-address/contract.png)
 
-![Contract Details View](../../blog/2025-06-10-explore-and-search-address/contract.png)
+## What you can inspect on account pages
 
-This layout helps you quickly confirm contract identity and trustworthiness without navigating between multiple tools.
+- Primary ENS name and expiry state
+- Names resolving to the account
+- Names owned or managed by the account
 
-## Account Details View
+![Account details view](../../blog/2025-06-10-explore-and-search-address/account.png)
 
-For regular accounts (EOAs), the page shows:
+## Chain selector behavior
 
-- Primary ENS name (if available) with appropriate expiry status icon
-- All associated ENS names pointing to this address
-- ENS names owned or managed by this address with expiry information
-- Copy functionality for addresses and names
+When no wallet is connected:
+- You can choose any supported chain
+- Data loads for that selected chain only
 
-![Account Details View](../../blog/2025-06-10-explore-and-search-address/account.png)
+![Chain selector with wallet disconnected](../../blog/2025-06-10-explore-and-search-address/chain-selector.png)
 
-Both account and contract views include external links — addresses link to Etherscan while ENS names link to the ENS app. When you click on an ENS name that a contract or account owns, Enscribe resolves it to an address and opens that address in a new tab within Enscribe.
+When a wallet is connected:
+- The selected chain follows your wallet network
+- Changing wallet network updates the page to the same address on that chain
 
-The ENS name resolution for owned names:
-- Opens resolved addresses in a new tab for convenient exploration
-- Shows toast notifications for failed resolutions
+![Chain selector with wallet connected](../../blog/2025-06-10-explore-and-search-address/wallet-selector.png)
 
-## Chain Selector
+## Supported networks
 
-The chain selector helps you navigate between networks while examining an address. It works differently based on whether your wallet is connected:
+- Ethereum Mainnet
+- Ethereum Sepolia
+- Base Mainnet
+- Base Sepolia
+- Linea Mainnet
+- Linea Sepolia
 
-**When No Wallet is Connected:**
-
-![Chain Selector - wallet disconnected](../../blog/2025-06-10-explore-and-search-address/chain-selector.png)
-
-- Choose any supported chain from the dropdown
-- Switch networks to compare the same address across chains
-- All data loads specifically for the selected network
-
-**When a Wallet is Connected:**
-
-![Wallet Connected](../../blog/2025-06-10-explore-and-search-address/wallet-selector.png)
-
-- Chain selector automatically syncs with your connected wallet's network
-- When switching chains on wallet, you'll be redirected to view the same address on the newly selected chain
-
-## Supported Networks
-
-Enscribe currently supports these networks:
-
-- **Ethereum Mainnet** 
-- **Ethereum Sepolia** 
-- **Linea Mainnet** (with .linea.eth domains)
-- **Linea Sepolia** (with .linea-sepolia.eth domains)
-- **Base Mainnet** (with .base.eth domains)
-- **Base Sepolia** 
-
-Each chain handles ENS resolution differently based on network-specific requirements. When you switch chains, the URL updates with the new chain ID, creating direct links to the same address across different networks.
+You can use Explore as a zero-setup entry point, then move to naming once you are ready.

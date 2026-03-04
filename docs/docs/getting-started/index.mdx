@@ -1,17 +1,43 @@
 ---
 sidebar_position: 2
+description: Task-based implementation guides for exploring identity data, naming contracts, deploying, and operational workflows.
+keywords:
+  - enscribe getting started
+  - enscribe how-to
+  - name smart contracts
+  - ens contract naming
+  - contract deployment
 ---
 
-# Getting Started
+# Overview
 
-import AppUrl from '@site/src/components/AppUrl';
 import DocCardList from '@theme/DocCardList';
+import {useCurrentSidebarCategory} from '@docusaurus/theme-common';
 
-The main entry point for Enscribe is via the Enscribe app hosted at <AppUrl/>
+This section explains step-by-step execution workflows. If you need background first, read [Concepts](/docs/introduction/what-is-enscribe).
 
-The Enscribe app contains the Contract Deployment Service for the deployment of new contracts and historical information about deployments.
+## Explore and inspect identity
 
-They are covered in the following sections.
+- [Exploring accounts, contracts and ENS names](/docs/getting-started/explore-addresses)
+- [My account view](/docs/getting-started/my-account-view)
 
-<DocCardList />
+## Name and deploy contracts
 
+- [Name existing contracts](/docs/getting-started/naming-existing-contracts)
+- [Contract deployment service](/docs/getting-started/contract-deployment-service)
+- [Deployment history](/docs/getting-started/deployment-history)
+
+## Wallet and permissions workflows
+
+- [Using Safe wallet](/docs/getting-started/using-safe-wallet)
+- [The operator role in ENS](/docs/getting-started/opearator-role)
+
+## Contract data reference
+
+- [Bytecode and ABIs](/docs/getting-started/bytcode-abi)
+
+<DocCardList
+  items={useCurrentSidebarCategory().items.filter(
+    (item) => item.label?.toLowerCase() !== 'overview',
+  )}
+/>

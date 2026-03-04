@@ -1,35 +1,45 @@
 ---
 sidebar_position: 1
 slug: /
+description: Start using Enscribe quickly with a clear first task, then move into concepts and detailed workflows.
+keywords:
+  - enscribe
+  - ens
+  - smart contract naming
+  - smart contract metadata
+  - onchain identity
+  - contract explorer
 ---
 
-# Introduction
+# Quick Start
 
-import DocCardList from '@theme/DocCardList';
+import AppUrl from '@site/src/components/AppUrl';
 
-When users access websites, they expect to do it with a human readable DNS name. However, when interacting with web3 apps and signing transactions from their wallets, users are presented with meaningless smart contract hexidecimal addresses to sign.
+Use this page to get running quickly, then move into concepts and detailed guides.
 
+## Choose your first task
 
-This is wrong, and the Enscribe service has been created to address this issue.
+### Option 1: Explore first (no setup required)
 
-Since their launch in May 2017, the ENS service set out to replace wallet and smart contract addresses with human readable names. However, for a reason unbeknownst to us, very few smart contract developers name their smart contracts.
+- [Open a live contract example](https://app.enscribe.xyz/explore/1/0x9b95a964db0ab154a587cc667b4964bd5dd8de81)
+- Follow [Exploring accounts, contracts and ENS names](/docs/getting-started/explore-addresses)
 
-In part this may be because their is limited support for them in wallets, but also its another thing that developers have do to after they deploy a contract.
+This is the fastest path if you do not have an ENS name or a contract yet.
 
-Enscribe is here to change this. By providing a service that creates ENS records for contracts at deployment, we can change Ethereum and L2s from being full of anonymous contracts and instead them being labelled and named, providing greater transparency and trust in on-chain applications for users.
+### Option 2: Name contracts now
 
-Web users don't have to deal with IP addresses, nor should Web3 users have to deal with hexadecimal addresses in apps.
+- Launch the app: <AppUrl label="app.enscribe.xyz" />
+- Follow [Name existing contracts](/docs/getting-started/naming-existing-contracts)
+- Or use [Contract deployment service](/docs/getting-started/contract-deployment-service)
 
-**TLDR; we believe the web3 experience should change so that instead of this:**
+## Learn the concepts
 
-![Metamask transaction](/img/metamask-tx.png)
+- [What is Enscribe](/docs/introduction/what-is-enscribe)
+- [What is ENS](/docs/introduction/what-is-ens)
+- [Naming smart contracts](/docs/introduction/naming-contracts)
+- [Supported networks](/docs/introduction/supported-networks)
 
-Users see this:
+## Continue with implementation guides
 
-![Metamask name contract transaction](/img/metamask-enscribed-tx.png)
-
-We believe this is an important step forward in enhancing user-experience on the EVM and our contract deployment service is the first piece of infrastructure serving this purpose.
-
-Learn more about Enscribe and ENS in the following sections.
-
-<DocCardList />
+- [Using Enscribe](/docs/getting-started)
+- [Reference pages](/docs/getting-started/bytcode-abi)
