@@ -122,7 +122,21 @@ function normalizeEnsName(value: string): string {
   if (!trimmed) {
     throw new Error('ENS name is required.')
   }
-  return normalize(trimmed)
+  try {
+    const normalized = normalize(trimmed)
+    if (typeof normalized === 'string' && normalized.trim()) {
+      return normalized
+    }
+  } catch {
+    // Fall back to ASCII validation below.
+  }
+
+  // Graceful fallback for plain ASCII ENS names if normalization library fails.
+  if (/^[a-z0-9-]+(?:\.[a-z0-9-]+)+$/i.test(trimmed)) {
+    return trimmed.toLowerCase()
+  }
+
+  throw new Error('ENS name normalization failed.')
 }
 
 function ensureChainConfig(chainId: number) {
