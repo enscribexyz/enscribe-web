@@ -8,9 +8,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { SendHorizonal } from 'lucide-react'
 import { useAccount, useSwitchChain, useWalletClient } from 'wagmi'
+import { isAddress } from 'viem'
 import { sendTransaction, waitForTransactionReceipt } from 'viem/actions'
 import { waitForChainSwitch, getChainName, getViemChain } from '@/lib/chains'
 import { getPublicClient } from '@/lib/viemClient'
+import { CONTRACTS } from '@/utils/constants'
 
 type ChatMessage = {
   id: string
@@ -22,12 +24,6 @@ type PromptParams = {
   chainId: number
   contractAddress: `0x${string}`
   walletAddress: `0x${string}`
-  ensName: string
-}
-
-type ParsedPrompt = {
-  chainId: number
-  contractAddress: `0x${string}`
   ensName: string
 }
 
@@ -85,76 +81,27 @@ type PendingApproval = {
   plan: BuildPlanOutput
 }
 
-const ADDRESS_REGEX = /0x[a-fA-F0-9]{40}/g
-const ENS_CANDIDATE_REGEX =
-  /\b([a-z0-9](?:[a-z0-9-]{0,62})(?:\.[a-z0-9](?:[a-z0-9-]{0,62}))+)\b/gi
+type IntentModelResponse = {
+  model: string
+  status: 'need_info' | 'ready' | 'out_of_scope'
+  message: string
+  question: string | null
+  missingFields: Array<'chainId' | 'contractAddress' | 'ensName'>
+  intent: {
+    action: 'set_primary_name'
+    chainId: number
+    contractAddress: `0x${string}`
+    ensName: string
+  } | null
+}
+
+type IntentConversationMessage = {
+  role: 'user' | 'assistant'
+  text: string
+}
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
-}
-
-function normalizeEnsName(raw: string): string {
-  return raw.trim().replace(/\.$/, '').toLowerCase()
-}
-
-function inferEnsName(prompt: string): string | null {
-  const taggedEns = prompt.match(/ens(?:\s*name)?\s*[:=]?\s*([^\s,;]+)/i)?.[1]
-  const taggedPrimary = prompt.match(
-    /primary\s*name\s*[:=]?\s*([^\s,;]+)/i,
-  )?.[1]
-
-  const tagged = taggedEns ?? taggedPrimary
-  if (tagged) {
-    const normalized = normalizeEnsName(tagged)
-    if (normalized.includes('.') && !normalized.startsWith('0x')) return normalized
-  }
-
-  const candidates = [...prompt.matchAll(ENS_CANDIDATE_REGEX)]
-    .map((m) => normalizeEnsName(m[1]))
-    .filter(
-      (value) =>
-        value.includes('.') &&
-        !value.startsWith('0x') &&
-        !value.startsWith('http') &&
-        !value.includes('..'),
-    )
-
-  return candidates[0] ?? null
-}
-
-function parsePrompt(prompt: string): ParsedPrompt | null {
-  const chainById = prompt.match(/chain\s*id\s*[:=]\s*(\d+)/i)
-  const chainIdTag = prompt.match(/chainId\s*[:=]\s*(\d+)/i)
-
-  let chainId = Number(chainById?.[1] ?? chainIdTag?.[1] ?? 0)
-  if (!chainId) {
-    if (/sepolia/i.test(prompt)) chainId = 11155111
-    if (/ethereum mainnet|\bmainnet\b/i.test(prompt)) chainId = 1
-    if (/base sepolia/i.test(prompt)) chainId = 84532
-    if (/base mainnet|\bbase\b/i.test(prompt)) chainId = 8453
-  }
-
-  const contractTag = prompt.match(
-    /contract(?:\s*address)?\s*[:=]?\s*(0x[a-fA-F0-9]{40})/i,
-  )
-  const allAddresses = [...prompt.matchAll(ADDRESS_REGEX)].map((m) => m[0])
-
-  const contractAddress = contractTag?.[1] ?? allAddresses[0] ?? ''
-  const ensName = inferEnsName(prompt) ?? ''
-
-  if (
-    !chainId ||
-    !/^0x[a-fA-F0-9]{40}$/.test(contractAddress) ||
-    !ensName.includes('.')
-  ) {
-    return null
-  }
-
-  return {
-    chainId,
-    contractAddress: contractAddress as `0x${string}`,
-    ensName,
-  }
 }
 
 async function callMcpTool<T>(name: string, args: Record<string, unknown>): Promise<T> {
@@ -203,8 +150,80 @@ async function callMcpTool<T>(name: string, args: Record<string, unknown>): Prom
   }
 }
 
+async function callIntentModel(
+  prompt: string,
+  messages: IntentConversationMessage[],
+): Promise<IntentModelResponse> {
+  const response = await fetch('/api/ai-intent', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt, messages }),
+  })
+
+  const json = (await response.json()) as
+    | IntentModelResponse
+    | { error?: string }
+
+  if (!response.ok) {
+    throw new Error(
+      'error' in json && typeof json.error === 'string'
+        ? json.error
+        : `Intent request failed (${response.status}).`,
+    )
+  }
+
+  if (
+    !('model' in json) ||
+    typeof json.model !== 'string' ||
+    !('status' in json) ||
+    (json.status !== 'need_info' &&
+      json.status !== 'ready' &&
+      json.status !== 'out_of_scope') ||
+    !('message' in json) ||
+    typeof json.message !== 'string' ||
+    !('question' in json) ||
+    !(json.question === null || typeof json.question === 'string') ||
+    !('missingFields' in json) ||
+    !Array.isArray(json.missingFields) ||
+    !('intent' in json)
+  ) {
+    throw new Error('Intent service returned invalid response.')
+  }
+
+  return json
+}
+
 function formatTxHash(hash: string): string {
   return `${hash.slice(0, 10)}...${hash.slice(-8)}`
+}
+
+function toPromptParamsFromIntent(args: {
+  intent: NonNullable<IntentModelResponse['intent']>
+  walletAddress: `0x${string}`
+}): PromptParams {
+  const { intent, walletAddress } = args
+
+  if (intent.action !== 'set_primary_name') {
+    throw new Error(`Unsupported intent action: ${intent.action}`)
+  }
+  if (!CONTRACTS[intent.chainId]) {
+    throw new Error(`Unsupported chainId: ${intent.chainId}`)
+  }
+  if (!isAddress(intent.contractAddress)) {
+    throw new Error('Intent returned invalid contract address.')
+  }
+
+  const normalizedEnsName = intent.ensName.trim().toLowerCase().replace(/\.$/, '')
+  if (!normalizedEnsName.includes('.')) {
+    throw new Error('Intent returned invalid ENS name.')
+  }
+
+  return {
+    chainId: intent.chainId,
+    contractAddress: intent.contractAddress,
+    walletAddress,
+    ensName: normalizedEnsName,
+  }
 }
 
 export default function AIPage() {
@@ -222,6 +241,10 @@ export default function AIPage() {
   const [executionStatus, setExecutionStatus] = useState<StatusOutput | null>(
     null,
   )
+  const [intentConversation, setIntentConversation] = useState<
+    IntentConversationMessage[]
+  >([])
+  const [isInterpreting, setIsInterpreting] = useState(false)
   const [isPlanning, setIsPlanning] = useState(false)
   const [isExecuting, setIsExecuting] = useState(false)
 
@@ -230,8 +253,14 @@ export default function AIPage() {
   const { switchChain } = useSwitchChain()
 
   const sendDisabled = useMemo(() => {
-    return !connectedWallet || !prompt.trim() || isPlanning || isExecuting
-  }, [connectedWallet, prompt, isPlanning, isExecuting])
+    return (
+      !connectedWallet ||
+      !prompt.trim() ||
+      isInterpreting ||
+      isPlanning ||
+      isExecuting
+    )
+  }, [connectedWallet, prompt, isInterpreting, isPlanning, isExecuting])
 
   function appendMessage(role: ChatMessage['role'], text: string) {
     const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`
@@ -254,18 +283,85 @@ export default function AIPage() {
       return
     }
 
-    const parsedInput = parsePrompt(trimmed)
-    const parsed = parsedInput
-      ? {
-          ...parsedInput,
-          walletAddress: connectedWallet as `0x${string}`,
+    setIsInterpreting(true)
+    appendMessage('assistant', 'Sending prompt to intent model...')
+    let resolvedIntent: NonNullable<IntentModelResponse['intent']> | null = null
+    try {
+      const intentResponse = await callIntentModel(trimmed, intentConversation)
+      appendMessage(
+        'assistant',
+        `[${intentResponse.model}] ${intentResponse.message}`,
+      )
+
+      const nextIntentConversation: IntentConversationMessage[] = [
+        ...intentConversation,
+        { role: 'user', text: trimmed },
+        {
+          role: 'assistant',
+          text: intentResponse.question ?? intentResponse.message,
+        },
+      ]
+      setIntentConversation(nextIntentConversation)
+
+      if (intentResponse.status === 'out_of_scope') {
+        appendMessage(
+          'assistant',
+          'I can help only with ENS naming and primary-name flows.',
+        )
+        return
+      }
+
+      if (intentResponse.status === 'need_info') {
+        if (intentResponse.question) {
+          appendMessage('assistant', intentResponse.question)
+        } else {
+          appendMessage(
+            'assistant',
+            'I need more details to continue with naming.',
+          )
         }
-      : null
+        return
+      }
+
+      if (!intentResponse.intent) {
+        appendMessage(
+          'assistant',
+          'Intent model marked this as ready but did not return a valid intent.',
+        )
+        return
+      }
+
+      resolvedIntent = intentResponse.intent
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Intent model request failed.'
+      appendMessage(
+        'assistant',
+        `Intent model unavailable: ${message}.`,
+      )
+      return
+    } finally {
+      setIsInterpreting(false)
+    }
+
+    let parsed: PromptParams | null = null
+    if (resolvedIntent) {
+      try {
+        parsed = toPromptParamsFromIntent({
+          intent: resolvedIntent,
+          walletAddress: connectedWallet as `0x${string}`,
+        })
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : 'Intent validation failed.'
+        appendMessage('assistant', `Intent validation failed: ${message}`)
+      }
+    }
 
     if (!parsed) {
       appendMessage(
         'assistant',
-        'Unable to parse your prompt. Include a contract address, an ENS name, and a network (e.g. sepolia/mainnet/base).',
+        'Unable to build a valid intent for MCP planning.',
       )
       return
     }
@@ -287,6 +383,7 @@ export default function AIPage() {
       )
 
       setPendingApproval({ params: parsed, preflight, plan })
+      setIntentConversation([])
 
       appendMessage(
         'assistant',
