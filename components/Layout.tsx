@@ -16,6 +16,7 @@ import {
   User,
   List,
   Tag,
+  Bot,
 } from 'lucide-react'
 import ChainSelector from './ChainSelector'
 import SearchModal from './SearchModal'
@@ -51,6 +52,7 @@ export default function Layout({ children }: LayoutProps) {
 
   const navigation = useMemo(
     () => [
+      { name: '✨ Ask AI', href: '/ai', icon: Bot },
       { name: 'Name Contract', href: '/nameContract', icon: FileText },
       { name: 'Batch Naming', href: '/batchNaming', icon: List },
       { name: 'Deploy Contract', href: '/deploy', icon: PencilLine },
