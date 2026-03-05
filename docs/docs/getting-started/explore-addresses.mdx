@@ -47,13 +47,34 @@ This format is useful for support docs, runbooks, and team handoffs.
 
 ## What you can inspect on contract pages
 
+Contract pages display identity, verification, and metadata in a single view.
+
+![Contract page layout](../../blog/2026-03-10-contract-metadata/contract-page.png)
+
+**Header and avatar**
+- Circular avatar prominently displayed
+- Header image as a subtle background
+- Contract name and description
+- Social links with branded icons (GitHub, Twitter/X, Telegram, and others)
+
+**Identity and ENS details**
 - Primary ENS name and expiry state
-- Verification status across Sourcify, Etherscan, and Blockscout
-- Links to verified source code
 - Names resolving to the contract
 - Names owned or managed by the contract
+- ENS management and organization information (owner, manager, parent)
 
-![Contract details view](../../blog/2025-06-10-explore-and-search-address/contract.png)
+**Verification**
+- Verification status across Sourcify, Etherscan, and Blockscout
+- Links to verified source code
+- ABI and source code when verified on Sourcify
+
+**Contract metadata**
+- All ENS text records displayed in a dedicated metadata section (docs, audits, category, license, and more)
+- Organization-level metadata inherited from parent ENS names
+
+![Contract metadata view](../../blog/2026-03-10-contract-metadata/metadata.png)
+
+For details on metadata fields, inheritance, and the public API, see [Contract metadata](/docs/introduction/contract-metadata).
 
 ## What you can inspect on account pages
 
