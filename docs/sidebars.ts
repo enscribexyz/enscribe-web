@@ -9,6 +9,7 @@ const sidebars: SidebarsConfig = {
       items: [
         {type: 'doc', id: 'getting-started/index', label: 'Overview'},
         'getting-started/explore-addresses',
+        'getting-started/name-explorer',
         'getting-started/naming-existing-contracts',
         'getting-started/contract-deployment-service',
         'getting-started/deployment-history',
