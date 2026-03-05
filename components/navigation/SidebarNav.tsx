@@ -6,6 +6,7 @@ export interface NavItem {
   name: string
   href: string
   icon: ComponentType<SVGProps<SVGSVGElement>>
+  tag?: string
 }
 
 interface SidebarNavProps {
@@ -33,7 +34,12 @@ export const SidebarNav = memo(function SidebarNav({
         <li key={item.name}>
           <Link href={item.href} className={linkClassName}>
             <item.icon className="w-4 h-4 shrink-0 opacity-70" />
-            {item.name}
+            <span className="min-w-0 truncate">{item.name}</span>
+            {item.tag ? (
+              <span className="ml-auto rounded-full border border-amber-300 bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-900 dark:border-amber-400/30 dark:bg-amber-500/15 dark:text-amber-200">
+                {item.tag}
+              </span>
+            ) : null}
           </Link>
         </li>
       ))}
@@ -48,7 +54,12 @@ export const SidebarNav = memo(function SidebarNav({
         <li key={item.name}>
           <Link href={item.href} className={linkClassName}>
             <item.icon className="w-4 h-4 shrink-0 opacity-70" />
-            {item.name}
+            <span className="min-w-0 truncate">{item.name}</span>
+            {item.tag ? (
+              <span className="ml-auto rounded-full border border-amber-300 bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-900 dark:border-amber-400/30 dark:bg-amber-500/15 dark:text-amber-200">
+                {item.tag}
+              </span>
+            ) : null}
           </Link>
         </li>
       ))}
@@ -63,7 +74,12 @@ export const SidebarNav = memo(function SidebarNav({
         <li key={item.name}>
           <Link href={item.href} className={linkClassName}>
             <item.icon className="w-4 h-4 shrink-0 opacity-70" />
-            {item.name}
+            <span className="min-w-0 truncate">{item.name}</span>
+            {item.tag ? (
+              <span className="ml-auto rounded-full border border-amber-300 bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-900 dark:border-amber-400/30 dark:bg-amber-500/15 dark:text-amber-200">
+                {item.tag}
+              </span>
+            ) : null}
           </Link>
         </li>
       ))}
