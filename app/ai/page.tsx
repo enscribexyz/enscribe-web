@@ -13,6 +13,7 @@ import { sendTransaction, waitForTransactionReceipt } from 'viem/actions'
 import { waitForChainSwitch, getChainName, getViemChain } from '@/lib/chains'
 import { getPublicClient } from '@/lib/viemClient'
 import { CONTRACTS } from '@/utils/constants'
+import { formatNamespaceLookupMessage } from '@/lib/ai/namespaceLookupFormatter'
 
 type ChatMessage = {
   id: string
@@ -85,12 +86,40 @@ type IntentModelResponse = {
   model: string
   status: 'need_info' | 'ready' | 'out_of_scope'
   assistantResponse: string
-  intent: {
-    action: 'set_primary_name'
-    chainId: number
-    contractAddress: `0x${string}`
-    ensName: string
-  } | null
+  intent:
+    | {
+        action: 'set_primary_name'
+        chainId: number
+        contractAddress: `0x${string}`
+        ensName: string
+      }
+    | {
+        action: 'namespace_lookup'
+        toolName:
+          | 'ens_ns_get_profile_details'
+          | 'ens_ns_get_names_for_address'
+          | 'ens_ns_get_subnames_for_name'
+          | 'ens_ns_get_name_history'
+          | 'ens_ns_get_subgraph_records'
+          | 'ens_ns_is_name_available'
+          | 'ens_ns_get_name_price'
+        arguments: Record<string, unknown>
+      }
+    | {
+        action: 'namespace_lookup_multi'
+        calls: Array<{
+          toolName:
+            | 'ens_ns_get_profile_details'
+            | 'ens_ns_get_names_for_address'
+            | 'ens_ns_get_subnames_for_name'
+            | 'ens_ns_get_name_history'
+            | 'ens_ns_get_subgraph_records'
+            | 'ens_ns_is_name_available'
+            | 'ens_ns_get_name_price'
+          arguments: Record<string, unknown>
+        }>
+      }
+    | null
 }
 
 type IntentConversationMessage = {
@@ -192,7 +221,10 @@ function formatTxHash(hash: string): string {
 }
 
 function toPromptParamsFromIntent(args: {
-  intent: NonNullable<IntentModelResponse['intent']>
+  intent: Extract<
+    NonNullable<IntentModelResponse['intent']>,
+    { action: 'set_primary_name' }
+  >
   walletAddress: `0x${string}`
 }): PromptParams {
   const { intent, walletAddress } = args
@@ -220,13 +252,24 @@ function toPromptParamsFromIntent(args: {
   }
 }
 
+function formatMultiLookupOutput(
+  results: Array<{ toolName: string; payload: unknown }>,
+): string {
+  return results
+    .map((result, index) => {
+      const label = `Result ${index + 1}/${results.length}`
+      return `${label}\n${formatNamespaceLookupMessage(result.toolName, result.payload)}`
+    })
+    .join('\n\n')
+}
+
 export default function AIPage() {
   const [prompt, setPrompt] = useState('')
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 'welcome',
       role: 'assistant',
-      text: 'Connect your wallet, then describe what you want (for example: "set mcptest2.abhi.eth to my contract 0x... on sepolia").',
+      text: 'Ask for ENS lookups or contract naming (example: "who owns vitalik.eth?" or "set mcptest2.abhi.eth to my contract 0x... on sepolia").',
     },
   ])
   const [pendingApproval, setPendingApproval] = useState<PendingApproval | null>(
@@ -248,13 +291,12 @@ export default function AIPage() {
 
   const sendDisabled = useMemo(() => {
     return (
-      !connectedWallet ||
       !prompt.trim() ||
       isInterpreting ||
       isPlanning ||
       isExecuting
     )
-  }, [connectedWallet, prompt, isInterpreting, isPlanning, isExecuting])
+  }, [prompt, isInterpreting, isPlanning, isExecuting])
 
   function appendMessage(role: ChatMessage['role'], text: string) {
     const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`
@@ -269,16 +311,8 @@ export default function AIPage() {
     appendMessage('user', trimmed)
     setExecutionStatus(null)
 
-    if (!connectedWallet) {
-      appendMessage(
-        'assistant',
-        'Connect your wallet first. Naming flows require an active wallet connection.',
-      )
-      return
-    }
-
     setIsInterpreting(true)
-    appendMessage('assistant', 'Sending prompt to intent model...')
+    appendMessage('assistant', 'Thinking...')
     let resolvedIntent: NonNullable<IntentModelResponse['intent']> | null = null
     try {
       const intentResponse = await callIntentModel(trimmed, intentConversation)
@@ -319,18 +353,74 @@ export default function AIPage() {
       setIsInterpreting(false)
     }
 
-    let parsed: PromptParams | null = null
-    if (resolvedIntent) {
+    if (!resolvedIntent) {
+      appendMessage(
+        'assistant',
+        'Unable to build a valid intent for MCP planning.',
+      )
+      return
+    }
+
+    if (resolvedIntent.action === 'namespace_lookup') {
+      setIsPlanning(true)
+      appendMessage('assistant', 'Running ENS lookup...')
       try {
-        parsed = toPromptParamsFromIntent({
-          intent: resolvedIntent,
-          walletAddress: connectedWallet as `0x${string}`,
-        })
+        const lookup = await callMcpTool<Record<string, unknown>>(
+          resolvedIntent.toolName,
+          resolvedIntent.arguments,
+        )
+        appendMessage(
+          'assistant',
+          formatNamespaceLookupMessage(resolvedIntent.toolName, lookup),
+        )
+        setIntentConversation([])
       } catch (error) {
-        const message =
-          error instanceof Error ? error.message : 'Intent validation failed.'
-        appendMessage('assistant', `Intent validation failed: ${message}`)
+        const message = error instanceof Error ? error.message : 'Lookup failed.'
+        appendMessage('assistant', `Lookup failed: ${message}`)
+      } finally {
+        setIsPlanning(false)
       }
+      return
+    }
+
+    if (resolvedIntent.action === 'namespace_lookup_multi') {
+      setIsPlanning(true)
+      appendMessage('assistant', 'Running ENS lookups...')
+      try {
+        const results: Array<{ toolName: string; payload: unknown }> = []
+        for (const call of resolvedIntent.calls) {
+          const payload = await callMcpTool<unknown>(call.toolName, call.arguments)
+          results.push({ toolName: call.toolName, payload })
+        }
+        appendMessage('assistant', formatMultiLookupOutput(results))
+        setIntentConversation([])
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Lookup failed.'
+        appendMessage('assistant', `Lookup failed: ${message}`)
+      } finally {
+        setIsPlanning(false)
+      }
+      return
+    }
+
+    if (!connectedWallet) {
+      appendMessage(
+        'assistant',
+        'Connect your wallet first. Naming flows require an active wallet connection.',
+      )
+      return
+    }
+
+    let parsed: PromptParams | null = null
+    try {
+      parsed = toPromptParamsFromIntent({
+        intent: resolvedIntent,
+        walletAddress: connectedWallet as `0x${string}`,
+      })
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Intent validation failed.'
+      appendMessage('assistant', `Intent validation failed: ${message}`)
     }
 
     if (!parsed) {
@@ -522,8 +612,8 @@ export default function AIPage() {
         <div className="flex-1 overflow-y-auto rounded-lg border bg-card p-6 space-y-3">
           <h1 className="text-2xl font-semibold text-foreground">AI</h1>
           <p className="text-sm text-muted-foreground">
-            Ask the assistant to plan and execute primary naming using your
-            connected wallet.
+            Ask for ENS lookups or primary naming. Wallet connection is only
+            required for write actions.
           </p>
 
           <div className="space-y-2 pt-2">

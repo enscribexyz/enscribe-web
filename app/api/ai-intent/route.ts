@@ -1,4 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
+import {
+  NAMESPACE_TOOL_NAMES,
+  parseIntentResponse,
+} from '@/lib/ai/intentParser'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -6,18 +10,89 @@ export const dynamic = 'force-dynamic'
 const OPENAI_RESPONSES_API = 'https://api.openai.com/v1/responses'
 const DEFAULT_MODEL = 'gpt-4o-mini'
 
+const NAMESPACE_ARGUMENTS_SCHEMA = {
+  anyOf: [
+    {
+      type: 'object',
+      additionalProperties: false,
+      required: ['name'],
+      properties: {
+        name: { type: 'string' },
+      },
+    },
+    {
+      type: 'object',
+      additionalProperties: false,
+      required: ['address'],
+      properties: {
+        address: { type: 'string' },
+      },
+    },
+    {
+      type: 'object',
+      additionalProperties: false,
+      required: ['name', 'duration'],
+      properties: {
+        name: { type: 'string' },
+        duration: { type: 'string' },
+      },
+    },
+    {
+      type: 'object',
+      additionalProperties: false,
+      required: ['name', 'textRecords'],
+      properties: {
+        name: { type: 'string' },
+        textRecords: {
+          type: 'array',
+          items: { type: 'string' },
+        },
+      },
+    },
+    {
+      type: 'object',
+      additionalProperties: false,
+      required: ['name', 'coinRecords'],
+      properties: {
+        name: { type: 'string' },
+        coinRecords: {
+          type: 'array',
+          items: {
+            anyOf: [{ type: 'string' }, { type: 'number' }],
+          },
+        },
+      },
+    },
+    {
+      type: 'object',
+      additionalProperties: false,
+      required: ['name', 'contentHash'],
+      properties: {
+        name: { type: 'string' },
+        contentHash: { type: 'boolean' },
+      },
+    },
+  ],
+} as const
+
 const SYSTEM_PROMPT = [
   'You are an ENS naming intent assistant for Enscribe.',
-  'Scope is strictly ENS naming for contracts.',
+  'Scope is strictly ENS naming + ENS lookup requests.',
   'Never ask for walletAddress. The app provides it.',
+  'Never ask the user to choose a tool name. Tool selection is internal.',
+  'Never mention internal tool ids (like ens_ns_*) to the user.',
   'Required fields for set_primary_name: chainId, contractAddress, ensName.',
+  `For read-only ENS lookup questions, select one namespace tool from: ${NAMESPACE_TOOL_NAMES.join(', ')}.`,
+  'For single read requests return action=namespace_lookup with toolName and arguments.',
+  'For compound read requests needing multiple reads, return action=namespace_lookup_multi with calls[].',
+  'Examples: "who owns vitalik.eth" => status=ready with namespace_lookup + toolName=ens_ns_get_profile_details + arguments.name=vitalik.eth.',
+  'Examples: "names owned by 0x..." => status=ready with namespace_lookup + toolName=ens_ns_get_names_for_address + arguments.address.',
+  'For read prompts with enough info, do not ask follow-up questions.',
   'If required fields are missing, return status=need_info and place exactly one short follow-up question in assistantResponse.',
   'If the user asks unrelated or nonsense requests, return status=out_of_scope.',
   'If all required fields are present, return status=ready.',
   'Return JSON only, matching the response schema.',
 ].join(' ')
-
-type IntentStatus = 'need_info' | 'ready' | 'out_of_scope'
 
 type IntentConversationMessage = {
   role: 'user' | 'assistant'
@@ -35,17 +110,6 @@ type ResponsesApiOutputItem = {
 type ResponsesApiPayload = {
   output_text?: string
   output?: ResponsesApiOutputItem[]
-}
-
-type IntentResponse = {
-  status: IntentStatus
-  assistantResponse: string
-  intent: {
-    action: 'set_primary_name'
-    chainId: number
-    contractAddress: `0x${string}`
-    ensName: string
-  } | null
 }
 
 type IntentRequestBody = {
@@ -68,88 +132,6 @@ function extractOutputText(payload: ResponsesApiPayload): string {
   }
 
   return textChunks.join('\n').trim()
-}
-
-function parseIntentResponse(rawText: string): IntentResponse {
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(rawText)
-  } catch {
-    throw new Error('Intent model returned non-JSON output.')
-  }
-
-  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-    throw new Error('Intent model returned invalid object.')
-  }
-
-  const candidate = parsed as Partial<IntentResponse>
-  const status = candidate.status
-  const assistantResponse = candidate.assistantResponse
-  const intent = candidate.intent
-
-  if (
-    status !== 'need_info' &&
-    status !== 'ready' &&
-    status !== 'out_of_scope'
-  ) {
-    throw new Error('Intent model returned invalid status.')
-  }
-
-  if (typeof assistantResponse !== 'string' || !assistantResponse.trim()) {
-    throw new Error('Intent model returned invalid assistantResponse.')
-  }
-
-  let normalizedIntent: IntentResponse['intent'] = null
-  // Only enforce strict intent payload validation once the model claims readiness.
-  if (status === 'ready') {
-    if (!intent || typeof intent !== 'object' || Array.isArray(intent)) {
-      throw new Error('Ready intent must include a complete intent payload.')
-    }
-
-    const action = (intent as { action?: unknown }).action
-    const chainId = (intent as { chainId?: unknown }).chainId
-    const contractAddress = (intent as { contractAddress?: unknown })
-      .contractAddress
-    const ensName = (intent as { ensName?: unknown }).ensName
-
-    if (action !== 'set_primary_name') {
-      throw new Error('Intent action is not supported.')
-    }
-    if (
-      typeof chainId !== 'number' ||
-      !Number.isInteger(chainId) ||
-      !Number.isFinite(chainId) ||
-      chainId <= 0
-    ) {
-      throw new Error('Intent chainId is invalid.')
-    }
-    if (
-      typeof contractAddress !== 'string' ||
-      !/^0x[a-fA-F0-9]{40}$/.test(contractAddress)
-    ) {
-      throw new Error('Intent contractAddress is invalid.')
-    }
-    if (
-      typeof ensName !== 'string' ||
-      !ensName.trim() ||
-      !ensName.includes('.')
-    ) {
-      throw new Error('Intent ensName is invalid.')
-    }
-
-    normalizedIntent = {
-      action,
-      chainId,
-      contractAddress: contractAddress as `0x${string}`,
-      ensName: ensName.trim().toLowerCase().replace(/\.$/, ''),
-    }
-  }
-
-  return {
-    status,
-    assistantResponse: assistantResponse.trim(),
-    intent: normalizedIntent,
-  }
 }
 
 function sanitizeConversation(
@@ -194,14 +176,6 @@ function toResponsesInputMessage(message: IntentConversationMessage): {
 }
 
 export async function POST(req: NextRequest) {
-  const apiKey = process.env.OPENAI_API_KEY
-  if (!apiKey) {
-    return NextResponse.json(
-      { error: 'OPENAI_API_KEY is not configured on the server.' },
-      { status: 500 },
-    )
-  }
-
   let prompt = ''
   let messages: IntentConversationMessage[] = []
   try {
@@ -214,6 +188,14 @@ export async function POST(req: NextRequest) {
 
   if (!prompt) {
     return NextResponse.json({ error: 'Prompt is required.' }, { status: 400 })
+  }
+
+  const apiKey = process.env.OPENAI_API_KEY
+  if (!apiKey) {
+    return NextResponse.json(
+      { error: 'OPENAI_API_KEY is not configured on the server.' },
+      { status: 500 },
+    )
   }
 
   const model = process.env.OPENAI_INTENT_MODEL || DEFAULT_MODEL
@@ -272,6 +254,50 @@ export async function POST(req: NextRequest) {
                         },
                         ensName: {
                           type: 'string',
+                        },
+                      },
+                    },
+                    {
+                      type: 'object',
+                      additionalProperties: false,
+                      required: ['action', 'toolName', 'arguments'],
+                      properties: {
+                        action: {
+                          type: 'string',
+                          enum: ['namespace_lookup'],
+                        },
+                        toolName: {
+                          type: 'string',
+                          enum: [...NAMESPACE_TOOL_NAMES],
+                        },
+                        arguments: NAMESPACE_ARGUMENTS_SCHEMA,
+                      },
+                    },
+                    {
+                      type: 'object',
+                      additionalProperties: false,
+                      required: ['action', 'calls'],
+                      properties: {
+                        action: {
+                          type: 'string',
+                          enum: ['namespace_lookup_multi'],
+                        },
+                        calls: {
+                          type: 'array',
+                          minItems: 1,
+                          maxItems: 3,
+                          items: {
+                            type: 'object',
+                            additionalProperties: false,
+                            required: ['toolName', 'arguments'],
+                            properties: {
+                              toolName: {
+                                type: 'string',
+                                enum: [...NAMESPACE_TOOL_NAMES],
+                              },
+                              arguments: NAMESPACE_ARGUMENTS_SCHEMA,
+                            },
+                          },
                         },
                       },
                     },

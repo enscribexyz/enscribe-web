@@ -52,11 +52,11 @@ export default function Layout({ children }: LayoutProps) {
 
   const navigation = useMemo(
     () => [
+      { name: '✨ Ask AI', href: '/ai', icon: Bot },
       { name: 'Name Contract', href: '/nameContract', icon: FileText },
       { name: 'Batch Naming', href: '/batchNaming', icon: List },
       { name: 'Deploy Contract', href: '/deploy', icon: PencilLine },
       { name: 'Name Explorer', href: '/nameMetadata', icon: Tag },
-      { name: 'AI', href: '/ai', icon: Bot },
       ...(isConnected
         ? [
             {

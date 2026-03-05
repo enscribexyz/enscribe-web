@@ -1,5 +1,6 @@
 import type { NextRequest } from 'next/server'
 import { PrimaryNamingMcpService } from '@/lib/mcp/primaryNamingService'
+import { NamespaceMcpClient } from '@/lib/mcp/namespaceClient'
 
 type JsonRpcRequest = {
   id?: string | number | null
@@ -19,6 +20,10 @@ const SERVER_INFO = {
   name: 'enscribe-primary-naming-mcp',
   version: '0.1.0',
 }
+
+const NAMESPACE_TOOL_PREFIX = 'ens_ns_'
+
+const namespaceMcpClient = new NamespaceMcpClient()
 
 const TOOLS: ToolSchema[] = [
   {
@@ -94,6 +99,131 @@ const TOOLS: ToolSchema[] = [
       },
     },
   },
+  {
+    name: 'ens_ns_get_profile_details',
+    description:
+      'Proxy to namespace.ninja ENS MCP: fetch owner/resolver/expiry/records for a name.',
+    annotations: { readOnlyHint: true },
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['name'],
+      properties: {
+        name: { type: 'string' },
+        textRecords: { type: 'array', items: { type: 'string' } },
+        coinRecords: {
+          type: 'array',
+          items: {
+            anyOf: [{ type: 'string' }, { type: 'number' }],
+          },
+        },
+        contentHash: { type: 'boolean' },
+      },
+    },
+  },
+  {
+    name: 'ens_ns_get_names_for_address',
+    description:
+      'Proxy to namespace.ninja ENS MCP: list ENS names owned by an address.',
+    annotations: { readOnlyHint: true },
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['address'],
+      properties: {
+        address: { type: 'string' },
+        searchString: { type: 'string' },
+        allowExpired: { type: 'boolean' },
+        allowDeleted: { type: 'boolean' },
+        orderBy: {
+          type: 'string',
+          enum: ['expiryDate', 'name', 'labelName', 'createdAt'],
+        },
+        orderDirection: { type: 'string', enum: ['asc', 'desc'] },
+        pageSize: { type: 'number' },
+      },
+    },
+  },
+  {
+    name: 'ens_ns_get_subnames_for_name',
+    description:
+      'Proxy to namespace.ninja ENS MCP: list subnames (subdomains) under an ENS name.',
+    annotations: { readOnlyHint: true },
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['name'],
+      properties: {
+        name: { type: 'string' },
+        searchString: { type: 'string' },
+        allowExpired: { type: 'boolean' },
+        allowDeleted: { type: 'boolean' },
+        orderBy: {
+          type: 'string',
+          enum: ['expiryDate', 'name', 'labelName', 'createdAt'],
+        },
+        orderDirection: { type: 'string', enum: ['asc', 'desc'] },
+        pageSize: { type: 'number' },
+      },
+    },
+  },
+  {
+    name: 'ens_ns_get_name_history',
+    description:
+      'Proxy to namespace.ninja ENS MCP: fetch history/events for an ENS name.',
+    annotations: { readOnlyHint: true },
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['name'],
+      properties: {
+        name: { type: 'string' },
+      },
+    },
+  },
+  {
+    name: 'ens_ns_get_subgraph_records',
+    description:
+      'Proxy to namespace.ninja ENS MCP: list record keys associated with an ENS name.',
+    annotations: { readOnlyHint: true },
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['name'],
+      properties: {
+        name: { type: 'string' },
+      },
+    },
+  },
+  {
+    name: 'ens_ns_is_name_available',
+    description:
+      'Proxy to namespace.ninja ENS MCP: check ENS name availability.',
+    annotations: { readOnlyHint: true },
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['name'],
+      properties: {
+        name: { type: 'string' },
+      },
+    },
+  },
+  {
+    name: 'ens_ns_get_name_price',
+    description:
+      'Proxy to namespace.ninja ENS MCP: get ENS registration price for a duration.',
+    annotations: { readOnlyHint: true },
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['name', 'duration'],
+      properties: {
+        name: { type: 'string' },
+        duration: { type: 'string' },
+      },
+    },
+  },
 ]
 
 function asObject(value: unknown): Record<string, unknown> {
@@ -117,6 +247,11 @@ function asToolArgs(params: Record<string, unknown>): Record<string, unknown> {
   }
 
   return asObject(raw)
+}
+
+function toNamespaceToolName(localToolName: string): string | null {
+  if (!localToolName.startsWith(NAMESPACE_TOOL_PREFIX)) return null
+  return localToolName.slice(NAMESPACE_TOOL_PREFIX.length)
 }
 
 function resultMessage(payload: unknown) {
@@ -246,6 +381,17 @@ export async function handleMcpRequest(
         })
 
         return { jsonrpc: '2.0', id, result: resultMessage(out) }
+      }
+
+      if (typeof name === 'string') {
+        const namespaceTool = toNamespaceToolName(name)
+        if (namespaceTool) {
+          const out = await namespaceMcpClient.callAllowedTool({
+            toolName: namespaceTool,
+            toolArgs: args,
+          })
+          return { jsonrpc: '2.0', id, result: resultMessage(out) }
+        }
       }
 
       return {
