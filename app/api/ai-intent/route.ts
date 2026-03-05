@@ -11,7 +11,7 @@ const SYSTEM_PROMPT = [
   'Scope is strictly ENS naming for contracts.',
   'Never ask for walletAddress. The app provides it.',
   'Required fields for set_primary_name: chainId, contractAddress, ensName.',
-  'If required fields are missing, return status=need_info and ask exactly one short follow-up question.',
+  'If required fields are missing, return status=need_info and place exactly one short follow-up question in assistantResponse.',
   'If the user asks unrelated or nonsense requests, return status=out_of_scope.',
   'If all required fields are present, return status=ready.',
   'Return JSON only, matching the response schema.',
@@ -39,9 +39,7 @@ type ResponsesApiPayload = {
 
 type IntentResponse = {
   status: IntentStatus
-  message: string
-  question: string | null
-  missingFields: Array<'chainId' | 'contractAddress' | 'ensName'>
+  assistantResponse: string
   intent: {
     action: 'set_primary_name'
     chainId: number
@@ -86,9 +84,7 @@ function parseIntentResponse(rawText: string): IntentResponse {
 
   const candidate = parsed as Partial<IntentResponse>
   const status = candidate.status
-  const message = candidate.message
-  const question = candidate.question
-  const missingFields = candidate.missingFields
+  const assistantResponse = candidate.assistantResponse
   const intent = candidate.intent
 
   if (
@@ -99,50 +95,8 @@ function parseIntentResponse(rawText: string): IntentResponse {
     throw new Error('Intent model returned invalid status.')
   }
 
-  if (!(question === null || typeof question === 'string')) {
-    throw new Error('Intent model returned invalid question.')
-  }
-
-  if (!Array.isArray(missingFields)) {
-    throw new Error('Intent model returned invalid missingFields.')
-  }
-
-  const allowedMissingFields = new Set([
-    'chainId',
-    'contractAddress',
-    'ensName',
-  ])
-  for (const field of missingFields) {
-    if (typeof field !== 'string' || !allowedMissingFields.has(field)) {
-      throw new Error('Intent model returned unsupported missing field.')
-    }
-  }
-
-  const normalizedQuestion = typeof question === 'string' ? question.trim() : null
-  let normalizedMessage = typeof message === 'string' ? message.trim() : ''
-
-  if (!normalizedMessage) {
-    if (status === 'ready') {
-      normalizedMessage = 'Intent extracted successfully.'
-    } else if (status === 'out_of_scope') {
-      normalizedMessage = 'This request is out of scope for ENS naming.'
-    } else {
-      normalizedMessage = 'I need more information to continue.'
-    }
-  }
-
-  let finalQuestion = normalizedQuestion
-  if (status === 'need_info' && !finalQuestion) {
-    const nextField = missingFields[0]
-    if (nextField === 'chainId') {
-      finalQuestion = 'What is the chainId for your contract?'
-    } else if (nextField === 'contractAddress') {
-      finalQuestion = 'What is the contractAddress?'
-    } else if (nextField === 'ensName') {
-      finalQuestion = 'What ENS name should be set (for example, name.eth)?'
-    } else {
-      finalQuestion = 'What missing detail should I use to continue?'
-    }
+  if (typeof assistantResponse !== 'string' || !assistantResponse.trim()) {
+    throw new Error('Intent model returned invalid assistantResponse.')
   }
 
   let normalizedIntent: IntentResponse['intent'] = null
@@ -193,9 +147,7 @@ function parseIntentResponse(rawText: string): IntentResponse {
 
   return {
     status,
-    message: normalizedMessage,
-    question: finalQuestion,
-    missingFields,
+    assistantResponse: assistantResponse.trim(),
     intent: normalizedIntent,
   }
 }
@@ -283,28 +235,18 @@ export async function POST(req: NextRequest) {
             type: 'json_schema',
             name: 'intent_response',
             strict: true,
-            schema: {
-              type: 'object',
-              additionalProperties: false,
-              required: ['status', 'message', 'question', 'missingFields', 'intent'],
-              properties: {
-                status: {
-                  type: 'string',
-                  enum: ['need_info', 'ready', 'out_of_scope'],
-                },
-                message: { type: 'string', minLength: 1 },
-                question: {
-                  anyOf: [{ type: 'string', minLength: 1 }, { type: 'null' }],
-                },
-                missingFields: {
-                  type: 'array',
-                  items: {
-                    type: 'string',
-                    enum: ['chainId', 'contractAddress', 'ensName'],
-                  },
-                },
-                intent: {
-                  anyOf: [
+                schema: {
+                  type: 'object',
+                  additionalProperties: false,
+                  required: ['status', 'assistantResponse', 'intent'],
+                  properties: {
+                    status: {
+                      type: 'string',
+                      enum: ['need_info', 'ready', 'out_of_scope'],
+                    },
+                    assistantResponse: { type: 'string', minLength: 1 },
+                    intent: {
+                      anyOf: [
                     {
                       type: 'null',
                     },

@@ -84,9 +84,7 @@ type PendingApproval = {
 type IntentModelResponse = {
   model: string
   status: 'need_info' | 'ready' | 'out_of_scope'
-  message: string
-  question: string | null
-  missingFields: Array<'chainId' | 'contractAddress' | 'ensName'>
+  assistantResponse: string
   intent: {
     action: 'set_primary_name'
     chainId: number
@@ -179,12 +177,8 @@ async function callIntentModel(
     (json.status !== 'need_info' &&
       json.status !== 'ready' &&
       json.status !== 'out_of_scope') ||
-    !('message' in json) ||
-    typeof json.message !== 'string' ||
-    !('question' in json) ||
-    !(json.question === null || typeof json.question === 'string') ||
-    !('missingFields' in json) ||
-    !Array.isArray(json.missingFields) ||
+    !('assistantResponse' in json) ||
+    typeof json.assistantResponse !== 'string' ||
     !('intent' in json)
   ) {
     throw new Error('Intent service returned invalid response.')
@@ -288,38 +282,19 @@ export default function AIPage() {
     let resolvedIntent: NonNullable<IntentModelResponse['intent']> | null = null
     try {
       const intentResponse = await callIntentModel(trimmed, intentConversation)
-      appendMessage(
-        'assistant',
-        `[${intentResponse.model}] ${intentResponse.message}`,
-      )
+      appendMessage('assistant', intentResponse.assistantResponse)
 
       const nextIntentConversation: IntentConversationMessage[] = [
         ...intentConversation,
         { role: 'user', text: trimmed },
         {
           role: 'assistant',
-          text: intentResponse.question ?? intentResponse.message,
+          text: intentResponse.assistantResponse,
         },
       ]
       setIntentConversation(nextIntentConversation)
 
-      if (intentResponse.status === 'out_of_scope') {
-        appendMessage(
-          'assistant',
-          'I can help only with ENS naming and primary-name flows.',
-        )
-        return
-      }
-
-      if (intentResponse.status === 'need_info') {
-        if (intentResponse.question) {
-          appendMessage('assistant', intentResponse.question)
-        } else {
-          appendMessage(
-            'assistant',
-            'I need more details to continue with naming.',
-          )
-        }
+      if (intentResponse.status !== 'ready') {
         return
       }
 
