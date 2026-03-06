@@ -247,9 +247,9 @@ export function formatNamespaceLookupMessage(
   }
 
   if (rawText) {
-    return `${prefix}Lookup result (${toolName}):\n${rawText}`
+    return `\n${rawText}`
   }
 
-  return `${prefix}Lookup result (${toolName}):\n${toPrettyJson(payload)}`
+  return `\n${toPrettyJson(payload)}`
 }
 

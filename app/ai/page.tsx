@@ -1,12 +1,11 @@
 'use client'
 
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import Layout from '@/components/Layout'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { SendHorizonal } from 'lucide-react'
 import { useAccount, useSwitchChain, useWalletClient } from 'wagmi'
 import { isAddress } from 'viem'
 import { sendTransaction, waitForTransactionReceipt } from 'viem/actions'
@@ -126,6 +125,36 @@ type IntentConversationMessage = {
   role: 'user' | 'assistant'
   text: string
 }
+
+type ExamplePrompt = {
+  prompt: string
+}
+
+const TESTED_EXAMPLE_PROMPTS: ExamplePrompt[] = [
+  {
+    prompt: 'Who owns vitalik.eth?',
+  },
+  {
+    prompt: 'What is the resolver and expiry date of vitalik.eth?',
+  },
+  {
+    prompt: 'Give me the ETH address and Twitter handle for vitalik.eth.',
+  },
+  {
+    prompt:
+      'What ENS names are owned by 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045?',
+  },
+  {
+    prompt: 'What are the subnames under vitalik.eth?',
+  },
+  {
+    prompt: 'When was the last time vitalik.eth changed its content hash?',
+  },
+  {
+    prompt:
+      'Set mcptest8.abhi.eth to my contract 0x22D99F173af4Eb8a5909dd6E9319816531bB097b on sepolia',
+  },
+]
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
@@ -265,11 +294,12 @@ function formatMultiLookupOutput(
 
 export default function AIPage() {
   const [prompt, setPrompt] = useState('')
+  const promptTextareaRef = useRef<HTMLTextAreaElement | null>(null)
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 'welcome',
       role: 'assistant',
-      text: 'Ask for ENS lookups or contract naming (example: "who owns vitalik.eth?" or "set mcptest2.abhi.eth to my contract 0x... on sepolia").',
+      text: 'Start asking',
     },
   ])
   const [pendingApproval, setPendingApproval] = useState<PendingApproval | null>(
@@ -302,6 +332,34 @@ export default function AIPage() {
     const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`
     setMessages((prev) => [...prev, { id, role, text }])
   }
+
+  function resizePromptTextarea() {
+    const textarea = promptTextareaRef.current
+    if (!textarea) return
+
+    textarea.style.height = '0px'
+    textarea.style.height = `${textarea.scrollHeight}px`
+  }
+
+  function focusPromptTextarea() {
+    const textarea = promptTextareaRef.current
+    if (!textarea) return
+    textarea.focus()
+    const len = textarea.value.length
+    textarea.setSelectionRange(len, len)
+  }
+
+  useEffect(() => {
+    resizePromptTextarea()
+  }, [prompt])
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      focusPromptTextarea()
+    })
+
+    return () => window.cancelAnimationFrame(frame)
+  }, [])
 
   async function handleSendPrompt() {
     const trimmed = prompt.trim()
@@ -464,6 +522,19 @@ export default function AIPage() {
     }
   }
 
+  function handlePromptKeyDown(
+    event: React.KeyboardEvent<HTMLTextAreaElement>,
+  ) {
+    if (event.key !== 'Enter') return
+    if (event.shiftKey) return
+    if (event.nativeEvent.isComposing) return
+
+    event.preventDefault()
+    if (sendDisabled) return
+
+    void handleSendPrompt()
+  }
+
   function handleRejectPlan() {
     setPendingApproval(null)
     appendMessage('assistant', 'Plan rejected. No transactions were sent.')
@@ -616,14 +687,43 @@ export default function AIPage() {
             required for write actions.
           </p>
 
+          <div className="rounded-lg border bg-background/50 p-3">
+            <div className="text-sm font-medium text-foreground">
+              Example Prompts
+            </div>
+            <div className="mt-1 text-xs text-muted-foreground">
+              Click any prompt to insert it into the chat box.
+            </div>
+            <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">
+              {TESTED_EXAMPLE_PROMPTS.map((example) => (
+                <button
+                  key={example.prompt}
+                  type="button"
+                  className="rounded-md border bg-card px-3 py-2 text-left transition-colors hover:bg-muted"
+                  onClick={() => {
+                    setPrompt(example.prompt)
+                    window.requestAnimationFrame(() => {
+                      focusPromptTextarea()
+                    })
+                  }}
+                  disabled={isInterpreting || isPlanning || isExecuting}
+                >
+                  <div className="text-xs text-muted-foreground">
+                    {example.prompt}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="space-y-2 pt-2">
             {messages.map((msg) => (
               <div
                 key={msg.id}
-                className={`max-w-[90%] rounded-lg px-3 py-2 text-sm whitespace-pre-wrap ${
+                className={`max-w-[90%] text-sm whitespace-pre-wrap ${
                   msg.role === 'user'
-                    ? 'ml-auto bg-primary text-primary-foreground'
-                    : 'bg-muted text-foreground'
+                    ? 'ml-auto rounded-lg px-3 py-2 bg-primary text-primary-foreground'
+                    : 'text-foreground'
                 }`}
               >
                 {msg.text}
@@ -726,23 +826,19 @@ export default function AIPage() {
         </div>
 
         <div className="mt-4 rounded-lg border bg-card p-3">
-          <div className="flex items-end gap-3">
+          <div>
             <Textarea
+              ref={promptTextareaRef}
               value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              placeholder="Example: set mcptest2.abhi.eth name to my contract 0x... on sepolia"
-              className="min-h-[96px] resize-y"
+              onChange={(e) => {
+                setPrompt(e.target.value)
+                e.currentTarget.style.height = '0px'
+                e.currentTarget.style.height = `${e.currentTarget.scrollHeight}px`
+              }}
+              className="min-h-[40px] resize-none overflow-hidden"
               disabled={isPlanning || isExecuting}
+              onKeyDown={handlePromptKeyDown}
             />
-            <Button
-              type="button"
-              className="h-10 shrink-0"
-              disabled={sendDisabled}
-              onClick={handleSendPrompt}
-            >
-              <SendHorizonal className="h-4 w-4" />
-              Send
-            </Button>
           </div>
         </div>
       </div>
