@@ -13,6 +13,7 @@ import { waitForChainSwitch, getChainName, getViemChain } from '@/lib/chains'
 import { getPublicClient } from '@/lib/viemClient'
 import { CONTRACTS } from '@/utils/constants'
 import { formatNamespaceLookupMessage } from '@/lib/ai/namespaceLookupFormatter'
+import { tryFormatJsonText } from '@/lib/ai/structuredDataFormatter'
 import { parseAndValidateBatchCsv, type BatchCsvIssue } from '@/lib/batchNaming'
 import { Plus, X } from 'lucide-react'
 
@@ -176,6 +177,12 @@ type CsvAttachment = {
   validRows: number
 }
 
+type ParsedKeyValueLine = {
+  indent: string
+  key: string
+  value: string
+}
+
 const TESTED_EXAMPLE_PROMPTS: ExamplePrompt[] = [
   {
     prompt: 'Who owns vitalik.eth?',
@@ -237,6 +244,74 @@ function summarizeCsvIssues(issues: BatchCsvIssue[], maxItems = 5): string {
   }
 
   return lines.join('\n')
+}
+
+function parseKeyValueLine(line: string): ParsedKeyValueLine | null {
+  const trimmed = line.trim()
+  if (!trimmed || trimmed.startsWith('- ') || /^\[.*\]$/.test(trimmed)) {
+    return null
+  }
+
+  const match = line.match(/^(\s*)([^:\n][^:\n]*?):(?:\s(.*))?$/)
+  if (!match) {
+    return null
+  }
+
+  return {
+    indent: match[1] || '',
+    key: match[2].trim(),
+    value: match[3] ?? '',
+  }
+}
+
+function isLikelyStructuredKeyValue(text: string): boolean {
+  const lines = text.split('\n')
+  let keyValueCount = 0
+  let indentedCount = 0
+
+  for (const line of lines) {
+    const parsed = parseKeyValueLine(line)
+    if (!parsed) {
+      continue
+    }
+
+    keyValueCount += 1
+    if (parsed.indent.length > 0) {
+      indentedCount += 1
+    }
+  }
+
+  return keyValueCount >= 2 || (keyValueCount === 1 && indentedCount === 1)
+}
+
+function renderStructuredKeyValueText(text: string): React.ReactNode {
+  const lines = text.split('\n')
+  return (
+    <>
+      {lines.map((line, index) => {
+        const parsed = parseKeyValueLine(line)
+        const isLastLine = index === lines.length - 1
+
+        if (!parsed) {
+          return (
+            <React.Fragment key={`${index}-${line}`}>
+              {line}
+              {!isLastLine ? '\n' : ''}
+            </React.Fragment>
+          )
+        }
+
+        return (
+          <React.Fragment key={`${index}-${parsed.key}`}>
+            {parsed.indent}
+            <span className="font-semibold">{parsed.key}:</span>
+            {parsed.value ? ` ${parsed.value}` : ''}
+            {!isLastLine ? '\n' : ''}
+          </React.Fragment>
+        )
+      })}
+    </>
+  )
 }
 
 async function callMcpTool<T>(name: string, args: Record<string, unknown>): Promise<T> {
@@ -931,6 +1006,10 @@ export default function AIPage() {
         )
       }
 
+      if (pendingApproval.mode === 'batch' && endedAs !== 'failed') {
+        clearCsvAttachment()
+      }
+
       setPendingApproval(null)
     } catch (error) {
       if (pendingApproval.mode === 'batch') {
@@ -1019,18 +1098,29 @@ export default function AIPage() {
           </div>
 
           <div className="space-y-2 pt-2">
-            {messages.map((msg) => (
-              <div
-                key={msg.id}
-                className={`max-w-[90%] text-sm whitespace-pre-wrap ${
-                  msg.role === 'user'
-                    ? 'ml-auto rounded-lg px-3 py-2 bg-primary text-primary-foreground'
-                    : 'text-foreground'
-                }`}
-              >
-                {msg.text}
-              </div>
-            ))}
+            {messages.map((msg) => {
+              const formattedText =
+                msg.role === 'assistant'
+                  ? tryFormatJsonText(msg.text) ?? msg.text
+                  : msg.text
+              const shouldRenderKeyValue =
+                msg.role === 'assistant' && isLikelyStructuredKeyValue(formattedText)
+
+              return (
+                <div
+                  key={msg.id}
+                  className={`max-w-[90%] text-sm whitespace-pre-wrap ${
+                    msg.role === 'user'
+                      ? 'ml-auto rounded-lg px-3 py-2 bg-primary text-primary-foreground'
+                      : 'text-foreground'
+                  }`}
+                >
+                  {shouldRenderKeyValue
+                    ? renderStructuredKeyValueText(formattedText)
+                    : formattedText}
+                </div>
+              )
+            })}
           </div>
 
           {pendingApproval && (

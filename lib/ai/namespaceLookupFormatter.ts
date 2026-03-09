@@ -1,4 +1,7 @@
-const MAX_JSON_LENGTH = 2400
+import {
+  formatStructuredData,
+  tryFormatJsonText,
+} from '@/lib/ai/structuredDataFormatter'
 
 function asObject(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
@@ -14,27 +17,6 @@ function asArray(value: unknown): unknown[] {
 function asString(value: unknown): string | null {
   if (typeof value === 'string' && value.trim()) return value.trim()
   return null
-}
-
-function asNumber(value: unknown): number | null {
-  if (typeof value === 'number' && Number.isFinite(value)) return value
-  if (typeof value === 'string' && value.trim()) {
-    const parsed = Number(value)
-    if (Number.isFinite(parsed)) return parsed
-  }
-  return null
-}
-
-function toPrettyJson(value: unknown): string {
-  let pretty = ''
-  try {
-    pretty = JSON.stringify(value, null, 2)
-  } catch {
-    pretty = String(value)
-  }
-  return pretty.length > MAX_JSON_LENGTH
-    ? `${pretty.slice(0, MAX_JSON_LENGTH)}\n... (truncated)`
-    : pretty
 }
 
 function extractEnvelope(payload: unknown): {
@@ -247,9 +229,10 @@ export function formatNamespaceLookupMessage(
   }
 
   if (rawText) {
-    return `\n${rawText}`
+    const formattedRaw = tryFormatJsonText(rawText) ?? rawText
+    return prefix ? `${prefix}\n${formattedRaw}` : formattedRaw
   }
 
-  return `\n${toPrettyJson(payload)}`
+  const structured = formatStructuredData(data)
+  return prefix ? `${prefix}\n${structured}` : structured
 }
-

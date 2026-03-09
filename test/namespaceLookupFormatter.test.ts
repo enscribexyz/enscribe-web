@@ -32,11 +32,25 @@ describe('namespaceLookupFormatter', () => {
     expect(text).toContain('Expiring in next 30 days: 1')
   })
 
-  it('falls back to json when formatter cannot extract shape', () => {
+  it('falls back to structured fields when formatter cannot extract shape', () => {
     const text = formatNamespaceLookupMessage('ens_ns_get_name_history', {
       weird: 'shape',
     })
 
-    expect(text).toContain('"weird": "shape"')
+    expect(text).toContain('weird: shape')
+  })
+
+  it('formats json rawText payloads into fields with source prefix', () => {
+    const text = formatNamespaceLookupMessage('ens_ns_get_profile_details', {
+      source: 'namespace.ninja',
+      rawText: '{"name":"vitalik.eth","ownerAddress":"0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045"}',
+    })
+
+    expect(text).toContain('[source: namespace.ninja]')
+    expect(text).toContain('name: vitalik.eth')
+    expect(text).toContain(
+      'ownerAddress: 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
+    )
+    expect(text).not.toContain('{"name"')
   })
 })
