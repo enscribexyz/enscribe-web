@@ -19,6 +19,11 @@ export type PrimaryNameIntent = {
   ensName: string
 }
 
+export type BatchCsvIntent = {
+  action: 'set_batch_names_from_csv'
+  chainId: number
+}
+
 export type NamespaceLookupIntent = {
   action: 'namespace_lookup'
   toolName: NamespaceToolName
@@ -40,6 +45,7 @@ export type IntentResponse = {
   assistantResponse: string
   intent:
     | PrimaryNameIntent
+    | BatchCsvIntent
     | NamespaceLookupIntent
     | NamespaceLookupMultiIntent
     | null
@@ -224,6 +230,22 @@ export function parseIntentResponse(rawText: string): IntentResponse {
         contractAddress: contractAddress as `0x${string}`,
         ensName: ensName.trim().toLowerCase().replace(/\.$/, ''),
       }
+    } else if (action === 'set_batch_names_from_csv') {
+      const chainId = (intent as { chainId?: unknown }).chainId
+
+      if (
+        typeof chainId !== 'number' ||
+        !Number.isInteger(chainId) ||
+        !Number.isFinite(chainId) ||
+        chainId <= 0
+      ) {
+        throw new Error('Intent chainId is invalid.')
+      }
+
+      normalizedIntent = {
+        action,
+        chainId,
+      }
     } else if (action === 'namespace_lookup') {
       normalizedIntent = normalizeNamespaceLookupIntent(intent)
     } else if (action === 'namespace_lookup_multi') {
@@ -239,4 +261,3 @@ export function parseIntentResponse(rawText: string): IntentResponse {
     intent: normalizedIntent,
   }
 }
-

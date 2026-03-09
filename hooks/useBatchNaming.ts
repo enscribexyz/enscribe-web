@@ -6,7 +6,7 @@ import { useToast } from '@/hooks/use-toast'
 import { CONTRACTS, CHAINS } from '../utils/constants'
 import { L2_CHAIN_NAMES, getChainName, type L2ChainName, waitForChainSwitch } from '@/lib/chains'
 import { useChainConfig } from '@/hooks/useChainConfig'
-import { getL2ChainId, getL2ViemChain, getL2ChainDisplayName } from '@/lib/l2ChainConfig'
+import { getL2ChainId, getL2ChainDisplayName } from '@/lib/l2ChainConfig'
 import { isAddress, encodeFunctionData, namehash } from 'viem'
 import { getParentNode, fetchOwnedDomains } from '@/utils/ens'
 import { readContract, writeContract, waitForTransactionReceipt } from 'viem/actions'
@@ -16,9 +16,16 @@ import ensRegistryABI from '../contracts/ENSRegistry'
 import nameWrapperABI from '../contracts/NameWrapper'
 import reverseRegistrarABI from '@/contracts/ReverseRegistrar'
 import type { Step, BatchFormEntry } from '@/types'
-import { isEmpty } from '@/utils/validation'
 import { checkOwnable, checkContractOwner, checkReverseClaimable, checkOwnableOnL2, checkContractOwnerOnL2 } from '@/utils/contractChecks'
 import { checkOperatorApproval, setOperatorApproval } from '@/utils/operatorAccess'
+import {
+  buildDisplayEntriesWithAutoParents,
+  groupEntriesForBatching,
+  isZeroAddressLike,
+  parseAndValidateBatchCsv,
+  validateBatchAddress,
+  validateBatchLabel,
+} from '@/lib/batchNaming'
 
 export const L2_CHAIN_OPTIONS = L2_CHAIN_NAMES
 
@@ -146,43 +153,11 @@ export function useBatchNaming() {
   }
 
   const validateAddress = (address: string): string | undefined => {
-    if (!address || address.trim() === '') {
-      return undefined // Empty is OK, will be caught when submitting
-    }
-    if (!isAddress(address)) {
-      return 'Invalid contract address'
-    }
-    return undefined
+    return validateBatchAddress(address, { allowEmpty: true })
   }
 
   const validateLabel = (label: string, parentDomain: string): string | undefined => {
-    if (!label || label.trim() === '') {
-      return undefined // Empty is OK, will be caught when submitting
-    }
-
-    if (!parentDomain || parentDomain.trim() === '') {
-      return 'Please enter parent domain first'
-    }
-
-    // Check if label contains dots (meaning it might include parent)
-    if (label.includes('.')) {
-      // Full ENS name provided, validate that it ends with the parent domain
-      const normalizedLabel = label.toLowerCase().trim()
-      const normalizedParent = parentDomain.toLowerCase().trim()
-
-      // Check if the label ends with .parentDomain
-      if (!normalizedLabel.endsWith(`.${normalizedParent}`)) {
-        return `Parent name doesn't match. Expected: ${parentDomain}`
-      }
-
-      // Check that there's at least one label before the parent
-      const labelWithoutParent = normalizedLabel.slice(0, -(normalizedParent.length + 1))
-      if (!labelWithoutParent || labelWithoutParent.trim() === '') {
-        return 'Invalid ENS name format'
-      }
-    }
-
-    return undefined
+    return validateBatchLabel(label, parentDomain, { allowEmpty: true })
   }
 
   const checkIfAddressNeedsTruncation = useCallback((id: string, address: string) => {
@@ -273,7 +248,7 @@ export function useBatchNaming() {
             updatedEntry.addressError = validateAddress(value)
 
             // Check for duplicate addresses (skip zero addresses and empty)
-            if (value && value !== '0x0000000000000000000000000000000000000000' && value !== '0x0') {
+            if (value && !isZeroAddressLike(value)) {
               const duplicateAddress = batchEntries.find(
                 (e) => e.id !== id &&
                 e.address.toLowerCase() === value.toLowerCase() &&
@@ -326,74 +301,32 @@ export function useBatchNaming() {
   useEffect(() => {
     if (!parentName) return
 
-    // Separate entries into categories
     const userEntries = batchEntries.filter(
-      (e) => (e.address || e.label) && !e.id.startsWith('zero-')
+      (entry) => (entry.address || entry.label) && !entry.id.startsWith('zero-'),
     )
+    if (userEntries.length === 0) return
 
-    // Only process if there are user entries
-    if (userEntries.length > 0) {
-      // Use a timer to avoid processing on every keystroke (shorter debounce for better UX)
-      const timer = setTimeout(() => {
-        const allNames = new Map<string, BatchFormEntry>()
+    const timer = setTimeout(() => {
+      const sortedEntries = buildDisplayEntriesWithAutoParents(
+        batchEntries,
+        parentName,
+        (name) => ({
+          id: `zero-${name}-${Date.now()}`,
+          address: '0x0000000000000000000000000000000000000000',
+          label: name,
+        }),
+      )
 
-        // Track valid entries (no errors) for parent subdomain calculation
-        const validEntriesForParents = userEntries.filter(
-          (e) => e.address && e.label && !e.addressError && !e.labelError
-        )
+      const contentChanged =
+        sortedEntries.length !== batchEntries.length ||
+        sortedEntries.some((entry, index) => entry.id !== batchEntries[index]?.id)
 
-        // Add valid entries to the map for parent calculation
-        validEntriesForParents.forEach((entry) => {
-          let fullName = entry.label
-          if (!entry.label.toLowerCase().endsWith(`.${parentName.toLowerCase()}`)) {
-            fullName = `${entry.label}.${parentName}`
-          }
-          allNames.set(fullName, entry)
-        })
+      if (contentChanged) {
+        setBatchEntries(sortedEntries)
+      }
+    }, 300)
 
-        // Find all required parent subdomains (only from valid entries)
-        const requiredParents = new Set<string>()
-        allNames.forEach((entry, name) => {
-          const parts = name.split('.')
-          const parentParts = parentName.split('.')
-          // Check all intermediate parents
-          for (let i = 1; i < parts.length - parentParts.length; i++) {
-            const parentSubdomain = parts.slice(i).join('.')
-            if (parentSubdomain !== parentName && !allNames.has(parentSubdomain)) {
-              requiredParents.add(parentSubdomain)
-            }
-          }
-        })
-
-        // Create zero-address entries for missing parents
-        const zeroAddressEntries: BatchFormEntry[] = []
-        requiredParents.forEach((parentSubdomain) => {
-          zeroAddressEntries.push({
-            id: `zero-${parentSubdomain}-${Date.now()}`,
-            address: '0x0000000000000000000000000000000000000000',
-            label: parentSubdomain,
-          })
-        })
-
-        // Combine ALL user entries (including ones with errors) with zero-address entries
-        const emptyEntries = batchEntries.filter((e) => !e.address && !e.label)
-        const allEntries = [...userEntries, ...zeroAddressEntries, ...emptyEntries]
-
-        // Sort all entries by batch logic
-        const sortedEntries = sortEntriesByBatchLogic(allEntries, parentName)
-
-        // Only update if content changed
-        const contentChanged =
-          sortedEntries.length !== batchEntries.length ||
-          sortedEntries.some((entry, index) => entry.id !== batchEntries[index]?.id)
-
-        if (contentChanged) {
-          setBatchEntries(sortedEntries)
-        }
-      }, 300) // Wait 300ms after last change for better responsiveness
-
-      return () => clearTimeout(timer)
-    }
+    return () => clearTimeout(timer)
   }, [batchEntries, parentName])
 
   // Re-check truncation when window resizes
@@ -453,55 +386,6 @@ export function useBatchNaming() {
     return batchEntries.some((entry) => entry.addressError || entry.labelError)
   }
 
-  /**
-   * Sort batch entries by batch logic (same order as transaction batches)
-   */
-  const sortEntriesByBatchLogic = (entries: BatchFormEntry[], parent: string): BatchFormEntry[] => {
-    if (!parent || entries.length === 0) {
-      return entries
-    }
-
-    // Create a temporary structure to calculate sort order
-    const entriesWithMetadata = entries.map((entry) => {
-      let fullName = entry.label
-      if (entry.label && !entry.label.toLowerCase().endsWith(`.${parent.toLowerCase()}`)) {
-        fullName = `${entry.label}.${parent}`
-      }
-
-      const parts = fullName.split('.')
-      const parentParts = parent.split('.')
-      const level = parts.length - parentParts.length
-
-      // Get immediate parent
-      let immediateParent: string
-      if (level === 1) {
-        immediateParent = parent
-      } else {
-        immediateParent = parts.slice(1).join('.')
-      }
-
-      return {
-        entry,
-        fullName,
-        level,
-        immediateParent,
-      }
-    })
-
-    // Sort by: level (ascending), then immediate parent (alphabetically), then full name (alphabetically)
-    entriesWithMetadata.sort((a, b) => {
-      if (a.level !== b.level) {
-        return a.level - b.level
-      }
-      if (a.immediateParent !== b.immediateParent) {
-        return a.immediateParent.localeCompare(b.immediateParent)
-      }
-      return a.fullName.localeCompare(b.fullName)
-    })
-
-    return entriesWithMetadata.map((item) => item.entry)
-  }
-
   const handleCsvUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
@@ -510,34 +394,15 @@ export function useBatchNaming() {
     reader.onload = (e) => {
       try {
         const text = e.target?.result as string
-        const lines = text.split('\n').filter((line) => line.trim())
-        const startIndex = lines[0].toLowerCase().includes('address') ? 1 : 0
-        const newEntries: BatchFormEntry[] = []
-
-        for (let i = startIndex; i < lines.length; i++) {
-          const line = lines[i].trim()
-          if (!line) continue
-
-          const parts = line.split(',').map((part) => part.trim().replace(/^"|"$/g, ''))
-          if (parts.length >= 2) {
-            const address = parts[0]
-            const fullName = parts[1]
-
-            // Validate address
-            const addressError = validateAddress(address)
-
-            // Keep full name (don't strip parent)
-            const labelError = validateLabel(fullName, parentName)
-
-            newEntries.push({
-              id: `${Date.now()}-${i}`,
-              address,
-              label: fullName, // Keep full name
-              addressError,
-              labelError,
-            })
-          }
-        }
+        const { entries: parsedEntries } = parseAndValidateBatchCsv({
+          csvText: text,
+          parentName,
+          idPrefix: Date.now().toString(),
+        })
+        const newEntries = parsedEntries.map((entry, index) => ({
+          ...entry,
+          id: `${Date.now()}-${index}`,
+        }))
 
         const existingEntries = batchEntries.filter((e) => e.address || e.label)
         const combinedEntries = [...existingEntries, ...newEntries]
@@ -673,13 +538,7 @@ export function useBatchNaming() {
 
       if (!skipL1Naming) {
         for (const entry of allEntries) {
-          // Skip zero addresses (normalize to full address format)
-          const normalizedAddress = entry.address.toLowerCase().padEnd(42, '0')
-          if (
-            normalizedAddress === '0x0000000000000000000000000000000000000000' ||
-            entry.address.toLowerCase() === '0x0' ||
-            entry.address === ''
-          ) {
+          if (!entry.address || isZeroAddressLike(entry.address)) {
             continue
           }
 
@@ -902,116 +761,11 @@ export function useBatchNaming() {
     entries: BatchFormEntry[]
     level: number
   }> => {
-    const allNames = new Map<string, BatchFormEntry>() // fullName -> entry
-
-    // Build full names for each entry
-    entries.forEach((entry) => {
-      if (entry.address && entry.label) {
-        let fullName: string
-        if (entry.label.toLowerCase().endsWith(`.${rootParent.toLowerCase()}`)) {
-          fullName = entry.label
-        } else {
-          fullName = `${entry.label}.${rootParent}`
-        }
-        allNames.set(fullName, { ...entry, label: fullName })
-      }
-    })
-
-    // Find all required parent subdomains and add them with zero address
-    const requiredParents = new Set<string>()
-    allNames.forEach((entry, name) => {
-      const parts = name.split('.')
-      // Check all intermediate parents
-      for (let i = 1; i < parts.length - rootParent.split('.').length; i++) {
-        const parentSubdomain = parts.slice(i).join('.')
-        if (parentSubdomain !== rootParent && !allNames.has(parentSubdomain)) {
-          requiredParents.add(parentSubdomain)
-        }
-      }
-    })
-
-    // Add zero address entries for missing parents
-    requiredParents.forEach((parentSubdomain) => {
-      allNames.set(parentSubdomain, {
-        id: `zero-${Date.now()}-${Math.random()}`,
-        address: '0x0000000000000000000000000000000000000000',
-        label: parentSubdomain,
-      })
-    })
-
-    // Group entries by their immediate parent and level
-    const batches = new Map<string, Map<number, BatchFormEntry[]>>() // parentName -> level -> entries
-
-    allNames.forEach((entry, fullName) => {
-      const parts = fullName.split('.')
-      const rootParentParts = rootParent.split('.')
-      const level = parts.length - rootParentParts.length
-
-      // Get immediate parent
-      let immediateParent: string
-      if (level === 1) {
-        // This is a 3LD directly under root parent
-        immediateParent = rootParent
-      } else {
-        // Get the parent (everything after the first label)
-        immediateParent = parts.slice(1).join('.')
-      }
-
-      if (!batches.has(immediateParent)) {
-        batches.set(immediateParent, new Map())
-      }
-
-      const parentBatches = batches.get(immediateParent)!
-      if (!parentBatches.has(level)) {
-        parentBatches.set(level, [])
-      }
-
-      parentBatches.get(level)!.push(entry)
-    })
-
-    // Convert to array and sort by level, then by parent name
-    const result: Array<{
-      parentName: string
-      entries: BatchFormEntry[]
-      level: number
-    }> = []
-
-    // Get all unique levels
-    const allLevels = new Set<number>()
-    batches.forEach((levelMap) => {
-      levelMap.forEach((_, level) => allLevels.add(level))
-    })
-
-    // Sort levels ascending (3LD first, then 4LD, etc.)
-    const sortedLevels = Array.from(allLevels).sort((a, b) => a - b)
-
-    // For each level, add all batches at that level
-    sortedLevels.forEach((level) => {
-      const batchesAtLevel: Array<{
-        parentName: string
-        entries: BatchFormEntry[]
-        level: number
-      }> = []
-
-      batches.forEach((levelMap, parentName) => {
-        if (levelMap.has(level)) {
-          const entries = levelMap.get(level)!
-          // Sort entries alphabetically within the batch
-          entries.sort((a, b) => a.label.localeCompare(b.label))
-          batchesAtLevel.push({
-            parentName,
-            entries,
-            level,
-          })
-        }
-      })
-
-      // Sort batches at this level alphabetically by parent name
-      batchesAtLevel.sort((a, b) => a.parentName.localeCompare(b.parentName))
-      result.push(...batchesAtLevel)
-    })
-
-    return result
+    return groupEntriesForBatching(entries, rootParent, (name) => ({
+      id: `zero-${Date.now()}-${Math.random()}`,
+      address: '0x0000000000000000000000000000000000000000',
+      label: name,
+    }))
   }
 
   const handleBatchNaming = async () => {
@@ -1108,12 +862,7 @@ export function useBatchNaming() {
 
       // Count total real contracts and parent subdomains
       const realContracts = allProcessedEntries.filter((e) => {
-        const normalizedAddress = e.address.toLowerCase().padEnd(42, '0')
-        return (
-          normalizedAddress !== '0x0000000000000000000000000000000000000000' &&
-          e.address.toLowerCase() !== '0x0' &&
-          e.address !== ''
-        )
+        return Boolean(e.address) && !isZeroAddressLike(e.address)
       }).length
       const parentSubdomains = allProcessedEntries.length - realContracts
 
@@ -1137,12 +886,7 @@ export function useBatchNaming() {
       // Step 2+: Create a batch naming step for each group
       batchGroups.forEach((batch, index) => {
         const batchRealContracts = batch.entries.filter((e) => {
-          const normalizedAddress = e.address.toLowerCase().padEnd(42, '0')
-          return (
-            normalizedAddress !== '0x0000000000000000000000000000000000000000' &&
-            e.address.toLowerCase() !== '0x0' &&
-            e.address !== ''
-          )
+          return Boolean(e.address) && !isZeroAddressLike(e.address)
         }).length
         const batchParentSubdomains = batch.entries.length - batchRealContracts
 
@@ -1205,13 +949,7 @@ export function useBatchNaming() {
       // Step 3: Check each contract for reverse resolution on L1 (only for non-zero addresses and if not skipping L1)
       if (!skipL1Naming) {
         for (const entry of allProcessedEntries) {
-          // Skip zero addresses (normalize to full address format)
-          const normalizedAddress = entry.address.toLowerCase().padEnd(42, '0')
-          if (
-            normalizedAddress === '0x0000000000000000000000000000000000000000' ||
-            entry.address.toLowerCase() === '0x0' ||
-            entry.address === ''
-          ) {
+          if (!entry.address || isZeroAddressLike(entry.address)) {
             continue
           }
 
@@ -1326,13 +1064,7 @@ export function useBatchNaming() {
           }> = []
 
           for (const entry of allProcessedEntries) {
-            // Skip zero addresses (normalize to full address format)
-            const normalizedAddress = entry.address.toLowerCase().padEnd(42, '0')
-            if (
-              normalizedAddress === '0x0000000000000000000000000000000000000000' ||
-              entry.address.toLowerCase() === '0x0' ||
-              entry.address === ''
-            ) {
+            if (!entry.address || isZeroAddressLike(entry.address)) {
               continue
             }
 

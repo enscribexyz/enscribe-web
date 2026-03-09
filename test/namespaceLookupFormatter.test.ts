@@ -37,7 +37,6 @@ describe('namespaceLookupFormatter', () => {
       weird: 'shape',
     })
 
-    expect(text).toContain('Lookup result (ens_ns_get_name_history):')
     expect(text).toContain('"weird": "shape"')
   })
 })

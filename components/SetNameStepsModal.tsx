@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -75,6 +75,7 @@ export default function SetNameStepsModal({
   const [stepTxHashes, setStepTxHashes] = useState<(string | null)[]>(
     Array(steps?.length || 0).fill(null),
   )
+  const failureCleanupAttemptedRef = useRef(false)
 
   // Add state to track contract address
   const [internalContractAddress, setInternalContractAddress] = useState<
@@ -111,6 +112,7 @@ export default function SetNameStepsModal({
         setStepStatuses(Array(steps.length).fill('completed'))
         setAllStepsCompleted(true)
       }
+      failureCleanupAttemptedRef.current = false
     }
 
     // Also reset when modal closes to ensure fresh state next time
@@ -118,6 +120,7 @@ export default function SetNameStepsModal({
       setCurrentStep(0)
       setExecuting(false)
       setAllStepsCompleted(false)
+      failureCleanupAttemptedRef.current = false
     }
   }, [open, steps])
 
@@ -170,18 +173,55 @@ export default function SetNameStepsModal({
   const runStep = async (index: number) => {
     if (!walletClient) return
 
-    let tx = null
-    let errorMain = null
     setExecuting(true)
+    let tx: `0x${string}` | string | void = undefined
 
-    tx = await steps[index].action().catch((error) => {
-      updateStepStatus(index, 'error')
-      setErrorMessage(
-        error?.message || error.toString() || 'Unknown error occurred.',
+    const attemptRevokeCleanup = async () => {
+      if (failureCleanupAttemptedRef.current) return
+      if (!batchEntries || batchEntries.length === 0) return
+
+      const revokeStepIndex = steps.findIndex((step) =>
+        step.title.toLowerCase().includes('revoke operator access'),
       )
-      errorMain = error
+      if (revokeStepIndex === -1 || revokeStepIndex === index) return
+      if (stepStatuses[revokeStepIndex] === 'completed') return
+
+      failureCleanupAttemptedRef.current = true
+      try {
+        const cleanupTx = await steps[revokeStepIndex].action()
+        if (cleanupTx) {
+          const txHash = cleanupTx as string
+          setStepTxHashes((prev) => {
+            const updated = [...prev]
+            updated[revokeStepIndex] = txHash
+            return updated
+          })
+          setLastTxHash(txHash)
+        }
+        updateStepStatus(revokeStepIndex, 'completed')
+      } catch (cleanupError: any) {
+        console.error('Cleanup revoke failed:', cleanupError)
+        updateStepStatus(revokeStepIndex, 'error')
+        setErrorMessage((prev) => {
+          const baseMessage = prev || 'Unknown error occurred.'
+          const cleanupMessage =
+            cleanupError?.message ||
+            cleanupError?.toString?.() ||
+            'cleanup revoke failed'
+          return `${baseMessage} Cleanup revoke failed: ${cleanupMessage}`
+        })
+      }
+    }
+
+    try {
+      tx = await steps[index].action()
+    } catch (error: any) {
+      updateStepStatus(index, 'error')
+      setErrorMessage(error?.message || error.toString() || 'Unknown error occurred.')
+      await attemptRevokeCleanup()
+      setExecuting(false)
       return
-    })
+    }
 
     try {
       if (tx) {
@@ -213,10 +253,6 @@ export default function SetNameStepsModal({
         })
 
         setLastTxHash(txHash)
-        updateStepStatus(index, 'completed')
-      }
-
-      if (!errorMain) {
         updateStepStatus(index, 'completed')
       }
 

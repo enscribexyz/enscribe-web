@@ -26,6 +26,25 @@ describe('ai-intent parseIntentResponse', () => {
     })
   })
 
+  it('parses ready set_batch_names_from_csv intent', () => {
+    const out = parseIntentResponse(
+      JSON.stringify({
+        status: 'ready',
+        assistantResponse: 'Using the uploaded CSV on Sepolia.',
+        intent: {
+          action: 'set_batch_names_from_csv',
+          chainId: 11155111,
+        },
+      }),
+    )
+
+    expect(out.status).toBe('ready')
+    expect(out.intent).toEqual({
+      action: 'set_batch_names_from_csv',
+      chainId: 11155111,
+    })
+  })
+
   it('parses and normalizes ready namespace lookup intent', () => {
     const out = parseIntentResponse(
       JSON.stringify({

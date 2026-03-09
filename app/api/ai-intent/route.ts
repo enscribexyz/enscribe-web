@@ -82,6 +82,9 @@ const SYSTEM_PROMPT = [
   'Never ask the user to choose a tool name. Tool selection is internal.',
   'Never mention internal tool ids (like ens_ns_*) to the user.',
   'Required fields for set_primary_name: chainId, contractAddress, ensName.',
+  'Required fields for set_batch_names_from_csv: chainId.',
+  'Use set_batch_names_from_csv when the user asks to name contracts from an uploaded CSV file.',
+  'Do not attempt CSV validation in the intent response. Validation is deterministic in app/server code.',
   `For read-only ENS lookup questions, select one namespace tool from: ${NAMESPACE_TOOL_NAMES.join(', ')}.`,
   'For single read requests return action=namespace_lookup with toolName and arguments.',
   'For compound read requests needing multiple reads, return action=namespace_lookup_multi with calls[].',
@@ -115,6 +118,14 @@ type ResponsesApiPayload = {
 type IntentRequestBody = {
   prompt?: unknown
   messages?: unknown
+  attachmentContext?: unknown
+}
+
+type AttachmentContext = {
+  hasCsvAttachment: boolean
+  csvRowCount?: number
+  csvIssueCount?: number
+  inferredParentName?: string
 }
 
 function extractOutputText(payload: ResponsesApiPayload): string {
@@ -159,6 +170,31 @@ function sanitizeConversation(
   return messages.slice(-8)
 }
 
+function sanitizeAttachmentContext(value: unknown): AttachmentContext {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return { hasCsvAttachment: false }
+  }
+
+  const raw = value as Partial<AttachmentContext>
+  const hasCsvAttachment = Boolean(raw.hasCsvAttachment)
+
+  return {
+    hasCsvAttachment,
+    csvRowCount:
+      typeof raw.csvRowCount === 'number' && Number.isFinite(raw.csvRowCount)
+        ? raw.csvRowCount
+        : undefined,
+    csvIssueCount:
+      typeof raw.csvIssueCount === 'number' && Number.isFinite(raw.csvIssueCount)
+        ? raw.csvIssueCount
+        : undefined,
+    inferredParentName:
+      typeof raw.inferredParentName === 'string' && raw.inferredParentName.trim()
+        ? raw.inferredParentName.trim()
+        : undefined,
+  }
+}
+
 function toResponsesInputMessage(message: IntentConversationMessage): {
   role: 'user' | 'assistant'
   content: Array<{ type: 'input_text' | 'output_text'; text: string }>
@@ -178,10 +214,12 @@ function toResponsesInputMessage(message: IntentConversationMessage): {
 export async function POST(req: NextRequest) {
   let prompt = ''
   let messages: IntentConversationMessage[] = []
+  let attachmentContext: AttachmentContext = { hasCsvAttachment: false }
   try {
     const body = (await req.json()) as IntentRequestBody
     prompt = typeof body.prompt === 'string' ? body.prompt.trim() : ''
     messages = sanitizeConversation(body.messages)
+    attachmentContext = sanitizeAttachmentContext(body.attachmentContext)
   } catch {
     return NextResponse.json({ error: 'Invalid JSON body.' }, { status: 400 })
   }
@@ -202,6 +240,9 @@ export async function POST(req: NextRequest) {
 
   try {
     const conversationInput = messages.map(toResponsesInputMessage)
+    const attachmentContextText = attachmentContext.hasCsvAttachment
+      ? `Attachment context: CSV is attached; rows=${attachmentContext.csvRowCount ?? 'unknown'}; validationIssues=${attachmentContext.csvIssueCount ?? 'unknown'}; inferredParent=${attachmentContext.inferredParentName ?? 'unknown'}.`
+      : 'Attachment context: no CSV attached.'
 
     const response = await fetch(OPENAI_RESPONSES_API, {
       method: 'POST',
@@ -260,6 +301,20 @@ export async function POST(req: NextRequest) {
                     {
                       type: 'object',
                       additionalProperties: false,
+                      required: ['action', 'chainId'],
+                      properties: {
+                        action: {
+                          type: 'string',
+                          enum: ['set_batch_names_from_csv'],
+                        },
+                        chainId: {
+                          type: 'integer',
+                        },
+                      },
+                    },
+                    {
+                      type: 'object',
+                      additionalProperties: false,
                       required: ['action', 'toolName', 'arguments'],
                       properties: {
                         action: {
@@ -311,6 +366,10 @@ export async function POST(req: NextRequest) {
           {
             role: 'system',
             content: [{ type: 'input_text', text: SYSTEM_PROMPT }],
+          },
+          {
+            role: 'system',
+            content: [{ type: 'input_text', text: attachmentContextText }],
           },
           ...conversationInput,
           {

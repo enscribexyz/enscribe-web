@@ -51,6 +51,12 @@ describe('MCP namespace tool integration', () => {
     expect(tools?.some((tool) => tool.name === 'ens_ns_get_name_price')).toBe(
       true,
     )
+    expect(
+      tools?.some((tool) => tool.name === 'ens_preflight_batch_naming_from_csv'),
+    ).toBe(true)
+    expect(
+      tools?.some((tool) => tool.name === 'ens_build_batch_naming_tx_plan'),
+    ).toBe(true)
   })
 
   it('proxies namespace tool calls and returns normalized output', async () => {
@@ -131,4 +137,3 @@ describe('MCP namespace tool integration', () => {
     )
   })
 })
-

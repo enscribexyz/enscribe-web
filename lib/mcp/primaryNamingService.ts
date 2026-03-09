@@ -6,14 +6,30 @@ import {
   namehash,
   parseAbi,
   parseTransaction,
+  toHex,
   toBytes,
   zeroAddress,
 } from 'viem'
 import { getEnsAddress, getEnsName, readContract } from 'viem/actions'
 import { normalize } from 'viem/ens'
+import { L2_CHAIN_NAMES, type L2ChainName } from '@/lib/chains'
+import { getL2ChainId } from '@/lib/l2ChainConfig'
 import { getPublicClient } from '@/lib/viemClient'
-import { checkContractOwner, checkOwnable, checkReverseClaimable } from '@/utils/contractChecks'
+import {
+  checkContractOwner,
+  checkContractOwnerOnL2,
+  checkOwnable,
+  checkOwnableOnL2,
+  checkReverseClaimable,
+} from '@/utils/contractChecks'
 import { CHAINS, CONTRACTS } from '@/utils/constants'
+import { checkOperatorApproval } from '@/utils/operatorAccess'
+import {
+  groupEntriesForBatching,
+  isZeroAddressLike,
+  parseAndValidateBatchCsv,
+  stripParentSuffix,
+} from '@/lib/batchNaming'
 import {
   validateCallTargetAndSelectorForChain,
   type PolicyValidationResult,
@@ -27,11 +43,13 @@ const ENS_REGISTRY_ABI = parseAbi([
   'function owner(bytes32 node) view returns (address)',
   'function resolver(bytes32 node) view returns (address)',
   'function setSubnodeRecord(bytes32 node, bytes32 label, address owner, address resolver, uint64 ttl)',
+  'function setApprovalForAll(address operator, bool approved)',
 ])
 
 const NAME_WRAPPER_ABI = parseAbi([
   'function isWrapped(bytes32 node) view returns (bool)',
   'function setSubnodeRecord(bytes32 parentNode, string label, address owner, address resolver, uint64 ttl, uint32 fuses, uint64 expiry) returns (bytes32)',
+  'function setApprovalForAll(address operator, bool approved)',
 ])
 
 const RESOLVER_ABI = parseAbi([
@@ -49,7 +67,25 @@ const L2_REVERSE_REGISTRAR_ABI = parseAbi([
   'function setNameForAddr(address addr, string name)',
 ])
 
+const ENSCRIBE_V2_ABI = parseAbi([
+  'function pricing() view returns (uint256)',
+  'function setNameBatch(address[] contractAddresses, string[] labels, string parentName) payable returns (bool)',
+  'function setNameBatch(address[] contractAddresses, string[] labels, string parentName, uint256[] coinTypes) payable returns (bool)',
+])
+
 const MAINNET_ENS_CHAINS = new Set<number>([CHAINS.MAINNET, CHAINS.SEPOLIA])
+const BATCH_UNSUPPORTED_CHAINS = new Set<number>([
+  CHAINS.OPTIMISM,
+  CHAINS.OPTIMISM_SEPOLIA,
+  CHAINS.ARBITRUM,
+  CHAINS.ARBITRUM_SEPOLIA,
+  CHAINS.SCROLL,
+  CHAINS.SCROLL_SEPOLIA,
+  CHAINS.LINEA,
+  CHAINS.LINEA_SEPOLIA,
+  CHAINS.BASE,
+  CHAINS.BASE_SEPOLIA,
+])
 
 export type PreflightInput = {
   chainId: number
@@ -75,12 +111,21 @@ export type StatusInput = {
   ensName?: string
 }
 
+export type BatchCsvNamingInput = {
+  chainId: number
+  walletAddress: string
+  csvText: string
+  parentName?: string
+  skipL1Naming?: boolean
+  selectedL2ChainNames?: string[]
+}
+
 type PlanStep = {
   id: string
   chainId: number
   to: `0x${string}`
   data: `0x${string}`
-  value: '0x0'
+  value: `0x${string}`
   description: string
   method: string
 }
@@ -390,11 +435,452 @@ function validatePolicyOrThrow(result: PolicyValidationResult): void {
   }
 }
 
+type PreparedBatchInput = {
+  chainId: number
+  walletAddress: `0x${string}`
+  config: (typeof CONTRACTS)[number]
+  parentName: string
+  csvIssues: Array<{ rowNumber: number; field: 'row' | 'address' | 'name'; message: string }>
+  validEntries: Array<{
+    id: string
+    address: string
+    label: string
+    addressError?: string
+    labelError?: string
+  }>
+  groupedEntries: Array<{
+    parentName: string
+    entries: Array<{
+      id: string
+      address: string
+      label: string
+      addressError?: string
+      labelError?: string
+    }>
+    level: number
+  }>
+  skipL1Naming: boolean
+  selectedL2ChainNames: L2ChainName[]
+  uniqueCoinTypes: bigint[]
+  hasOperatorAccess: boolean
+}
+
+function normalizeSelectedL2Chains(values?: string[]): L2ChainName[] {
+  if (!Array.isArray(values)) {
+    return []
+  }
+
+  const allowed = new Set<string>(L2_CHAIN_NAMES)
+  const out: L2ChainName[] = []
+
+  for (const value of values) {
+    if (!allowed.has(value)) {
+      continue
+    }
+    if (out.includes(value as L2ChainName)) {
+      continue
+    }
+    out.push(value as L2ChainName)
+  }
+
+  return out
+}
+
+function isUnsupportedBatchChain(chainId: number): boolean {
+  return BATCH_UNSUPPORTED_CHAINS.has(chainId)
+}
+
+function sanitizeEnvAddress(value: string | undefined): string {
+  if (!value) {
+    return ''
+  }
+  const trimmed = value.trim()
+  return trimmed.replace(/^['"]|['"]$/g, '')
+}
+
+function resolveBatchEnscribeV2Address(chainId: number, configured: string): string {
+  const fromConfig = sanitizeEnvAddress(configured)
+  if (isAddress(fromConfig)) {
+    return fromConfig
+  }
+
+  const envCandidatesByChain: Record<number, string[]> = {
+    [CHAINS.MAINNET]: ['NEXT_PUBLIC_ENSCRIBE_V2_CONTRACT', 'ENSCRIBE_V2_CONTRACT'],
+    [CHAINS.SEPOLIA]: [
+      'NEXT_PUBLIC_ENSCRIBE_V2_CONTRACT_SEPOLIA',
+      'ENSCRIBE_V2_CONTRACT_SEPOLIA',
+    ],
+  }
+
+  const candidateKeys = envCandidatesByChain[chainId] ?? []
+  for (const key of candidateKeys) {
+    const candidate = sanitizeEnvAddress(process.env[key])
+    if (isAddress(candidate)) {
+      return candidate
+    }
+  }
+
+  return fromConfig
+}
+
 export class PrimaryNamingMcpService {
   constructor(
     private readonly operationStore: PrimaryNameOperationStore =
       createPrimaryNameOperationStore(),
   ) {}
+
+  private async prepareBatchInput(input: BatchCsvNamingInput): Promise<PreparedBatchInput> {
+    const baseConfig = ensureChainConfig(input.chainId)
+    const enscribeV2Address = resolveBatchEnscribeV2Address(
+      input.chainId,
+      baseConfig.ENSCRIBE_V2_CONTRACT,
+    )
+    const config = {
+      ...baseConfig,
+      ENSCRIBE_V2_CONTRACT: enscribeV2Address,
+    }
+    const walletAddress = requireAddress(input.walletAddress, 'walletAddress')
+
+    if (isUnsupportedBatchChain(input.chainId)) {
+      throw new Error(
+        `Batch naming from AI is only supported when connected to Ethereum Mainnet (1) or Sepolia (11155111). Received chainId ${input.chainId}.`,
+      )
+    }
+
+    if (!input.csvText || !input.csvText.trim()) {
+      throw new Error('csvText is required.')
+    }
+
+    if (!isAddress(config.ENSCRIBE_V2_CONTRACT)) {
+      throw new Error(
+        `ENSCRIBE_V2_CONTRACT is not configured for chainId ${input.chainId}.`,
+      )
+    }
+
+    const parsed = parseAndValidateBatchCsv({
+      csvText: input.csvText,
+      parentName: input.parentName,
+      idPrefix: 'batch',
+    })
+
+    const parentName = parsed.inferredParentName
+    if (!parentName) {
+      throw new Error(
+        'Could not determine a parent domain from CSV rows. Include full ENS names under a common parent.',
+      )
+    }
+
+    const validEntries = parsed.entries.filter(
+      (entry) =>
+        !entry.addressError &&
+        !entry.labelError &&
+        Boolean(entry.address) &&
+        Boolean(entry.label) &&
+        isAddress(entry.address),
+    )
+
+    const groupedEntries = groupEntriesForBatching(validEntries, parentName, (name) => ({
+      id: `zero-${name}`,
+      address: zeroAddress,
+      label: name,
+    }))
+
+    const skipL1Naming = Boolean(input.skipL1Naming)
+    const selectedL2ChainNames = normalizeSelectedL2Chains(input.selectedL2ChainNames)
+
+    const coinTypes: bigint[] = []
+    if (!skipL1Naming) {
+      coinTypes.push(60n)
+    }
+
+    const isL1Mainnet = input.chainId === CHAINS.MAINNET
+    for (const chainName of selectedL2ChainNames) {
+      const l2ChainId = getL2ChainId(chainName, isL1Mainnet)
+      const coinType = CONTRACTS[l2ChainId]?.COIN_TYPE
+      if (!coinType) {
+        continue
+      }
+      coinTypes.push(BigInt(coinType))
+    }
+
+    const uniqueCoinTypes = [...new Set(coinTypes)]
+    const client = getPublicClient(input.chainId)
+    const hasOperatorAccess =
+      client &&
+      isAddress(config.ENSCRIBE_V2_CONTRACT) &&
+      isAddress(config.ENS_REGISTRY) &&
+      Boolean(parentName)
+        ? await checkOperatorApproval({
+            client,
+            walletAddress,
+            enscribeContract: config.ENSCRIBE_V2_CONTRACT,
+            ensRegistry: config.ENS_REGISTRY,
+            nameWrapper: config.NAME_WRAPPER,
+            name: parentName,
+            chainId: input.chainId,
+          })
+        : false
+
+    return {
+      chainId: input.chainId,
+      walletAddress,
+      config,
+      parentName,
+      csvIssues: parsed.issues,
+      validEntries,
+      groupedEntries,
+      skipL1Naming,
+      selectedL2ChainNames,
+      uniqueCoinTypes,
+      hasOperatorAccess,
+    }
+  }
+
+  async preflightBatchNaming(input: BatchCsvNamingInput) {
+    const prepared = await this.prepareBatchInput(input)
+
+    return {
+      chainId: prepared.chainId,
+      walletAddress: prepared.walletAddress,
+      parentName: prepared.parentName,
+      issueCount: prepared.csvIssues.length,
+      issues: prepared.csvIssues,
+      totalRows: prepared.validEntries.length + prepared.csvIssues.length,
+      validEntries: prepared.validEntries.length,
+      batchCount: prepared.groupedEntries.length,
+      skipL1Naming: prepared.skipL1Naming,
+      selectedL2ChainNames: prepared.selectedL2ChainNames,
+      coinTypes: prepared.uniqueCoinTypes.map((coinType) => coinType.toString()),
+      hasOperatorAccess: prepared.hasOperatorAccess,
+      canProceed:
+        prepared.csvIssues.length === 0 &&
+        prepared.validEntries.length > 0 &&
+        prepared.groupedEntries.length > 0,
+      warnings:
+        prepared.csvIssues.length > 0
+          ? ['CSV contains validation issues. Fix them before signing transactions.']
+          : [],
+    }
+  }
+
+  async buildBatchNamingPlan(input: BatchCsvNamingInput) {
+    const prepared = await this.prepareBatchInput(input)
+    if (prepared.csvIssues.length > 0) {
+      const firstIssue = prepared.csvIssues[0]
+      throw new Error(`CSV validation failed at row ${firstIssue.rowNumber}: ${firstIssue.message}`)
+    }
+
+    if (prepared.validEntries.length === 0 || prepared.groupedEntries.length === 0) {
+      throw new Error('No valid CSV rows available for batch naming.')
+    }
+
+    const pricing = (await readContract(getPublicClient(input.chainId)!, {
+      address: prepared.config.ENSCRIBE_V2_CONTRACT as `0x${string}`,
+      abi: ENSCRIBE_V2_ABI,
+      functionName: 'pricing',
+      args: [],
+    })) as bigint
+
+    const pricingHex = toHex(pricing) as `0x${string}`
+    const steps: PlanStep[] = []
+
+    const parentNode = namehash(prepared.parentName)
+    const parentWrapped = await isParentWrapped({
+      chainId: prepared.chainId,
+      nameWrapper: prepared.config.NAME_WRAPPER,
+      parentNode,
+    })
+    const approvalTarget = parentWrapped
+      ? prepared.config.NAME_WRAPPER
+      : prepared.config.ENS_REGISTRY
+
+    if (!prepared.hasOperatorAccess) {
+      steps.push({
+        id: 'grant-operator-access',
+        chainId: prepared.chainId,
+        to: approvalTarget as `0x${string}`,
+        data: encodeFunctionData({
+          abi: parentWrapped ? NAME_WRAPPER_ABI : ENS_REGISTRY_ABI,
+          functionName: 'setApprovalForAll',
+          args: [prepared.config.ENSCRIBE_V2_CONTRACT as `0x${string}`, true],
+        }),
+        value: '0x0',
+        description: `Grant operator access on ${prepared.parentName}`,
+        method: 'setApprovalForAll(address,bool)',
+      })
+    }
+
+    for (let index = 0; index < prepared.groupedEntries.length; index++) {
+      const batch = prepared.groupedEntries[index]
+      const labels = batch.entries.map((entry) =>
+        stripParentSuffix(entry.label, batch.parentName),
+      )
+      const addresses = batch.entries.map((entry) => entry.address as `0x${string}`)
+      const usesDefaultCoinType =
+        prepared.uniqueCoinTypes.length === 1 && prepared.uniqueCoinTypes[0] === 60n
+
+      const data = usesDefaultCoinType
+        ? encodeFunctionData({
+            abi: ENSCRIBE_V2_ABI,
+            functionName: 'setNameBatch',
+            args: [addresses, labels, batch.parentName],
+          })
+        : encodeFunctionData({
+            abi: ENSCRIBE_V2_ABI,
+            functionName: 'setNameBatch',
+            args: [addresses, labels, batch.parentName, prepared.uniqueCoinTypes],
+          })
+
+      steps.push({
+        id: `set-name-batch-${index + 1}`,
+        chainId: prepared.chainId,
+        to: prepared.config.ENSCRIBE_V2_CONTRACT as `0x${string}`,
+        data,
+        value: pricingHex,
+        description: `Set ${batch.entries.length} subname(s) under ${batch.parentName}`,
+        method: 'setNameBatch',
+      })
+    }
+
+    const l1Client = getPublicClient(prepared.chainId)
+    if (!prepared.skipL1Naming && l1Client && isAddress(prepared.config.REVERSE_REGISTRAR)) {
+      const allEntries = prepared.groupedEntries.flatMap((batch) => batch.entries)
+      for (const entry of allEntries) {
+        if (!entry.address || isZeroAddressLike(entry.address)) {
+          continue
+        }
+
+        const isOwnable = await checkOwnable(l1Client, entry.address)
+        let canSetReverse = false
+        if (isOwnable) {
+          canSetReverse = await checkContractOwner(
+            l1Client,
+            entry.address,
+            prepared.walletAddress,
+            prepared.config.ENS_REGISTRY,
+          )
+        } else {
+          canSetReverse = await checkReverseClaimable(
+            l1Client,
+            entry.address,
+            prepared.walletAddress,
+            prepared.config.ENS_REGISTRY,
+          )
+        }
+
+        if (!canSetReverse) {
+          continue
+        }
+
+        steps.push({
+          id: `set-reverse-l1-${entry.address.toLowerCase()}`,
+          chainId: prepared.chainId,
+          to: prepared.config.REVERSE_REGISTRAR as `0x${string}`,
+          data: encodeFunctionData({
+            abi: L1_REVERSE_REGISTRAR_ABI,
+            functionName: 'setNameForAddr',
+            args: [
+              entry.address as `0x${string}`,
+              prepared.walletAddress,
+              prepared.config.PUBLIC_RESOLVER as `0x${string}`,
+              entry.label,
+            ],
+          }),
+          value: '0x0',
+          description: `Set reverse record for ${entry.label}`,
+          method: 'setNameForAddr(address,address,address,string)',
+        })
+      }
+    }
+
+    if (prepared.selectedL2ChainNames.length > 0) {
+      const isL1Mainnet = prepared.chainId === CHAINS.MAINNET
+      const allEntries = prepared.groupedEntries.flatMap((batch) => batch.entries)
+
+      for (const l2Name of prepared.selectedL2ChainNames) {
+        const l2ChainId = getL2ChainId(l2Name, isL1Mainnet)
+        const l2Config = CONTRACTS[l2ChainId]
+        if (!l2Config || !isAddress(l2Config.L2_REVERSE_REGISTRAR)) {
+          continue
+        }
+
+        for (const entry of allEntries) {
+          if (!entry.address || isZeroAddressLike(entry.address)) {
+            continue
+          }
+
+          const ownableOnL2 = await checkOwnableOnL2(entry.address, l2ChainId)
+          if (!ownableOnL2) {
+            continue
+          }
+
+          const ownerOnL2 = await checkContractOwnerOnL2(
+            entry.address,
+            l2ChainId,
+            prepared.walletAddress,
+          )
+          if (!ownerOnL2) {
+            continue
+          }
+
+          steps.push({
+            id: `set-reverse-${l2ChainId}-${entry.address.toLowerCase()}`,
+            chainId: l2ChainId,
+            to: l2Config.L2_REVERSE_REGISTRAR as `0x${string}`,
+            data: encodeFunctionData({
+              abi: L2_REVERSE_REGISTRAR_ABI,
+              functionName: 'setNameForAddr',
+              args: [entry.address as `0x${string}`, entry.label],
+            }),
+            value: '0x0',
+            description: `Set ${l2Name} reverse record for ${entry.label}`,
+            method: 'setNameForAddr(address,string)',
+          })
+        }
+      }
+    }
+
+    steps.push({
+      id: 'revoke-operator-access',
+      chainId: prepared.chainId,
+      to: approvalTarget as `0x${string}`,
+      data: encodeFunctionData({
+        abi: parentWrapped ? NAME_WRAPPER_ABI : ENS_REGISTRY_ABI,
+        functionName: 'setApprovalForAll',
+        args: [prepared.config.ENSCRIBE_V2_CONTRACT as `0x${string}`, false],
+      }),
+      value: '0x0',
+      description: `Revoke operator access on ${prepared.parentName}`,
+      method: 'setApprovalForAll(address,bool)',
+    })
+
+    const operationId = randomUUID()
+    await this.operationStore.onPlanCreated({
+      operationId,
+      chainId: prepared.chainId,
+      contractAddress: prepared.validEntries[0].address,
+      ensName: prepared.parentName,
+      createdAt: new Date().toISOString(),
+    })
+
+    return {
+      operationId,
+      chainId: prepared.chainId,
+      parentName: prepared.parentName,
+      entryCount: prepared.validEntries.length,
+      batchCount: prepared.groupedEntries.length,
+      plan: steps,
+      isNoop: steps.length === 0,
+      preflight: await this.preflightBatchNaming(input),
+      notes:
+        steps.length === 0
+          ? ['No on-chain writes were generated for the provided CSV rows.']
+          : [],
+      next: {
+        statusTool: 'ens_get_primary_name_status',
+      },
+    }
+  }
 
   async preflight(input: PreflightInput) {
     const {
