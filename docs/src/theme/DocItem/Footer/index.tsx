@@ -48,7 +48,7 @@ export default function DocItemFooter(): React.JSX.Element {
       <p className={styles.helpText}>
         Need help?{' '}
         <Link
-          href="https://discord.gg/5AYbpzXE"
+          href="https://discord.gg/YztSPKHH"
           target="_blank"
           rel="noopener noreferrer"
           className={styles.helpLink}>
