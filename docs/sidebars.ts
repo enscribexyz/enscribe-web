@@ -25,6 +25,7 @@ const sidebars: SidebarsConfig = {
         'introduction/what-is-enscribe',
         'introduction/what-is-ens',
         'introduction/naming-contracts',
+        'introduction/contract-metadata',
         'introduction/supported-networks',
       ],
     },
