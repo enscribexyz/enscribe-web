@@ -61,6 +61,49 @@ const TOOLS: ToolSchema[] = [
     },
   },
   {
+    name: 'ens_preflight_batch_naming_from_csv',
+    description:
+      'Validate uploaded CSV input and preflight batch naming execution for a parent ENS domain.',
+    annotations: { readOnlyHint: true },
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['chainId', 'walletAddress', 'csvText'],
+      properties: {
+        chainId: { type: 'number' },
+        walletAddress: { type: 'string' },
+        csvText: { type: 'string' },
+        parentName: { type: 'string' },
+        skipL1Naming: { type: 'boolean' },
+        selectedL2ChainNames: {
+          type: 'array',
+          items: { type: 'string' },
+        },
+      },
+    },
+  },
+  {
+    name: 'ens_build_batch_naming_tx_plan',
+    description:
+      'Build unsigned transaction steps for ENS batch naming from CSV rows.',
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['chainId', 'walletAddress', 'csvText'],
+      properties: {
+        chainId: { type: 'number' },
+        walletAddress: { type: 'string' },
+        csvText: { type: 'string' },
+        parentName: { type: 'string' },
+        skipL1Naming: { type: 'boolean' },
+        selectedL2ChainNames: {
+          type: 'array',
+          items: { type: 'string' },
+        },
+      },
+    },
+  },
+  {
     name: 'ens_submit_signed_txs',
     description:
       'Broadcast pre-approved signed transactions for ENS primary naming. Enforces strict target/method policy.',
@@ -346,6 +389,42 @@ export async function handleMcpRequest(
             args.allowForwardOnly === undefined
               ? undefined
               : Boolean(args.allowForwardOnly),
+        })
+        return { jsonrpc: '2.0', id, result: resultMessage(out) }
+      }
+
+      if (name === 'ens_preflight_batch_naming_from_csv') {
+        const out = await service.preflightBatchNaming({
+          chainId: Number(args.chainId),
+          walletAddress: String(args.walletAddress ?? ''),
+          csvText: String(args.csvText ?? ''),
+          parentName:
+            args.parentName === undefined ? undefined : String(args.parentName),
+          skipL1Naming:
+            args.skipL1Naming === undefined
+              ? undefined
+              : Boolean(args.skipL1Naming),
+          selectedL2ChainNames: Array.isArray(args.selectedL2ChainNames)
+            ? args.selectedL2ChainNames.map((value) => String(value))
+            : undefined,
+        })
+        return { jsonrpc: '2.0', id, result: resultMessage(out) }
+      }
+
+      if (name === 'ens_build_batch_naming_tx_plan') {
+        const out = await service.buildBatchNamingPlan({
+          chainId: Number(args.chainId),
+          walletAddress: String(args.walletAddress ?? ''),
+          csvText: String(args.csvText ?? ''),
+          parentName:
+            args.parentName === undefined ? undefined : String(args.parentName),
+          skipL1Naming:
+            args.skipL1Naming === undefined
+              ? undefined
+              : Boolean(args.skipL1Naming),
+          selectedL2ChainNames: Array.isArray(args.selectedL2ChainNames)
+            ? args.selectedL2ChainNames.map((value) => String(value))
+            : undefined,
         })
         return { jsonrpc: '2.0', id, result: resultMessage(out) }
       }
