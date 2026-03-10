@@ -8,9 +8,12 @@ export const NAMESPACE_TOOL_NAMES = [
   'ens_ns_get_name_price',
 ] as const
 
-export type NamespaceToolName = (typeof NAMESPACE_TOOL_NAMES)[number]
+export const INTENT_STATUSES = ['need_info', 'ready', 'out_of_scope'] as const
+export const INTENT_RESPONSE_TYPES = ['intent', 'answer'] as const
 
-export type IntentStatus = 'need_info' | 'ready' | 'out_of_scope'
+export type NamespaceToolName = (typeof NAMESPACE_TOOL_NAMES)[number]
+export type IntentStatus = (typeof INTENT_STATUSES)[number]
+export type IntentResponseType = (typeof INTENT_RESPONSE_TYPES)[number]
 
 export type PrimaryNameIntent = {
   action: 'set_primary_name'
@@ -40,15 +43,17 @@ export type NamespaceLookupMultiIntent = {
   calls: NamespaceLookupCall[]
 }
 
+export type IntentPayload =
+  | PrimaryNameIntent
+  | BatchCsvIntent
+  | NamespaceLookupIntent
+  | NamespaceLookupMultiIntent
+
 export type IntentResponse = {
   status: IntentStatus
+  responseType: IntentResponseType
   assistantResponse: string
-  intent:
-    | PrimaryNameIntent
-    | BatchCsvIntent
-    | NamespaceLookupIntent
-    | NamespaceLookupMultiIntent
-    | null
+  intent: IntentPayload | null
 }
 
 function asObject(value: unknown): Record<string, unknown> {
@@ -67,6 +72,20 @@ function requireNameArg(args: Record<string, unknown>): Record<string, unknown> 
     ...args,
     name: name.trim().toLowerCase().replace(/\.$/, ''),
   }
+}
+
+function isIntentStatus(value: unknown): value is IntentStatus {
+  return (
+    typeof value === 'string' &&
+    INTENT_STATUSES.includes(value as IntentStatus)
+  )
+}
+
+function isIntentResponseType(value: unknown): value is IntentResponseType {
+  return (
+    typeof value === 'string' &&
+    INTENT_RESPONSE_TYPES.includes(value as IntentResponseType)
+  )
 }
 
 function normalizeNamespaceLookupIntent(intent: unknown): NamespaceLookupIntent {
@@ -160,6 +179,134 @@ function normalizeNamespaceLookupMultiIntent(
   }
 }
 
+function normalizeIntentPayload(intent: unknown): IntentPayload {
+  if (!intent || typeof intent !== 'object' || Array.isArray(intent)) {
+    throw new Error('Ready intent must include a complete intent payload.')
+  }
+
+  const action = (intent as { action?: unknown }).action
+  if (action === 'set_primary_name') {
+    const chainId = (intent as { chainId?: unknown }).chainId
+    const contractAddress = (intent as { contractAddress?: unknown })
+      .contractAddress
+    const ensName = (intent as { ensName?: unknown }).ensName
+
+    if (
+      typeof chainId !== 'number' ||
+      !Number.isInteger(chainId) ||
+      !Number.isFinite(chainId) ||
+      chainId <= 0
+    ) {
+      throw new Error('Intent chainId is invalid.')
+    }
+    if (
+      typeof contractAddress !== 'string' ||
+      !/^0x[a-fA-F0-9]{40}$/.test(contractAddress)
+    ) {
+      throw new Error('Intent contractAddress is invalid.')
+    }
+    if (
+      typeof ensName !== 'string' ||
+      !ensName.trim() ||
+      !ensName.includes('.')
+    ) {
+      throw new Error('Intent ensName is invalid.')
+    }
+
+    return {
+      action,
+      chainId,
+      contractAddress: contractAddress as `0x${string}`,
+      ensName: ensName.trim().toLowerCase().replace(/\.$/, ''),
+    }
+  }
+
+  if (action === 'set_batch_names_from_csv') {
+    const chainId = (intent as { chainId?: unknown }).chainId
+
+    if (
+      typeof chainId !== 'number' ||
+      !Number.isInteger(chainId) ||
+      !Number.isFinite(chainId) ||
+      chainId <= 0
+    ) {
+      throw new Error('Intent chainId is invalid.')
+    }
+
+    return {
+      action,
+      chainId,
+    }
+  }
+
+  if (action === 'namespace_lookup') {
+    return normalizeNamespaceLookupIntent(intent)
+  }
+
+  if (action === 'namespace_lookup_multi') {
+    return normalizeNamespaceLookupMultiIntent(intent)
+  }
+
+  throw new Error('Intent action is not supported.')
+}
+
+export function normalizeIntentResponse(value: unknown): IntentResponse {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error('Intent model returned invalid object.')
+  }
+
+  const candidate = value as Partial<IntentResponse>
+  const status = candidate.status
+  const responseType = candidate.responseType
+  const assistantResponse = candidate.assistantResponse
+  const intent = candidate.intent
+
+  if (!isIntentStatus(status)) {
+    throw new Error('Intent model returned invalid status.')
+  }
+
+  if (!isIntentResponseType(responseType)) {
+    throw new Error('Intent model returned invalid responseType.')
+  }
+
+  if (typeof assistantResponse !== 'string' || !assistantResponse.trim()) {
+    throw new Error('Intent model returned invalid assistantResponse.')
+  }
+
+  if (status !== 'ready') {
+    if (intent !== null) {
+      throw new Error('Non-ready responses must set intent to null.')
+    }
+
+    return {
+      status,
+      responseType,
+      assistantResponse: assistantResponse.trim(),
+      intent: null,
+    }
+  }
+
+  if (responseType === 'answer') {
+    if (intent !== null) {
+      throw new Error('Answer responses must set intent to null.')
+    }
+
+    return {
+      status,
+      responseType,
+      assistantResponse: assistantResponse.trim(),
+      intent: null,
+    }
+  }
+
+  return {
+    status,
+    responseType,
+    assistantResponse: assistantResponse.trim(),
+    intent: normalizeIntentPayload(intent),
+  }
+}
+
 export function parseIntentResponse(rawText: string): IntentResponse {
   let parsed: unknown
   try {
@@ -168,96 +315,5 @@ export function parseIntentResponse(rawText: string): IntentResponse {
     throw new Error('Intent model returned non-JSON output.')
   }
 
-  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-    throw new Error('Intent model returned invalid object.')
-  }
-
-  const candidate = parsed as Partial<IntentResponse>
-  const status = candidate.status
-  const assistantResponse = candidate.assistantResponse
-  const intent = candidate.intent
-
-  if (
-    status !== 'need_info' &&
-    status !== 'ready' &&
-    status !== 'out_of_scope'
-  ) {
-    throw new Error('Intent model returned invalid status.')
-  }
-
-  if (typeof assistantResponse !== 'string' || !assistantResponse.trim()) {
-    throw new Error('Intent model returned invalid assistantResponse.')
-  }
-
-  let normalizedIntent: IntentResponse['intent'] = null
-  if (status === 'ready') {
-    if (!intent || typeof intent !== 'object' || Array.isArray(intent)) {
-      throw new Error('Ready intent must include a complete intent payload.')
-    }
-
-    const action = (intent as { action?: unknown }).action
-    if (action === 'set_primary_name') {
-      const chainId = (intent as { chainId?: unknown }).chainId
-      const contractAddress = (intent as { contractAddress?: unknown })
-        .contractAddress
-      const ensName = (intent as { ensName?: unknown }).ensName
-
-      if (
-        typeof chainId !== 'number' ||
-        !Number.isInteger(chainId) ||
-        !Number.isFinite(chainId) ||
-        chainId <= 0
-      ) {
-        throw new Error('Intent chainId is invalid.')
-      }
-      if (
-        typeof contractAddress !== 'string' ||
-        !/^0x[a-fA-F0-9]{40}$/.test(contractAddress)
-      ) {
-        throw new Error('Intent contractAddress is invalid.')
-      }
-      if (
-        typeof ensName !== 'string' ||
-        !ensName.trim() ||
-        !ensName.includes('.')
-      ) {
-        throw new Error('Intent ensName is invalid.')
-      }
-
-      normalizedIntent = {
-        action,
-        chainId,
-        contractAddress: contractAddress as `0x${string}`,
-        ensName: ensName.trim().toLowerCase().replace(/\.$/, ''),
-      }
-    } else if (action === 'set_batch_names_from_csv') {
-      const chainId = (intent as { chainId?: unknown }).chainId
-
-      if (
-        typeof chainId !== 'number' ||
-        !Number.isInteger(chainId) ||
-        !Number.isFinite(chainId) ||
-        chainId <= 0
-      ) {
-        throw new Error('Intent chainId is invalid.')
-      }
-
-      normalizedIntent = {
-        action,
-        chainId,
-      }
-    } else if (action === 'namespace_lookup') {
-      normalizedIntent = normalizeNamespaceLookupIntent(intent)
-    } else if (action === 'namespace_lookup_multi') {
-      normalizedIntent = normalizeNamespaceLookupMultiIntent(intent)
-    } else {
-      throw new Error('Intent action is not supported.')
-    }
-  }
-
-  return {
-    status,
-    assistantResponse: assistantResponse.trim(),
-    intent: normalizedIntent,
-  }
+  return normalizeIntentResponse(parsed)
 }

@@ -7,6 +7,7 @@ describe('ai-intent parseIntentResponse', () => {
     const out = parseIntentResponse(
       JSON.stringify({
         status: 'ready',
+        responseType: 'intent',
         assistantResponse: 'Ready to proceed.',
         intent: {
           action: 'set_primary_name',
@@ -30,6 +31,7 @@ describe('ai-intent parseIntentResponse', () => {
     const out = parseIntentResponse(
       JSON.stringify({
         status: 'ready',
+        responseType: 'intent',
         assistantResponse: 'Using the uploaded CSV on Sepolia.',
         intent: {
           action: 'set_batch_names_from_csv',
@@ -49,6 +51,7 @@ describe('ai-intent parseIntentResponse', () => {
     const out = parseIntentResponse(
       JSON.stringify({
         status: 'ready',
+        responseType: 'intent',
         assistantResponse: 'Running lookup.',
         intent: {
           action: 'namespace_lookup',
@@ -77,6 +80,7 @@ describe('ai-intent parseIntentResponse', () => {
       parseIntentResponse(
         JSON.stringify({
           status: 'ready',
+          responseType: 'intent',
           assistantResponse: 'Ready.',
           intent: {
             action: 'namespace_lookup',
@@ -92,6 +96,7 @@ describe('ai-intent parseIntentResponse', () => {
     const out = parseIntentResponse(
       JSON.stringify({
         status: 'ready',
+        responseType: 'intent',
         assistantResponse: 'Running lookups.',
         intent: {
           action: 'namespace_lookup_multi',
@@ -129,6 +134,7 @@ describe('ai-intent parseIntentResponse', () => {
       parseIntentResponse(
         JSON.stringify({
           status: 'ready',
+          responseType: 'intent',
           assistantResponse: 'Running lookups.',
           intent: {
             action: 'namespace_lookup_multi',
@@ -149,6 +155,7 @@ describe('ai-intent parseIntentResponse', () => {
       parseIntentResponse(
         JSON.stringify({
           status: 'ready',
+          responseType: 'intent',
           assistantResponse: 'Ready.',
           intent: {
             action: 'namespace_lookup',
@@ -158,5 +165,35 @@ describe('ai-intent parseIntentResponse', () => {
         }),
       ),
     ).toThrow('Intent arguments.duration is invalid.')
+  })
+
+  it('accepts ready answer responses without intent payload', () => {
+    const out = parseIntentResponse(
+      JSON.stringify({
+        status: 'ready',
+        responseType: 'answer',
+        assistantResponse: 'ENS maps human-readable names to onchain addresses and records.',
+        intent: null,
+      }),
+    )
+
+    expect(out.responseType).toBe('answer')
+    expect(out.intent).toBeNull()
+  })
+
+  it('rejects answer responses that include intent payload', () => {
+    expect(() =>
+      parseIntentResponse(
+        JSON.stringify({
+          status: 'ready',
+          responseType: 'answer',
+          assistantResponse: 'This should be answer-only.',
+          intent: {
+            action: 'set_batch_names_from_csv',
+            chainId: 11155111,
+          },
+        }),
+      ),
+    ).toThrow('Answer responses must set intent to null.')
   })
 })

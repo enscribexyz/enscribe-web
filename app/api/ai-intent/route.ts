@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import {
+  INTENT_RESPONSE_TYPES,
+  INTENT_STATUSES,
   NAMESPACE_TOOL_NAMES,
   parseIntentResponse,
 } from '@/lib/ai/intentParser'
@@ -76,23 +78,26 @@ const NAMESPACE_ARGUMENTS_SCHEMA = {
 } as const
 
 const SYSTEM_PROMPT = [
-  'You are an ENS naming intent assistant for Enscribe.',
-  'Scope is strictly ENS naming + ENS lookup requests.',
+  'You are an ENS assistant for Enscribe.',
+  'You can either route to an intent or directly answer ENS ecosystem questions.',
   'Never ask for walletAddress. The app provides it.',
   'Never ask the user to choose a tool name. Tool selection is internal.',
   'Never mention internal tool ids (like ens_ns_*) to the user.',
+  'responseType decides handling: use responseType=intent for actionable requests; use responseType=answer for conceptual or explanatory ENS questions.',
   'Required fields for set_primary_name: chainId, contractAddress, ensName.',
   'Required fields for set_batch_names_from_csv: chainId.',
   'Use set_batch_names_from_csv when the user asks to name contracts from an uploaded CSV file.',
   'Do not attempt CSV validation in the intent response. Validation is deterministic in app/server code.',
   `For read-only ENS lookup questions, select one namespace tool from: ${NAMESPACE_TOOL_NAMES.join(', ')}.`,
-  'For single read requests return action=namespace_lookup with toolName and arguments.',
-  'For compound read requests needing multiple reads, return action=namespace_lookup_multi with calls[].',
-  'Examples: "who owns vitalik.eth" => status=ready with namespace_lookup + toolName=ens_ns_get_profile_details + arguments.name=vitalik.eth.',
-  'Examples: "names owned by 0x..." => status=ready with namespace_lookup + toolName=ens_ns_get_names_for_address + arguments.address.',
+  'For single read requests return status=ready, responseType=intent, action=namespace_lookup with toolName and arguments.',
+  'For compound read requests needing multiple reads return status=ready, responseType=intent, action=namespace_lookup_multi with calls[].',
+  'For conceptual ENS questions like "what is ENS?", "what is a primary name?", or "how do I use this?", return status=ready, responseType=answer, intent=null, and put the full answer in assistantResponse.',
+  'Examples: "who owns vitalik.eth" => status=ready, responseType=intent, namespace_lookup with toolName=ens_ns_get_profile_details + arguments.name=vitalik.eth.',
+  'Examples: "names owned by 0x..." => status=ready, responseType=intent, namespace_lookup with toolName=ens_ns_get_names_for_address + arguments.address.',
+  'Examples: "what is ENS?" => status=ready, responseType=answer, intent=null, assistantResponse as a short accurate explanation.',
   'For read prompts with enough info, do not ask follow-up questions.',
-  'If required fields are missing, return status=need_info and place exactly one short follow-up question in assistantResponse.',
-  'If the user asks unrelated or nonsense requests, return status=out_of_scope.',
+  'If required fields are missing, return status=need_info, responseType=answer, intent=null, and place exactly one short follow-up question in assistantResponse.',
+  'If the user asks unrelated or nonsense requests, return status=out_of_scope, responseType=answer, intent=null.',
   'If all required fields are present, return status=ready.',
   'Return JSON only, matching the response schema.',
 ].join(' ')
@@ -252,7 +257,7 @@ export async function POST(req: NextRequest) {
       },
       body: JSON.stringify({
         model,
-        max_output_tokens: 200,
+        max_output_tokens: 320,
         text: {
           format: {
             type: 'json_schema',
@@ -261,11 +266,15 @@ export async function POST(req: NextRequest) {
                 schema: {
                   type: 'object',
                   additionalProperties: false,
-                  required: ['status', 'assistantResponse', 'intent'],
+                  required: ['status', 'responseType', 'assistantResponse', 'intent'],
                   properties: {
                     status: {
                       type: 'string',
-                      enum: ['need_info', 'ready', 'out_of_scope'],
+                      enum: [...INTENT_STATUSES],
+                    },
+                    responseType: {
+                      type: 'string',
+                      enum: [...INTENT_RESPONSE_TYPES],
                     },
                     assistantResponse: { type: 'string', minLength: 1 },
                     intent: {

@@ -13,6 +13,10 @@ import { waitForChainSwitch, getChainName, getViemChain } from '@/lib/chains'
 import { getPublicClient } from '@/lib/viemClient'
 import { CONTRACTS } from '@/utils/constants'
 import { formatNamespaceLookupMessage } from '@/lib/ai/namespaceLookupFormatter'
+import {
+  normalizeIntentResponse,
+  type IntentResponse,
+} from '@/lib/ai/intentParser'
 import { tryFormatJsonText } from '@/lib/ai/structuredDataFormatter'
 import { parseAndValidateBatchCsv, type BatchCsvIssue } from '@/lib/batchNaming'
 import { Plus, X } from 'lucide-react'
@@ -107,48 +111,8 @@ type PendingApproval = {
   plan: BuildPlanOutput | BatchBuildPlanOutput
 }
 
-type IntentModelResponse = {
+type IntentModelResponse = IntentResponse & {
   model: string
-  status: 'need_info' | 'ready' | 'out_of_scope'
-  assistantResponse: string
-  intent:
-    | {
-        action: 'set_primary_name'
-        chainId: number
-        contractAddress: `0x${string}`
-        ensName: string
-      }
-    | {
-        action: 'set_batch_names_from_csv'
-        chainId: number
-      }
-    | {
-        action: 'namespace_lookup'
-        toolName:
-          | 'ens_ns_get_profile_details'
-          | 'ens_ns_get_names_for_address'
-          | 'ens_ns_get_subnames_for_name'
-          | 'ens_ns_get_name_history'
-          | 'ens_ns_get_subgraph_records'
-          | 'ens_ns_is_name_available'
-          | 'ens_ns_get_name_price'
-        arguments: Record<string, unknown>
-      }
-    | {
-        action: 'namespace_lookup_multi'
-        calls: Array<{
-          toolName:
-            | 'ens_ns_get_profile_details'
-            | 'ens_ns_get_names_for_address'
-            | 'ens_ns_get_subnames_for_name'
-            | 'ens_ns_get_name_history'
-            | 'ens_ns_get_subgraph_records'
-            | 'ens_ns_is_name_available'
-            | 'ens_ns_get_name_price'
-          arguments: Record<string, unknown>
-        }>
-      }
-    | null
 }
 
 type IntentConversationMessage = {
@@ -371,7 +335,7 @@ async function callIntentModel(
     body: JSON.stringify({ prompt, messages, attachmentContext }),
   })
 
-  const json = (await response.json()) as IntentModelResponse | { error?: string }
+  const json = (await response.json()) as Record<string, unknown>
 
   if (!response.ok) {
     throw new Error(
@@ -381,21 +345,16 @@ async function callIntentModel(
     )
   }
 
-  if (
-    !("model" in json) ||
-    typeof json.model !== 'string' ||
-    !("status" in json) ||
-    (json.status !== 'need_info' &&
-      json.status !== 'ready' &&
-      json.status !== 'out_of_scope') ||
-    !("assistantResponse" in json) ||
-    typeof json.assistantResponse !== 'string' ||
-    !("intent" in json)
-  ) {
+  if (typeof json.model !== 'string') {
     throw new Error('Intent service returned invalid response.')
   }
 
-  return json
+  const normalized = normalizeIntentResponse(json)
+
+  return {
+    model: json.model,
+    ...normalized,
+  }
 }
 
 function toPromptParamsFromIntent(args: {
@@ -622,6 +581,10 @@ export default function AIPage() {
       }
 
       if (!intentResponse.intent) {
+        if (intentResponse.responseType === 'answer') {
+          return
+        }
+
         appendMessage(
           'assistant',
           'Intent model marked this as ready but did not return a valid intent.',
