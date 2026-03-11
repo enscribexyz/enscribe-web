@@ -7,7 +7,7 @@ tags: [product-updates, ens]
 keywords: [Enscribe AI chat, ENS assistant, MCP server, contract naming, batch naming, OpenAI]
 ---
 
-![cover](cover.png)
+![cover](./cover.png)
 
 This is the era of AI dominance and almost every app on the internet has some or the other use case fulfilled by AI. A common intention nowadays is to integrate AI with documentation to enable users learn about the app and its features. But what about integrating AI to help users execute actions on the app?
 
@@ -17,11 +17,11 @@ This is what we are excited to announce with Enscribe Ask AI chat agent. Let's d
 
 You will see the Ask AI  as the first menu item in the left sidebar.
 
-![Ask AI menu item](ask-ai.png)
+![Ask AI menu item](./ask-ai.png)
 
 Clicking on it will open the AI chat page.
 
-![AI chat page](ask-ai-page.png)
+![AI chat page](./ask-ai-page.png)
 
 You can ask practical ENS questions, such as:
 
@@ -33,13 +33,13 @@ You can also ask the agent to name your contract on a particular chain or give i
 
 Here's what it looks like when you ask the agent to name a contract on a particular chain:
 
-![Naming contract on a particular chain](txns.png)
+![Naming contract on a particular chain](./txns.png)
 
 Clicking on the "Yes, Sign Transactions" button will open the connect wallet to approve the transactions.
 
 And here's what it looks like when you ask the agent to name multiple contracts from a CSV:
 
-![csv](csv.png)
+![csv](./csv.png)
 
 You can either drag and drop the CSV file in the chat box or click on the "+" button to upload it.
 
@@ -53,7 +53,7 @@ At a high level, Enscribe AI chat has three layers:
 2. **Decision layer (OpenAI intent API):** The model decides whether to answer directly or route the request into an execution flow.
 3. **Execution layer (MCP server):** For action requests, MCP runs the ENS workflow: checks prerequisites, prepares transactions, tracks progress, and verifies outcomes.
 
-![architecture](arch.png)
+![architecture](./arch.png)
 
 That structure keeps the experience simple for users. You can ask, “What is a primary name?” and get a clear answer. You can also ask, “Name all contracts in this CSV on Sepolia,” and move into a guided transaction flow.
 
