@@ -10,6 +10,8 @@ image: ./handshake.png
 
 Foundry is one of the most popular toolchains for Ethereum smart contract development. Built in Rust, Foundry provides everything needed to build, test, and deploy smart contracts. At the center of this workflow is Forge, Foundry’s scripting and deployment tool. Forge scripts are written in Solidity itself, allowing developers to deploy contracts and interact with them.
 
+{/* truncate */}
+
 However, one key step that developers miss in their workflows is to name their contracts right after the deployment is done. This is where our new [Enscribe](https://github.com/enscribexyz/enscribe) plugin comes in.
 
 The key idea behind Enscribe is simple: naming should be automated and baked into the deployment scripts. Using Enscribe, a Forge script can register or update an ENS name for a deployed contract, optimally only set forward resolution (ENS → address), and set reverse resolution (address → ENS). Because this logic runs in Solidity, it integrates naturally with Foundry’s scripting environment.

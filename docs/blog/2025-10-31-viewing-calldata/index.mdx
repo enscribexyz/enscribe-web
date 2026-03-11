@@ -8,6 +8,8 @@ keywords: [ENS, smart contract naming, calldata, ENS naming, ENS contracts, DAO 
 
 We created the [Enscribe App](https://app.enscribe.xyz) to make it as simple as possible for teams to name their smart contracts. However, this approach is not always compatible with naming DAO contracts.
 
+{/* truncate */}
+
 What we’ve noticed is that DAOs often use a high-level function wrapper that needs to call multiple transactions required to name a contract.
 
 This requires multi-sig high level transaction calling a method such as `execute()` or `executeTransactions()` which wraps over executing multiple transactions, each represented by a calldata – an encoded form of a function call along with its arguments.

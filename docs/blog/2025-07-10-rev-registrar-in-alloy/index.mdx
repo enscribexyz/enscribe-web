@@ -11,6 +11,8 @@ keywords: [ENS, Alloy, Foundry, Enscribe, reverse registrar, smart contract nami
 
 Foundry is referred to as the smart contract development toolchain while Alloy, used by Foundry as a dependency, provides a range of functionality for interfacing with any Ethereum-based blockchain.
 
+{/* truncate */}
+
 Before Alloy, there was [ethers-rs](https://github.com/gakonst/ethers-rs), which became deprecated in favour of Alloy. It had a small ENS utility crate support that was added in Foundry. The Enscribe team recently [migrated this ENS crate over to Alloy from Foundry](https://github.com/alloy-rs/alloy/pull/2376).
 
 By extending Alloy and Foundry with ENS-focused tools, we're making it easier for developers to use these tools and enabling them to easily name their smart contracts. With the recent merge of [PR #2676](https://github.com/alloy-rs/alloy/pull/2676) in the Alloy codebase, reverse resolution, a critical part of smart contracts naming, just got simpler.
