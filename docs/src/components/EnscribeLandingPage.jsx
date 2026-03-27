@@ -223,12 +223,12 @@ function EarlyAccessModal({ isOpen, onClose, formspreeUrl, onSuccess }) {
             <div className="w-12 h-12 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mx-auto mb-4">
               <HiCheck className="w-6 h-6 text-emerald-400" />
             </div>
-            <p className="text-lg font-semibold text-white mb-2">Thanks — we'll be in touch within 24 hours.</p>
+            <p className="text-lg font-semibold text-white mb-2">Thanks — we'll be in touch very soon.</p>
           </div>
         ) : (
           <>
             <h3 className="text-lg font-semibold text-white mb-1">Apply for Early Access</h3>
-            <p className="text-xs text-slate-500 mb-6">Tell us about your project and we'll be in touch within 24 hours.</p>
+            <p className="text-xs text-slate-500 mb-6">Tell us about your project and we'll be in touch very soon.</p>
             <form onSubmit={handleSubmit} className="space-y-3">
               <input type="text" required placeholder="Your name" value={name} onChange={(e) => setName(e.target.value)} className="w-full px-3 py-2.5 rounded-lg bg-slate-800/80 border border-slate-700 text-white text-sm placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-cyan-500/40 focus:border-cyan-500/40" />
               <input type="email" required placeholder="Your email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-3 py-2.5 rounded-lg bg-slate-800/80 border border-slate-700 text-white text-sm placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-cyan-500/40 focus:border-cyan-500/40" />
@@ -470,19 +470,18 @@ export default function EnscribeLandingPage() {
                       <div className="px-3 py-1.5 rounded-lg bg-cyan-500/10 text-cyan-400 text-xs font-medium border border-cyan-500/20 hover:bg-cyan-500/15 transition-colors cursor-default">+ Add address</div>
                     </div>
                     {/* Table */}
-                    <div className="grid gap-4 text-[11px] text-slate-500 font-medium border-b border-slate-800 pb-2 uppercase tracking-wider" style={{ gridTemplateColumns: "1.1fr 0.8fr 0.8fr 1.7fr 0.7fr" }}>
-                      <span>Address</span><span>Type</span><span>Chain</span><span>ENS name</span><span>Status</span>
+                    <div className="grid grid-cols-[1fr_0.9fr_1.7fr_0.8fr] md:grid-cols-[1.1fr_0.9fr_1.9fr_0.8fr] gap-4 text-[11px] text-slate-500 font-medium border-b border-slate-800 pb-2 uppercase tracking-wider">
+                      <span>Address</span><span>Type</span><span>ENS name</span><span>Status</span>
                     </div>
                     {[
-                      { addr: "0x830B…c706", type: "Contract", chain: "Ethereum", name: "governance.myprotocol.eth", ok: true },
-                      { addr: "0xCCcC…0407", type: "Wallet", chain: "Base", name: "treasury.myprotocol.eth", ok: true },
-                      { addr: "0x807D…EeE1", type: "Contract", chain: "Ethereum", name: "—", ok: false },
-                      { addr: "0x9b95…dE81", type: "Wallet", chain: "Arbitrum", name: "ops.myprotocol.eth", ok: true },
+                      { addr: "0x830B…c706", type: "Contract", name: "governance.myprotocol.eth", ok: true },
+                      { addr: "0xCCcC…0407", type: "Wallet", name: "treasury.myprotocol.eth", ok: true },
+                      { addr: "0x807D…EeE1", type: "Contract", name: "—", ok: false },
+                      { addr: "0x9b95…dE81", type: "Wallet", name: "ops.myprotocol.eth", ok: true },
                     ].map((r, i) => (
-                      <div key={i} className="grid gap-4 text-xs py-3 border-b border-slate-800/40 items-center" style={{ gridTemplateColumns: "1.1fr 0.8fr 0.8fr 1.7fr 0.7fr" }}>
-                        <span className="font-mono text-slate-400">{r.addr}</span>
+                      <div key={i} className="grid grid-cols-[1fr_0.9fr_1.7fr_0.8fr] md:grid-cols-[1.1fr_0.9fr_1.9fr_0.8fr] gap-4 text-xs py-3 border-b border-slate-800/40 items-center">
+                        <span className="font-mono text-slate-400 break-all">{r.addr}</span>
                         <span className="text-slate-500">{r.type}</span>
-                        <span className="text-slate-500">{r.chain}</span>
                         <span className={r.ok ? "text-cyan-400 font-mono break-all" : "text-slate-600"}>{r.name}</span>
                         <span className={`inline-flex w-fit px-2 py-0.5 rounded-full text-[10px] font-medium ${r.ok ? "text-emerald-400 bg-emerald-500/10 border border-emerald-500/20" : "text-amber-400 bg-amber-500/10 border border-amber-500/20"}`}>{r.ok ? "Named" : "Pending"}</span>
                       </div>
