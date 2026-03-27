@@ -2,794 +2,576 @@
 
 import { useState, useRef, useEffect } from "react"
 import Link from "@docusaurus/Link"
-import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
+import useDocusaurusContext from "@docusaurus/useDocusaurusContext"
 import { FaGithub, FaYoutube, FaTelegram, FaDiscord } from "react-icons/fa"
 import { FaXTwitter } from "react-icons/fa6"
-import { SiFarcaster } from "react-icons/si";
-import { HiArrowRight, HiMenu, HiX, HiChevronDown } from "react-icons/hi"
-import {usePluginData} from '@docusaurus/useGlobalData';
-import HeroNameIt from "./HeroNameIt";
+import { SiFarcaster } from "react-icons/si"
+import { HiArrowRight, HiMenu, HiX, HiChevronDown, HiCheck } from "react-icons/hi"
+import { usePluginData } from "@docusaurus/useGlobalData"
 
-/* ─── Animated number counter ─── */
-function AnimatedNumber({ target, suffix = "", prefix = "" }) {
-  const [count, setCount] = useState(0);
-  const ref = useRef(null);
-  const hasAnimated = useRef(false);
-
+/* ─── Animated counter ─── */
+function AnimatedNumber({ target, suffix = "" }) {
+  const [count, setCount] = useState(0)
+  const ref = useRef(null)
+  const done = useRef(false)
   useEffect(() => {
-    const observer = new IntersectionObserver(
-        ([entry]) => {
-          if (entry.isIntersecting && !hasAnimated.current) {
-            hasAnimated.current = true;
-            const duration = 1600;
-            const start = performance.now();
-            const step = (now) => {
-              const progress = Math.min((now - start) / duration, 1);
-              const eased = 1 - Math.pow(1 - progress, 3);
-              setCount(Math.round(eased * target));
-              if (progress < 1) requestAnimationFrame(step);
-            };
-            requestAnimationFrame(step);
-          }
-        },
-        { threshold: 0.3 }
-    );
-    if (ref.current) observer.observe(ref.current);
-    return () => observer.disconnect();
-  }, [target]);
-
-  return <span ref={ref}>{prefix}{count.toLocaleString()}{suffix}</span>;
+    const obs = new IntersectionObserver(([e]) => {
+      if (e.isIntersecting && !done.current) {
+        done.current = true
+        const dur = 1600, start = performance.now()
+        const step = (now) => { const p = Math.min((now - start) / dur, 1); setCount(Math.round((1 - Math.pow(1 - p, 3)) * target)); if (p < 1) requestAnimationFrame(step) }
+        requestAnimationFrame(step)
+      }
+    }, { threshold: 0.3 })
+    if (ref.current) obs.observe(ref.current)
+    return () => obs.disconnect()
+  }, [target])
+  return <span ref={ref}>{count.toLocaleString()}{suffix}</span>
 }
 
 /* ─── Blog carousel ─── */
 function LatestPostsCarousel({ limit = 6 }) {
   const scrollerRef = useRef(null)
-  const {recentPosts} = usePluginData('docusaurus-plugin-related-posts');
-
+  const { recentPosts } = usePluginData("docusaurus-plugin-related-posts")
   const items = (recentPosts || []).slice(0, limit)
-
-  // If blog plugin is disabled or there are no posts
   if (!items.length) return null
+  const scrollBy = (dir) => { const el = scrollerRef.current; if (el) el.scrollBy({ left: Math.round(el.clientWidth * 0.9) * dir, behavior: "smooth" }) }
 
-  const scrollBy = (direction) => {
-    const el = scrollerRef.current
-    if (!el) return
-    const amount = Math.round(el.clientWidth * 0.9) * direction
-    el.scrollBy({ left: amount, behavior: "smooth" })
+  return (
+    <section className="py-20 md:py-28 border-t border-slate-800/60">
+      <div className="container mx-auto px-4 md:px-6">
+        <div className="flex items-end justify-between gap-4 mb-10">
+          <div>
+            <p className="text-sm font-medium tracking-widest text-cyan-400 uppercase mb-3">Blog</p>
+            <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-white">From the team</h2>
+          </div>
+          <div className="hidden sm:flex items-center gap-2">
+            <button type="button" onClick={() => scrollBy(-1)} className="p-2.5 rounded-lg border border-slate-700 bg-slate-800/60 hover:bg-slate-700 text-white transition-colors" aria-label="Previous"><svg width="16" height="16" fill="none" viewBox="0 0 16 16"><path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg></button>
+            <button type="button" onClick={() => scrollBy(1)} className="p-2.5 rounded-lg border border-slate-700 bg-slate-800/60 hover:bg-slate-700 text-white transition-colors" aria-label="Next"><svg width="16" height="16" fill="none" viewBox="0 0 16 16"><path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg></button>
+          </div>
+        </div>
+        <div ref={scrollerRef} className="flex gap-6 overflow-x-auto pb-4 no-scrollbar scroll-smooth snap-x snap-mandatory" style={{ WebkitOverflowScrolling: "touch" }}>
+          {items.map((post) => (
+            <Link key={post.permalink} to={post.permalink} className="snap-start shrink-0 w-[85%] sm:w-[380px] group rounded-xl border border-slate-800 bg-slate-900/50 overflow-hidden hover:border-slate-700 transition-all duration-300">
+              {post.image && (<div className="h-44 w-full overflow-hidden bg-slate-900"><img src={typeof post.image === "object" ? post.image.src || post.image.default : post.image} alt={post.title} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" /></div>)}
+              <div className="p-5">
+                <div className="text-xs text-slate-500 mb-2">{post.date && new Date(post.date).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}</div>
+                <h3 className="text-base font-semibold text-white group-hover:text-cyan-400 transition-colors line-clamp-2">{post.title}</h3>
+              </div>
+            </Link>
+          ))}
+        </div>
+        <div className="text-center mt-6"><Link to="/blog" className="inline-flex items-center gap-2 text-sm font-medium text-slate-400 hover:text-cyan-400 transition-colors">View all posts <HiArrowRight className="w-3.5 h-3.5" /></Link></div>
+      </div>
+    </section>
+  )
+}
+
+/* ─── Pricing card ─── */
+function PricingCard({ name, price, period, tag, features, cta, ctaLink, highlight, badge, status }) {
+  const isPrice = price.startsWith("$") || price === "Custom"
+  return (
+    <div className={`relative rounded-2xl border p-7 flex flex-col transition-all duration-300 hover:translate-y-[-2px] ${highlight ? "border-cyan-500/40 bg-cyan-500/[0.04] shadow-lg shadow-cyan-500/5" : "border-slate-800 bg-slate-900/40 hover:border-slate-700"}`}>
+      {badge && (<div className="absolute -top-3 left-1/2 -translate-x-1/2"><span className="px-3 py-1 rounded-full text-xs font-semibold bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg shadow-cyan-500/20">{badge}</span></div>)}
+      <h3 className="text-lg font-semibold text-white">{name}</h3>
+      <p className="text-xs text-slate-500 mt-0.5 mb-5">{tag}</p>
+      <div className="mb-6 min-h-[48px] flex items-end">
+        {isPrice ? (
+          <><span className="text-4xl font-bold text-white">{price}</span>{period && <span className="text-slate-500 text-sm ml-1 mb-1">/{period}</span>}</>
+        ) : (
+          <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold border ${highlight ? "bg-cyan-500/10 text-cyan-400 border-cyan-500/25" : "bg-slate-800/80 text-slate-300 border-slate-700/60"}`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${highlight ? "bg-cyan-400 animate-pulse" : "bg-slate-500"}`} />
+            {price}
+          </span>
+        )}
+      </div>
+      <ul className="space-y-2.5 mb-7 flex-1">
+        {features.map((f, i) => (<li key={i} className="flex items-start gap-2 text-[13px]"><HiCheck className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" /><span className="text-slate-400">{f}</span></li>))}
+      </ul>
+      <Link to={ctaLink} className={`w-full text-center py-3 rounded-lg text-sm font-semibold transition-all ${highlight ? "button-primary" : "text-slate-300 border border-slate-700 hover:border-slate-500 hover:text-white"}`}>{cta}</Link>
+    </div>
+  )
+}
+
+
+/* ═══════════════════════════════════ */
+/*  LANDING PAGE                      */
+/* ═══════════════════════════════════ */
+
+/* ─── Free tier card with inline waitlist form ─── */
+function FreePricingCard({ formspreeUrl }) {
+  const [showForm, setShowForm] = useState(false)
+  const [email, setEmail] = useState("")
+  const [project, setProject] = useState("")
+  const [status, setStatus] = useState("idle") // idle | submitting | success | error
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    if (!email) return
+    setStatus("submitting")
+    try {
+      const res = await fetch(formspreeUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ email, project: project || undefined, _subject: "Waitlist signup (Free)" }),
+      })
+      setStatus(res.ok ? "success" : "error")
+    } catch {
+      setStatus("error")
+    }
   }
 
   return (
-      <section className="py-20 md:py-28 border-t border-slate-800/60">
-        <div className="container mx-auto px-4 md:px-6">
-          <div className="flex items-end justify-between gap-4 mb-10">
-            <div>
-              <p className="text-sm font-medium tracking-widest text-cyan-400 uppercase mb-3">Blog</p>
-              <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-white">
-                Latest from the team
-              </h2>
-            </div>
-            <div className="hidden sm:flex items-center gap-2">
-              <button
-                  type="button"
-                  onClick={() => scrollBy(-1)}
-                  className="p-2.5 rounded-lg border border-slate-700 bg-slate-800/60 hover:bg-slate-700 text-white transition-colors"
-                  aria-label="Previous posts"
-              >
-                <svg width="16" height="16" fill="none" viewBox="0 0 16 16"><path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-              </button>
-              <button
-                  type="button"
-                  onClick={() => scrollBy(1)}
-                  className="p-2.5 rounded-lg border border-slate-700 bg-slate-800/60 hover:bg-slate-700 text-white transition-colors"
-                  aria-label="Next posts"
-              >
-                <svg width="16" height="16" fill="none" viewBox="0 0 16 16"><path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-              </button>
-            </div>
-          </div>
+    <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-7 flex flex-col hover:border-slate-700 transition-all duration-300 hover:translate-y-[-2px]">
+      <h3 className="text-lg font-semibold text-white">Free</h3>
+      <p className="text-xs text-slate-500 mt-0.5 mb-5">For individuals</p>
+      <div className="mb-6"><span className="text-4xl font-bold text-white">$0</span><span className="text-slate-500 text-sm ml-1">/mo</span></div>
+      <ul className="space-y-2.5 mb-7 flex-1">
+        {["1 user, 1 namespace","Basic name management","7-day activity log","Expiry notifications","Community support"].map((f, i) => (
+          <li key={i} className="flex items-start gap-2 text-[13px]"><HiCheck className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" /><span className="text-slate-400">{f}</span></li>
+        ))}
+      </ul>
 
-          <div
-              ref={scrollerRef}
-              className="flex gap-6 overflow-x-auto pb-4 no-scrollbar scroll-smooth snap-x snap-mandatory"
-              style={{ WebkitOverflowScrolling: "touch" }}
+      {status === "success" ? (
+        <div className="w-full text-center py-3 rounded-lg text-sm font-medium text-emerald-400 border border-emerald-500/20 bg-emerald-500/5">
+          You're on the list — we'll be in touch ✓
+        </div>
+      ) : !showForm ? (
+        <button onClick={() => setShowForm(true)} className="w-full text-center py-3 rounded-lg text-sm font-semibold text-slate-300 border border-slate-700 hover:border-slate-500 hover:text-white transition-all">Join the Waitlist</button>
+      ) : (
+        <form onSubmit={handleSubmit} className="space-y-2.5" onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); setShowForm(false); setEmail(""); setProject(""); setStatus("idle") } }}>
+          <input
+            type="email"
+            required
+            placeholder="you@example.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full px-3 py-2.5 rounded-lg bg-slate-800/80 border border-slate-700 text-white text-sm placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-cyan-500/40 focus:border-cyan-500/40"
+          />
+          <input
+            type="text"
+            placeholder="What's your project? (optional)"
+            value={project}
+            onChange={(e) => setProject(e.target.value)}
+            className="w-full px-3 py-2.5 rounded-lg bg-slate-800/80 border border-slate-700 text-white text-sm placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-cyan-500/40 focus:border-cyan-500/40"
+          />
+          <button
+            type="submit"
+            disabled={status === "submitting"}
+            className={`w-full text-center py-2.5 rounded-lg text-sm font-semibold transition-all disabled:opacity-50 ${/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? "bg-cyan-500 text-white hover:bg-cyan-400" : "bg-slate-700 text-slate-400 cursor-default"}`}
           >
-            {items.map((post) => (
-                <Link
-                    key={post.permalink}
-                    to={post.permalink}
-                    className="snap-start shrink-0 w-[85%] sm:w-[400px] group rounded-xl border border-slate-800 bg-slate-900/50 overflow-hidden hover:border-slate-700 transition-all duration-300"
-                >
-                  {post.image && (
-                      <div className="h-48 w-full overflow-hidden bg-slate-900">
-                        <img
-                            src={typeof post.image === 'object' ? post.image.src || post.image.default : post.image}
-                            alt={post.title}
-                            className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500"
-                            loading="lazy"
-                        />
-                      </div>
-                  )}
-                  <div className="p-6">
-                    <div className="text-xs text-slate-500 mb-3 font-medium">
-                      {post.date && new Date(post.date).toLocaleDateString(undefined, {
-                        year: "numeric", month: "short", day: "numeric",
-                      })}
-                    </div>
-                    <h3 className="text-lg font-semibold text-white mb-2 group-hover:text-cyan-400 transition-colors">
-                      {post.title}
-                    </h3>
-                    {post.description && (
-                        <p className="text-slate-400 text-sm line-clamp-2">{post.description}</p>
-                    )}
-                  </div>
-                </Link>
-            ))}
-          </div>
-
-          <div className="text-center mt-8">
-            <Link to="/blog" className="inline-flex items-center gap-2 text-sm font-medium text-slate-400 hover:text-cyan-400 transition-colors">
-              View all posts <HiArrowRight className="w-3.5 h-3.5" />
-            </Link>
-          </div>
-        </div>
-      </section>
+            {status === "submitting" ? "Joining…" : "Join the Waitlist"}
+          </button>
+          {status === "error" && (
+            <p className="text-xs text-red-400" style={{ textAlign: "center" }}>Something went wrong — try again or email us at <a href="mailto:hello@enscribe.xyz" className="underline">hello@enscribe.xyz</a></p>
+          )}
+        </form>
+      )}
+    </div>
   )
 }
-
-/* ─── FAQ ─── */
-const FAQItem = ({ question, answer }) => {
-  const [isOpen, setIsOpen] = useState(false)
-  return (
-      <div className="border-b border-slate-800 last:border-0">
-        <button
-            className="w-full flex justify-between items-center py-5 text-left group"
-            onClick={() => setIsOpen(!isOpen)}
-        >
-          <h3 className="text-base font-medium text-slate-200 group-hover:text-white transition-colors pr-4">{question}</h3>
-          <HiChevronDown className={`h-5 w-5 text-slate-500 shrink-0 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
-        </button>
-        <div className={`overflow-hidden transition-all duration-300 ${isOpen ? "max-h-96 pb-5" : "max-h-0"}`}>
-          <div className="text-slate-400 text-sm leading-relaxed">{answer}</div>
-        </div>
-      </div>
-  )
-}
-
 
 export default function EnscribeLandingPage() {
-  const {
-    siteConfig: { customFields },
-  } = useDocusaurusContext();
+  const { siteConfig: { customFields } } = useDocusaurusContext()
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [faqOpen, setFaqOpen] = useState(null)
 
-  const [menuOpen, setMenuOpen] = useState(false);
+  const app = customFields.platformUrl || "https://platform.enscribe.xyz"
+  const contact = customFields.calendarUrl
 
-  const PARTNERS = [
-    { name: 'Nouns DAO', logo: 'img/projects/nouns.svg', url: '/blog/nouns' },
-    { name: 'Liquity', logo: 'img/projects/liquity.png', url: '/blog/liquity' },
-    { name: 'Cork Protocol', logo: 'img/projects/cork.svg', url: '/blog/cork' },
-    { name: 'Giveth', logo: 'img/projects/giveth-tq.svg', url: '/blog/giveth', invertInDark: true, scale: 1.2 },
-  ];
+  const NAV = [
+    { label: "Product", to: "#product" },
+    { label: "Pricing", to: "#pricing" },
+    { label: "Docs", to: "/docs" },
+    { label: "Blog", to: "/blog" },
+  ]
 
-  const NETWORKS = [
-    { name: "Ethereum", icon: "eth" },
-    { name: "Base", icon: "base" },
-    { name: "Linea", icon: "linea" },
-    { name: "Arbitrum", icon: "arb" },
-    { name: "Optimism", icon: "op" },
-    { name: "Scroll", icon: "scroll" },
-  ];
+  const LOGOS = [
+    { name: "Nouns DAO", logo: "img/projects/nouns.svg", url: "/blog/nouns" },
+    { name: "Liquity", logo: "img/projects/liquity.png", url: "/blog/liquity" },
+    { name: "Cork Protocol", logo: "img/projects/cork.svg", url: "/blog/cork" },
+    { name: "Giveth", logo: "img/projects/giveth-tq.svg", url: "/blog/giveth" },
+  ]
 
-  const faqs = [
-    {
-      question: "Which protocols are already using Enscribe?",
-      answer: (
-          <>
-            Leading ecosystem projects including <strong className="text-slate-200">Nouns DAO</strong>, <strong className="text-slate-200">Liquity</strong>, <strong className="text-slate-200">Cork Protocol</strong>, and <strong className="text-slate-200">Giveth</strong> use Enscribe to name their contract infrastructure using ENS.
-          </>
-      ),
-    },
-    {
-      question: "Why should my protocol use Enscribe?",
-      answer:
-          "Smart contracts on Ethereum are still identified by hex addresses. That's fine for machines, but not people. ENS can name smart contracts, but most teams never operationalise it at protocol scale. Enscribe gives you the infrastructure to name and manage your contracts using ENS, ensuring your protocol's identity is onchain, not buried in stale documentation.",
-    },
-    {
-      question: "What networks do you support?",
-      answer: "We support networks where ENS is deployed, including Ethereum, Base, Linea, Arbitrum, Optimism, and Scroll.",
-    },
-    {
-      question: "Can I name existing contracts?",
-      answer:
-          "Yes. If you already have deployed contracts, you can assign ENS names through Enscribe using your own ENS names or one of ours.",
-    },
-    {
-      question: "How does Enscribe work?",
-      answer:
-          "Enscribe makes it simple to attach ENS names to smart contracts. You can use the Enscribe App to deploy and name a smart contract atomically in a single transaction. For existing contracts, set ENS subnames to resolve to deployed addresses. Names are written onchain and can be verified by anyone using ENS resolution."
-    },
-    {
-      question: "What is a Smart Contract Naming Audit?",
-      answer:
-          "For established protocols, naming existing onchain infrastructure takes planning. A Contract Naming Audit is a structured review the Enscribe team undertakes of your deployed contracts and operational wallets. We create a consistent onchain naming scheme using ENS. The output is a complete onchain directory of your protocol that's easier to verify and maintain over time.",
-    },
-    {
-      question: "Could Enscribe steal my ENS names?",
-      answer:
-          "No. Enscribe uses the manager role for an ENS name. You retain full ownership and can override or delete any actions performed by the service at any time.",
-    },
-    {
-      question: "What happens if my domain expires?",
-      answer:
-          "Just like with domain names, if your ENS name lapses and someone else takes ownership of it, the subnames issued by Enscribe are no longer valid. We recommend keeping your ENS names renewed.",
-    },
+  const FEATURES = [
+    { icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" /></svg>, t: "Multi-user workspaces", d: "Your team shares a workspace with full visibility and access control." },
+    { icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" /></svg>, t: "Safe & multisig", d: "ENS operations work natively with your existing Safe setup." },
+    { icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 010 1.972l-11.54 6.347a1.125 1.125 0 01-1.667-.986V5.653z" /></svg>, t: "One-click execution", d: "Stage your changes, execute when you're ready — no individual transaction signing." },
+    { icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5" /></svg>, t: "API, CLI & Agents", d: "Fine-grained API keys, CLI with MCP. Built for your team and your agents." },
+    { icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>, t: "Activity log", d: "Who changed what, when, from which wallet. Full audit trail." },
+    { icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z" /><path strokeLinecap="round" strokeLinejoin="round" d="M6 6h.008v.008H6V6z" /></svg>, t: "Rich metadata", d: "Add structured information to every name in your namespace. Full on-chain profiles for your contracts and wallets." },
+  ]
+
+  const TESTIMONIALS = [
+    { q: "Enscribe helped us standardize ENS naming across our deployed infrastructure so users and builders can clearly identify Nouns contracts.", who: "gramajo.eth", role: "Nouns Steward" },
+    { q: "Smart contract identity is an underrated security layer. Enscribe helped us formalise how Cork's contracts are named, resolved, and represented onchain.", who: "Baptiste Florentin", role: "CTO, Cork Protocol" },
+    { q: "Naming contracts increases security for users and makes sure open source development can build on a strong foundation of trust.", who: "Lauren Luz", role: "Product Lead, Giveth" },
+  ]
+
+  const ROADMAP = [
+    ["Multi-user workspaces",1],["Record & metadata management",1],["Safe integration",1],["Batch naming",1],
+    ["API with scoped keys",1],["CLI with MCP",1],["DNSSEC import",1],["Activity log",1],
+    ["Smart account support",0],["Approval workflows",0],["Autorenewals",0],["Activity notifications",0],
+    ["Custom roles & permissions",0],["ENSv2 / Namechain",0],["x402 support",0],
+  ]
+
+  const FAQS = [
+    ["How is this different from the ENS App?", "ENS is the naming protocol. Enscribe is the team operations layer — like GitHub is to Git, or Cloudflare is to DNS."],
+    ["Do I need a .eth name?", "No. Import your existing DNS domain via DNSSEC, or use a .eth name. Both work."],
+    ["Does Enscribe have access to my names?", "You keep full ownership. Enscribe uses delegated permissions you can revoke at any time."],
+    ["Does it work with Safe?", "Yes. ENS operations work natively with your existing Safe multisig."],
+    ["What networks are supported?", "Ethereum, Base, Linea, Arbitrum, Optimism, and Scroll."],
   ]
 
   return (
-      <div className="enscribe-landing bg-[#0a0e1a] text-white font-sans min-h-screen">
-        {/* ── Navbar ── */}
-        <header className="sticky top-0 z-50 w-full border-b border-white/5 bg-[#0a0e1a]/80 backdrop-blur-xl">
-          <div className="container mx-auto px-4 md:px-6 flex h-16 items-center justify-between">
-            <Link to="/" className="flex items-center gap-2.5 hover:opacity-90 transition-opacity">
-              <img src="/img/logo.svg" alt="Enscribe" className="h-7 w-7" />
-              <span className="text-xl font-bold tracking-tight">Enscribe</span>
-            </Link>
+    <div className="enscribe-landing bg-[#0a0e1a] text-white font-sans min-h-screen">
 
-            <nav className="hidden md:flex items-center gap-1">
-              {[
-                { label: "Features", to: "#features" },
-                { label: "Services", to: "#services" },
-                { label: "Docs", to: "/docs" },
-                { label: "Guides", to: "/guides" },
-                { label: "Blog", to: "/blog" },
-              ].map(({ label, to }) => (
-                  <Link
-                    key={label}
-                    to={to}
-                    data-noBrokenLinkCheck={to.startsWith("#")}
-                    className="px-3 py-2 text-sm text-slate-400 hover:text-white transition-colors rounded-md"
-                  >
-                    {label}
-                  </Link>
-              ))}
-            </nav>
-
-            <div className="hidden md:flex items-center gap-3">
-              <Link
-                  to={customFields.calendarUrl}
-                  className="px-4 py-2 text-sm font-medium text-slate-300 hover:text-white border border-slate-700 hover:border-slate-600 rounded-lg transition-all"
-              >
-                Talk to a human
-              </Link>
-              <Link to={customFields.appUrl} className="button-primary rounded-lg text-sm">
-                Launch App
-              </Link>
+      {/* ── Nav ── */}
+      <header className="sticky top-0 z-50 w-full border-b border-white/5 bg-[#0a0e1a]/80 backdrop-blur-xl">
+        <div className="container mx-auto px-4 md:px-6 flex h-16 items-center justify-between">
+          <Link to="/" className="flex items-center gap-2.5 hover:opacity-90 transition-opacity"><img src="/img/logo.svg" alt="Enscribe" className="h-7 w-7" /><span className="text-xl font-bold tracking-tight">Enscribe</span></Link>
+          <nav className="hidden md:flex items-center gap-1">{NAV.map(({ label, to }) => (<Link key={label} to={to} data-noBrokenLinkCheck={to.startsWith("#")} className="px-3 py-2 text-sm text-slate-400 hover:text-white transition-colors rounded-md">{label}</Link>))}</nav>
+          <div className="hidden md:flex items-center gap-3">
+            <Link to={app} className="px-4 py-2 text-sm font-medium text-slate-300 hover:text-white border border-slate-700 hover:border-slate-600 rounded-lg transition-all">Sign in</Link>
+            <Link to={app} className="button-primary rounded-lg text-sm">Get Started</Link>
+          </div>
+          <button onClick={() => setMenuOpen(!menuOpen)} className="md:hidden text-slate-400 hover:text-white" aria-label="Menu">{menuOpen ? <HiX className="h-6 w-6" /> : <HiMenu className="h-6 w-6" />}</button>
+          {menuOpen && (
+            <div className="absolute top-16 left-0 w-full bg-[#0a0e1a] border-t border-white/5 px-6 py-6 space-y-4 shadow-2xl z-50 md:hidden">
+              {NAV.map(({ label, to }) => (<Link key={label} to={to} data-noBrokenLinkCheck={to.startsWith("#")} className="block text-lg font-medium text-slate-300 hover:text-cyan-400" onClick={() => setMenuOpen(false)}>{label}</Link>))}
+              <div className="pt-4 flex flex-col gap-3">
+                <Link to={app} className="text-center py-2.5 text-sm font-medium text-slate-300 border border-slate-700 rounded-lg" onClick={() => setMenuOpen(false)}>Sign in</Link>
+                <Link to={app} className="button-primary rounded-lg text-sm text-center" onClick={() => setMenuOpen(false)}>Get Started</Link>
+              </div>
             </div>
+          )}
+        </div>
+      </header>
 
-            <button
-                onClick={() => setMenuOpen(!menuOpen)}
-                className="md:hidden text-slate-400 hover:text-white"
-                aria-label="Toggle menu"
-            >
-              {menuOpen ? <HiX className="h-6 w-6" /> : <HiMenu className="h-6 w-6" />}
-            </button>
+      <main className="flex-1">
 
-            {menuOpen && (
-                <div className="absolute top-16 left-0 w-full bg-[#0a0e1a] border-t border-white/5 px-6 py-6 space-y-4 shadow-2xl z-50 md:hidden">
-                  {[
-                    { label: "Features", to: "#features" },
-                    { label: "Services", to: "#services" },
-                    { label: "Docs", to: "/docs" },
-                    { label: "Guides", to: "/guides" },
-                    { label: "Blog", to: "/blog" },
-                  ].map(({ label, to }) => (
-                      <Link
-                        key={label}
-                        to={to}
-                        data-noBrokenLinkCheck={to.startsWith("#")}
-                        className="block text-lg font-medium text-slate-300 hover:text-cyan-400"
-                        onClick={() => setMenuOpen(false)}
-                      >
-                        {label}
-                      </Link>
-                  ))}
-                  <div className="pt-4 flex flex-col gap-3">
-                    <Link to={customFields.calendarUrl} className="text-center py-2.5 text-sm font-medium text-slate-300 border border-slate-700 rounded-lg" onClick={() => setMenuOpen(false)}>
-                      Talk to us
-                    </Link>
-                    <Link to={customFields.appUrl} className="button-primary rounded-lg text-sm text-center" onClick={() => setMenuOpen(false)}>
-                      Launch App
-                    </Link>
+        {/* ── Hero ── */}
+        <section className="relative pt-20 pb-20 md:pt-32 md:pb-28 overflow-hidden">
+          <div className="container mx-auto px-4 md:px-6 relative z-10">
+            <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-20">
+              <div className="flex-1 max-w-xl">
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-slate-800/80 text-slate-300 border border-slate-700/60 mb-6">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  Trusted by Nouns DAO, Liquity, Cork &amp; more
+                </div>
+                <h1 className="text-4xl sm:text-5xl lg:text-[3.5rem] font-bold tracking-tight leading-[1.08] mb-6">
+                  Identity infrastructure{" "}
+                  <span className="bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">for onchain teams</span>
+                </h1>
+                <p className="text-lg text-slate-400 mb-8 leading-relaxed max-w-md">
+                  Name and manage your contracts, wallets, and agents under one namespace. As a team.
+                </p>
+                <div className="flex flex-wrap gap-3">
+                  <Link to={app} className="button-primary rounded-lg">Get Started Free <HiArrowRight className="ml-2 w-4 h-4" /></Link>
+                  <Link to={contact} className="inline-flex items-center justify-center px-6 py-3 rounded-lg text-sm font-semibold text-slate-300 border border-slate-700 hover:border-slate-600 hover:text-white transition-all gap-2">Talk to Us</Link>
+                </div>
+              </div>
+
+              {/* Namespace tree visual */}
+              <div className="flex-1 w-full max-w-md lg:max-w-lg">
+                <div className="rounded-xl border border-slate-700/60 bg-[#0d1220] p-6 md:p-8 font-mono text-sm shadow-2xl shadow-cyan-500/[0.08] relative overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/[0.03] via-transparent to-blue-500/[0.03]" />
+                  <div className="relative">
+                    <div className="text-slate-500 text-xs uppercase tracking-wider mb-4">Namespace</div>
+                    <div className="text-cyan-400 font-semibold text-base mb-3">yourprotocol.eth</div>
+                    <div className="pl-4 space-y-2 border-l border-slate-700/60 ml-2">
+                      {[["treasury","Safe multisig"],["governance","Governor"],["deployer","Deploy key"],["v2","Core contracts"],["agent","Automation"]].map(([n, d], i, arr) => (
+                        <div key={n} className="flex items-baseline gap-2 group">
+                          <span className="text-slate-700 text-xs">{i === arr.length - 1 ? "└──" : "├──"}</span>
+                          <span className="text-cyan-300 group-hover:text-cyan-200 transition-colors">{n}</span>
+                          <span className="text-slate-600 text-xs">· {d}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
-            )}
-          </div>
-        </header>
-
-        <main className="flex-1">
-          {/* ── Announcement bars ── */}
-          <div className="w-full border-b border-white/5 py-2.5 px-4 bg-gradient-to-r from-purple-500/[0.05] via-transparent to-cyan-500/[0.05]">
-            <div className="flex flex-col items-center gap-1.5 text-[13px]">
-              <div className="flex items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full font-semibold bg-purple-500/15 text-purple-400 border border-purple-500/25">
-                  Live
-                </span>
-                <span className="text-slate-300">
-                  ENS Contract Naming Season — 10,000 $ENS in rewards
-                </span>
-                <Link to="/blog/contract-naming-season" className="text-purple-400 font-semibold hover:text-purple-300 transition-colors">
-                  Learn more <span aria-hidden="true">&rarr;</span>
-                </Link>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full font-semibold bg-cyan-500/15 text-cyan-400 border border-cyan-500/25">
-                  New
-                </span>
-                <span className="text-slate-300">
-                  Smart Contract Naming Audits for protocol teams
-                </span>
-                <Link to="/audit" className="text-cyan-400 font-semibold hover:text-cyan-300 transition-colors">
-                  Learn more <span aria-hidden="true">&rarr;</span>
-                </Link>
               </div>
             </div>
           </div>
+          {/* Background effects */}
+          <div className="absolute inset-0 bg-[url('/img/grid.svg')] bg-center opacity-[0.03]" />
+          <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-cyan-500/[0.06] rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-blue-600/[0.04] rounded-full blur-3xl pointer-events-none" />
+        </section>
 
-          {/* ── Hero ── */}
-          <section className="relative pt-16 pb-20 md:pt-24 md:pb-28 overflow-hidden">
-            <div className="container mx-auto px-4 md:px-6 relative z-10">
-              <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-16">
-                <div className="flex-1 max-w-2xl">
-                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-slate-800/80 text-slate-300 border border-slate-700/60 mb-6">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    Trusted by Nouns DAO, Liquity, Cork &amp; more
-                  </div>
-
-                  <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight leading-[1.1] mb-6">
-                    <span className="text-white">Give your smart contracts </span>
-                    <span className="bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">a real identity</span>
-                  </h1>
-
-                  <p className="text-lg text-slate-400 max-w-xl mb-8 leading-relaxed">
-                    Your users interact with hex addresses they can't read or verify. Enscribe gives every contract a human-readable ENS name &mdash; onchain, verifiable, and permanent.
-                  </p>
-
-                  <div className="flex flex-wrap gap-3">
-                    <Link to={customFields.appUrl} className="button-primary rounded-lg">
-                      Launch App
-                      <HiArrowRight className="ml-2 w-4 h-4" />
-                    </Link>
-                    <Link
-                        to={customFields.calendarUrl}
-                        className="inline-flex items-center justify-center px-6 py-3 rounded-lg text-sm font-semibold text-slate-300 border border-slate-700 hover:border-slate-600 hover:text-white transition-all gap-2"
-                    >
-                      Book a call
-                    </Link>
-                  </div>
-                </div>
-
-                <div className="flex-1 w-full max-w-xl lg:max-w-none">
-                  <HeroNameIt />
-                </div>
-              </div>
+        {/* ── Logos ── */}
+        <section className="py-10 border-y border-white/5">
+          <div className="container mx-auto px-4">
+            <p className="text-center text-xs font-medium tracking-[0.2em] text-slate-500 uppercase mb-8">Trusted by leading teams</p>
+            <div className="flex flex-wrap justify-center items-center gap-x-14 gap-y-6">
+              {LOGOS.map((p) => (<Link key={p.name} to={p.url} title={p.name} className="opacity-40 grayscale hover:grayscale-0 hover:opacity-100 transition-all duration-300"><img src={p.logo} alt={p.name} className="h-8 md:h-10 w-auto" /></Link>))}
             </div>
+          </div>
+        </section>
 
-            {/* Background grid */}
-            <div className="absolute inset-0 bg-[url('/img/grid.svg')] bg-center opacity-[0.03]" />
-            {/* Gradient orbs */}
-            <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-cyan-500/5 rounded-full blur-3xl pointer-events-none" />
-            <div className="absolute bottom-0 right-1/4 w-[400px] h-[400px] bg-blue-600/5 rounded-full blur-3xl pointer-events-none" />
-          </section>
-
-          {/* ── Logos ── */}
-          <section className="py-10 border-y border-white/5">
-            <div className="container mx-auto px-4">
-              <p className="text-center text-xs font-medium tracking-[0.2em] text-slate-500 uppercase mb-8">
-                Trusted by leading protocols
-              </p>
-              <div className="flex flex-wrap justify-center items-center gap-x-14 gap-y-6">
-                {PARTNERS.map((partner) => (
-                    <Link
-                        key={partner.name}
-                        to={partner.url}
-                        title={partner.name}
-                        className="opacity-40 grayscale hover:grayscale-0 hover:opacity-100 transition-all duration-300"
-                    >
-                      <img src={partner.logo} alt={partner.name} className="h-8 md:h-10 w-auto" />
-                    </Link>
-                ))}
-              </div>
-            </div>
-          </section>
-
-          {/* ── Problem → Solution ── */}
-          <section className="py-20 md:py-28">
-            <div className="container mx-auto px-4 md:px-6">
-              <div className="max-w-3xl mx-auto text-center mb-16">
-                <p className="text-sm font-medium tracking-widest text-cyan-400 uppercase mb-3">The problem</p>
-                <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-white mb-5">
-                  Hex addresses weren't designed for humans
-                </h2>
-                <p className="text-slate-400 text-lg leading-relaxed">
-                  Your protocol has dozens of contracts across multiple chains. Users, auditors, and your own team reference them by pasting hex addresses from docs that go stale. One wrong address can mean lost funds.
-                </p>
-              </div>
-
-              <div className="max-w-4xl mx-auto">
-                {/* Before/After comparison */}
-                <div className="grid md:grid-cols-2 gap-6">
-                  <div className="rounded-xl border border-red-500/20 bg-red-500/[0.03] p-6 md:p-8">
-                    <div className="flex items-center gap-2 mb-4">
-                      <div className="w-2 h-2 rounded-full bg-red-400" />
-                      <span className="text-xs font-medium tracking-wider text-red-400 uppercase">Without Enscribe</span>
-                    </div>
-                    <div className="space-y-3 font-mono text-xs">
-                      <div className="bg-slate-900/80 rounded-lg px-4 py-3 text-red-300/80 overflow-hidden text-ellipsis whitespace-nowrap">
-                        0x830BD73E4184ceF73443C15111a1DF14e495C706
-                      </div>
-                      <div className="bg-slate-900/80 rounded-lg px-4 py-3 text-red-300/80 overflow-hidden text-ellipsis whitespace-nowrap">
-                        0xCCcCcCCCcccCBaD6F772a511B337d9CCc9570407
-                      </div>
-                      <div className="bg-slate-900/80 rounded-lg px-4 py-3 text-red-300/80 overflow-hidden text-ellipsis whitespace-nowrap">
-                        0x807DEf5E7d057DF05C796F4bc75C3Fe82Bd6EeE1
-                      </div>
-                    </div>
-                    <p className="text-slate-500 text-xs mt-4">Which contract is which? Are these even legitimate?</p>
-                  </div>
-
-                  <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/[0.03] p-6 md:p-8">
-                    <div className="flex items-center gap-2 mb-4">
-                      <div className="w-2 h-2 rounded-full bg-cyan-400" />
-                      <span className="text-xs font-medium tracking-wider text-cyan-400 uppercase">With Enscribe</span>
-                    </div>
-                    <div className="space-y-3 font-mono text-sm">
-                      <div className="bg-slate-900/80 rounded-lg px-4 py-3 text-cyan-300">
-                        auction.nouns.eth
-                      </div>
-                      <div className="bg-slate-900/80 rounded-lg px-4 py-3 text-cyan-300">
-                        adapter.phoenix.cork.eth
-                      </div>
-                      <div className="bg-slate-900/80 rounded-lg px-4 py-3 text-cyan-300">
-                        governance.liquity-protocol.eth
-                      </div>
-                    </div>
-                    <p className="text-slate-500 text-xs mt-4">Instantly readable. Verifiable onchain by anyone.</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* ── Features ── */}
-          <section id="features" className="py-20 md:py-28 border-t border-white/5">
-            <div className="container mx-auto px-4 md:px-6">
-              <div className="max-w-3xl mx-auto text-center mb-16">
-                <p className="text-sm font-medium tracking-widest text-cyan-400 uppercase mb-3">Platform</p>
-                <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-white mb-5">
-                  Everything you need to name your contracts
-                </h2>
-                <p className="text-slate-400 text-lg">
-                  A complete suite of tools for teams who want their protocol identity onchain.
-                </p>
-              </div>
-
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
-                {[
-                  {
-                    title: "Deploy & name atomically",
-                    desc: "Deploy a contract and assign an ENS name in a single transaction. If deployment succeeds, the name is guaranteed.",
-                    icon: (
-                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
-                        </svg>
-                    ),
-                  },
-                  {
-                    title: "Name existing contracts",
-                    desc: "Already deployed? Retroactively assign ENS names to your entire contract inventory using your ENS name or ours.",
-                    icon: (
-                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
-                        </svg>
-                    ),
-                  },
-                  {
-                    title: "Multi-chain support",
-                    desc: "Name contracts across Ethereum, Base, Linea, Arbitrum, Optimism, and Scroll from a single dashboard.",
-                    icon: (
-                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" />
-                        </svg>
-                    ),
-                  },
-                  {
-                    title: "Contract inventory",
-                    desc: "Never lose track of deployed contracts. View your entire protocol infrastructure, named and organised, across all chains.",
-                    icon: (
-                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z" />
-                        </svg>
-                    ),
-                  },
-                  {
-                    title: "Developer tools",
-                    desc: "TypeScript library, Solidity contracts for Foundry, and Hardhat plugin. Integrate ENS naming into your deployment pipeline.",
-                    icon: (
-                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5" />
-                        </svg>
-                    ),
-                  },
-                  {
-                    title: "Verification status",
-                    desc: "Display contract verification status from Etherscan, Blockscout, and Sourcify alongside your ENS names.",
-                    icon: (
-                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
-                        </svg>
-                    ),
-                  },
-                ].map((feature, i) => (
-                    <div
-                        key={i}
-                        className="group relative rounded-xl border border-slate-800 bg-slate-900/30 p-6 hover:border-slate-700 hover:bg-slate-900/60 transition-all duration-300"
-                    >
-                      <div className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-cyan-500/10 text-cyan-400 mb-4">
-                        {feature.icon}
-                      </div>
-                      <h3 className="text-base font-semibold text-white mb-2">{feature.title}</h3>
-                      <p className="text-sm text-slate-400 leading-relaxed">{feature.desc}</p>
-                    </div>
-                ))}
-              </div>
-            </div>
-          </section>
-
-          {/* ── How it works ── */}
-          <section className="py-20 md:py-28 border-t border-white/5 bg-gradient-to-b from-transparent via-slate-900/30 to-transparent">
-            <div className="container mx-auto px-4 md:px-6">
-              <div className="max-w-3xl mx-auto text-center mb-16">
-                <p className="text-sm font-medium tracking-widest text-cyan-400 uppercase mb-3">How it works</p>
-                <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-white mb-5">
-                  Three steps to onchain identity
-                </h2>
-              </div>
-
-              <div className="max-w-4xl mx-auto">
-                <div className="grid md:grid-cols-3 gap-8">
-                  {[
-                    {
-                      step: "01",
-                      title: "Connect your wallet",
-                      desc: "Connect your wallet and bring your own ENS name, or use one from Enscribe to get started immediately.",
-                    },
-                    {
-                      step: "02",
-                      title: "Name your contracts",
-                      desc: "Deploy new contracts with names atomically, or retroactively name your existing deployed contracts.",
-                    },
-                    {
-                      step: "03",
-                      title: "Verify onchain",
-                      desc: "Names resolve directly onchain via ENS. Anyone can look up your contracts by name, across chains.",
-                    },
-                  ].map((item, i) => (
-                      <div key={i} className="relative">
-                        <div className="text-5xl font-bold text-slate-800/60 mb-4">{item.step}</div>
-                        <h3 className="text-lg font-semibold text-white mb-2">{item.title}</h3>
-                        <p className="text-sm text-slate-400 leading-relaxed">{item.desc}</p>
-                      </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* ── Networks ── */}
-          <section className="py-16 border-t border-white/5">
-            <div className="container mx-auto px-4 md:px-6 text-center">
-              <p className="text-xs font-medium tracking-[0.2em] text-slate-500 uppercase mb-8">
-                Supported networks
-              </p>
-              <div className="flex flex-wrap justify-center items-center gap-4">
-                {NETWORKS.map((network) => (
-                    <div
-                        key={network.name}
-                        className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-slate-800 bg-slate-900/40 text-sm text-slate-400"
-                    >
-                      <div className="w-2 h-2 rounded-full bg-cyan-400/60" />
-                      {network.name}
-                    </div>
-                ))}
-              </div>
-            </div>
-          </section>
-
-          {/* ── Services / Audit CTA ── */}
-          <section id="services" className="py-20 md:py-28 border-t border-white/5">
-            <div className="container mx-auto px-4 md:px-6">
-              <div className="max-w-5xl mx-auto">
-                <div className="rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900/80 via-slate-900/60 to-cyan-950/20 overflow-hidden">
-                  <div className="grid lg:grid-cols-2 gap-0">
-                    {/* Left */}
-                    <div className="p-8 md:p-12 flex flex-col justify-center">
-                      <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 w-fit mb-5">
-                        Paid service
-                      </div>
-                      <h2 className="text-2xl md:text-3xl font-bold text-white mb-4">
-                        Contract Naming Audit
-                      </h2>
-                      <p className="text-slate-400 mb-6 leading-relaxed">
-                        For established protocols with complex contract infrastructure. Our team maps out your entire deployment, designs an ENS naming scheme, and helps you roll it out.
-                      </p>
-                      <div className="flex flex-wrap gap-3">
-                        <Link
-                            to={customFields.calendarUrl}
-                            className="button-primary rounded-lg text-sm"
-                        >
-                          Book a call
-                          <HiArrowRight className="ml-2 w-4 h-4" />
-                        </Link>
-                        <Link
-                            to="/audit"
-                            className="inline-flex items-center justify-center px-5 py-3 rounded-lg text-sm font-medium text-slate-400 hover:text-white border border-slate-700 hover:border-slate-600 transition-all"
-                        >
-                          Learn more
-                        </Link>
-                      </div>
-                    </div>
-
-                    {/* Right - What's included */}
-                    <div className="p-8 md:p-12 bg-slate-900/40 border-t lg:border-t-0 lg:border-l border-slate-800">
-                      <p className="text-xs font-medium tracking-widest text-slate-500 uppercase mb-6">What's included</p>
-                      <ul className="space-y-4">
-                        {[
-                          "Complete contract & wallet inventory mapping",
-                          "Proxy detection (EIP-1967, Beacon, Minimal, custom)",
-                          "Admin & ownership structure analysis",
-                          "Recommended ENS naming scheme for every contract",
-                          "Cross-chain naming strategy",
-                          "Rollout plan, blog post & social copy",
-                        ].map((item, i) => (
-                            <li key={i} className="flex items-start gap-3 text-sm">
-                              <svg className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                              </svg>
-                              <span className="text-slate-300">{item}</span>
-                            </li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* ── Stats ── */}
-          <section className="py-16 border-t border-white/5">
-            <div className="container mx-auto px-4 md:px-6">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-4xl mx-auto text-center">
-                {[
-                  { value: 147, suffix: "+", label: "Contracts named" },
-                  { value: 6, suffix: "+", label: "Networks supported" },
-                  { value: 3, suffix: "", label: "Developer tools" },
-                  { value: 54, suffix: "+", label: "Blog posts & guides" },
-                ].map((stat, i) => (
-                    <div key={i}>
-                      <div className="text-3xl md:text-4xl font-bold text-white mb-1">
-                        <AnimatedNumber target={stat.value} suffix={stat.suffix} />
-                      </div>
-                      <div className="text-sm text-slate-500">{stat.label}</div>
-                    </div>
-                ))}
-              </div>
-            </div>
-          </section>
-
-          {/* ── Blog carousel ── */}
-          <LatestPostsCarousel limit={6} />
-
-          {/* ── FAQ ── */}
-          <section id="faq" className="py-20 md:py-28 border-t border-white/5">
-            <div className="container mx-auto px-4 md:px-6">
-              <div className="max-w-3xl mx-auto">
-                <div className="text-center mb-12">
-                  <p className="text-sm font-medium tracking-widest text-cyan-400 uppercase mb-3">FAQ</p>
-                  <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-white">
-                    Frequently asked questions
-                  </h2>
-                </div>
-                <div className="rounded-xl border border-slate-800 bg-slate-900/30 px-6 md:px-8">
-                  {faqs.map((faq, index) => (
-                      <FAQItem key={index} question={faq.question} answer={faq.answer} />
-                  ))}
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* ── Final CTA ── */}
-          <section className="py-20 md:py-28 border-t border-white/5">
-            <div className="container mx-auto px-4 md:px-6">
-              <div className="flex flex-col items-center text-center max-w-3xl mx-auto">
-                <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-white mb-5">
-                  Ready to give your protocol a real onchain identity?
-                </h2>
-                <p className="text-slate-400 text-lg mb-8 max-w-xl">
-                  Stop relying on hex addresses and stale documentation. Name your contracts today.
-                </p>
-                <div className="flex flex-row items-center justify-center gap-4">
-                  <Link to={customFields.appUrl} className="button-primary rounded-lg">
-                    Launch App
-                    <HiArrowRight className="ml-2 w-4 h-4" />
-                  </Link>
-                  <Link
-                      to="/audit"
-                      className="inline-flex items-center justify-center px-6 py-3 rounded-lg text-sm font-semibold text-slate-300 border border-slate-700 hover:border-slate-600 hover:text-white transition-all"
-                  >
-                    Request a naming audit
-                  </Link>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* ── Newsletter ── */}
-          <section className="py-16 border-t border-white/5">
-            <div className="container mx-auto px-4 md:px-6">
-              <div className="max-w-md mx-auto text-center">
-                <p className="text-sm font-medium text-slate-300 mb-4">
-                  Stay in the loop on product updates and integrations
-                </p>
-                <form className="flex gap-2"
-                      action="https://web3labs.us17.list-manage.com/subscribe/post" method="POST"
-                >
-                  <input type="hidden" name="u" value="412696652858d5fc58dd705c9" />
-                  <input type="hidden" name="id" value="6dd1b9fa2d" />
-                  <input
-                      type="email"
-                      placeholder="you@protocol.xyz"
-                      className="flex-1 px-4 py-2.5 rounded-lg bg-slate-900 border border-slate-800 text-white text-sm placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-cyan-500/40 focus:border-cyan-500/40"
-                      name="MERGE0" id="MERGE0"
-                  />
-                  <button
-                      type="submit"
-                      className="px-5 py-2.5 rounded-lg bg-cyan-500 text-white text-sm font-semibold hover:bg-cyan-400 transition-colors whitespace-nowrap"
-                  >
-                    Subscribe
-                  </button>
-                </form>
-              </div>
-            </div>
-          </section>
-        </main>
-
-        {/* ── Footer ── */}
-        <footer className="border-t border-white/5 py-8">
+        {/* ── Two paths ── */}
+        <section className="py-20 md:py-28">
           <div className="container mx-auto px-4 md:px-6">
-            <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-              <div className="flex items-center gap-2.5">
-                <img src="/img/logo.svg" alt="Enscribe" className="h-5 w-5 opacity-60" />
-                <span className="text-sm text-slate-500">&copy; {new Date().getFullYear()} Web3 Labs Ltd.</span>
+            <div className="text-center mb-12">
+              <p className="text-sm font-medium tracking-widest text-cyan-400 uppercase mb-3">Flexible</p>
+              <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-white mb-4">Your .eth name or your DNS domain</h2>
+              <p className="text-slate-500 text-base" style={{ textAlign: "center" }}>Both resolve onchain via ENS. Same platform, same team workflows.</p>
+            </div>
+            <div className="max-w-4xl mx-auto grid md:grid-cols-2 gap-6">
+              <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/[0.02] p-6 transition-all duration-300 hover:border-cyan-500/30">
+                <div className="flex items-center gap-2 mb-4"><div className="w-2 h-2 rounded-full bg-cyan-400" /><span className="text-xs font-medium text-cyan-400 uppercase tracking-wider">.eth name</span></div>
+                <div className="space-y-2 font-mono text-sm">
+                  {["treasury","governance","deployer","v2"].map(n => (<div key={n} className="bg-slate-900/60 rounded-lg px-4 py-2.5 text-cyan-300">{n}.yourprotocol.eth</div>))}
+                </div>
               </div>
+              <div className="rounded-xl border border-blue-500/20 bg-blue-500/[0.02] p-6 transition-all duration-300 hover:border-blue-500/30">
+                <div className="flex items-center gap-2 mb-4"><div className="w-2 h-2 rounded-full bg-blue-400" /><span className="text-xs font-medium text-blue-400 uppercase tracking-wider">DNS domain</span></div>
+                <div className="space-y-2 font-mono text-sm">
+                  {["treasury","governance","deployer","v2"].map(n => (<div key={n} className="bg-slate-900/60 rounded-lg px-4 py-2.5 text-blue-300">{n}.yourprotocol.com</div>))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
 
-              <div className="flex items-center gap-5">
-                {[
-                  { to: "https://x.com/enscribe_", icon: <FaXTwitter className="h-4 w-4" />, label: "X" },
-                  { to: "https://github.com/enscribexyz/enscribe", icon: <FaGithub className="h-4 w-4" />, label: "GitHub" },
-                  { to: "https://www.youtube.com/@enscribexyz", icon: <FaYoutube className="h-4 w-4" />, label: "GitHub" },
-                  { to: "https://t.me/enscribers", icon: <FaTelegram className="h-4 w-4" />, label: "Telegram" },
-                  { to: "https://discord.gg/8QUMMdS5GY", icon: <FaDiscord className="h-4 w-4" />, label: "Discord" },
-                  { to: "https://warpcast.com/enscribe", icon: <SiFarcaster className="h-4 w-4" />, label: "Farcaster" },
-                ].map(({ to, icon, label }) => (
-                    <Link key={label} to={to} className="text-slate-600 hover:text-slate-400 transition-colors" aria-label={label}>
-                      {icon}
-                    </Link>
+        {/* ── Features ── */}
+        <section id="product" className="py-20 md:py-28 border-t border-white/5">
+          <div className="container mx-auto px-4 md:px-6">
+            <div className="text-center mb-14">
+              <p className="text-sm font-medium tracking-widest text-cyan-400 uppercase mb-3">Platform</p>
+              <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-white">Built for teams, not individuals</h2>
+            </div>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 max-w-5xl mx-auto">
+              {FEATURES.map((f, i) => (
+                <div key={i} className="group rounded-xl border border-slate-800 bg-slate-900/30 p-6 hover:border-slate-700 hover:bg-slate-900/60 transition-all duration-300">
+                  <div className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-cyan-500/10 text-cyan-400 mb-4 group-hover:bg-cyan-500/15 transition-colors">{f.icon}</div>
+                  <h3 className="text-sm font-semibold text-white mb-1.5">{f.t}</h3>
+                  <p className="text-xs text-slate-500 leading-relaxed">{f.d}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ── Dashboard preview ── */}
+        <section className="py-20 md:py-28 border-t border-white/5 bg-gradient-to-b from-transparent via-slate-900/20 to-transparent">
+          <div className="container mx-auto px-4 md:px-6">
+            <div className="text-center mb-12">
+              <p className="text-sm font-medium tracking-widest text-cyan-400 uppercase mb-3">Dashboard</p>
+              <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-white">Your contracts, named and organised</h2>
+            </div>
+            <div className="max-w-5xl mx-auto">
+              <div className="rounded-xl border border-slate-700/60 bg-[#0d1220] shadow-2xl shadow-cyan-500/[0.06] overflow-hidden">
+                {/* Browser chrome */}
+                <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-800 bg-slate-900/80">
+                  <div className="flex gap-1.5"><div className="w-3 h-3 rounded-full bg-slate-700" /><div className="w-3 h-3 rounded-full bg-slate-700" /><div className="w-3 h-3 rounded-full bg-slate-700" /></div>
+                  <div className="flex-1 flex justify-center"><div className="px-4 py-1 rounded-md bg-slate-800/80 text-xs text-slate-500 font-mono">platform.enscribe.xyz</div></div>
+                </div>
+                <div className="flex min-h-[360px]">
+                  {/* Sidebar */}
+                  <div className="hidden sm:flex w-48 flex-col border-r border-slate-800 bg-slate-900/40 p-4 gap-1">
+                    <div className="flex items-center gap-2 mb-5">
+                      <div className="w-6 h-6 rounded bg-cyan-500/20 flex items-center justify-center"><img src="/img/logo.svg" alt="" className="w-4 h-4" /></div>
+                      <span className="text-xs font-semibold text-white">myprotocol</span>
+                    </div>
+                    {["Contracts", "Assign", "Metadata", "Activity", "Settings"].map((item, i) => (
+                      <div key={item} className={`px-3 py-2 rounded-md text-xs font-medium transition-colors ${i === 0 ? "bg-cyan-500/10 text-cyan-400" : "text-slate-500 hover:text-slate-400"}`}>{item}</div>
+                    ))}
+                  </div>
+                  {/* Content */}
+                  <div className="flex-1 p-5 md:p-6">
+                    <div className="flex items-center justify-between mb-5">
+                      <div>
+                        <div className="text-sm font-semibold text-white">Contracts</div>
+                        <div className="text-xs text-slate-500 mt-0.5">myprotocol.eth · Ethereum Mainnet</div>
+                      </div>
+                      <div className="px-3 py-1.5 rounded-lg bg-cyan-500/10 text-cyan-400 text-xs font-medium border border-cyan-500/20 hover:bg-cyan-500/15 transition-colors cursor-default">+ Add contract</div>
+                    </div>
+                    {/* Table */}
+                    <div className="grid grid-cols-4 gap-4 text-[11px] text-slate-500 font-medium border-b border-slate-800 pb-2 uppercase tracking-wider">
+                      <span>Contract</span><span>Chain</span><span>ENS name</span><span>Status</span>
+                    </div>
+                    {[
+                      { addr: "0x830B…c706", chain: "Ethereum", name: "governance.myprotocol.eth", ok: true },
+                      { addr: "0xCCcC…0407", chain: "Base", name: "treasury.myprotocol.eth", ok: true },
+                      { addr: "0x807D…EeE1", chain: "Ethereum", name: "—", ok: false },
+                      { addr: "0x9b95…dE81", chain: "Arbitrum", name: "router.myprotocol.eth", ok: true },
+                    ].map((r, i) => (
+                      <div key={i} className="grid grid-cols-4 gap-4 text-xs py-3 border-b border-slate-800/40 items-center">
+                        <span className="font-mono text-slate-400">{r.addr}</span>
+                        <span className="text-slate-500">{r.chain}</span>
+                        <span className={r.ok ? "text-cyan-400 font-mono" : "text-slate-600"}>{r.name}</span>
+                        <span className={`inline-flex w-fit px-2 py-0.5 rounded-full text-[10px] font-medium ${r.ok ? "text-emerald-400 bg-emerald-500/10 border border-emerald-500/20" : "text-amber-400 bg-amber-500/10 border border-amber-500/20"}`}>{r.ok ? "Named" : "Pending"}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Stats section removed — metrics not meaningful for platform version */}
+
+        {/* ── Testimonials ── */}
+        <section className="py-20 md:py-28 border-t border-white/5 bg-gradient-to-b from-transparent via-slate-900/20 to-transparent">
+          <div className="container mx-auto px-4 md:px-6">
+            <div className="text-center mb-12">
+              <p className="text-sm font-medium tracking-widest text-cyan-400 uppercase mb-3">Testimonials</p>
+              <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-white">Trusted by onchain teams</h2>
+            </div>
+            <div className="grid md:grid-cols-3 gap-5 max-w-5xl mx-auto">
+              {TESTIMONIALS.map((t, i) => (
+                <div key={i} className="rounded-xl border border-slate-800 bg-slate-900/30 p-6 md:p-7 hover:border-slate-700 transition-all duration-300">
+                  <svg className="w-6 h-6 text-cyan-500/30 mb-4" fill="currentColor" viewBox="0 0 24 24"><path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z" /></svg>
+                  <p className="text-sm text-slate-300 leading-relaxed mb-5">{t.q}</p>
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-500/20 to-blue-500/20 flex items-center justify-center text-xs font-bold text-cyan-400">{t.who[0].toUpperCase()}</div>
+                    <div>
+                      <div className="text-sm font-medium text-white">{t.who}</div>
+                      <div className="text-xs text-slate-500">{t.role}</div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ── Pricing ── */}
+        <section id="pricing" className="py-20 md:py-28 border-t border-white/5">
+          <div className="container mx-auto px-4 md:px-6">
+            <div className="text-center mb-14">
+              <p className="text-sm font-medium tracking-widest text-cyan-400 uppercase mb-3">Pricing</p>
+              <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-white mb-4">Start free. Scale with your team.</h2>
+              <p className="text-slate-500">Unlimited viewers on every plan.</p>
+            </div>
+            <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
+              {/* Free */}
+              <FreePricingCard formspreeUrl={customFields.formspreeWaitlistUrl} />
+
+              {/* Teams */}
+              <div className="rounded-2xl border border-cyan-500/40 bg-cyan-500/[0.04] shadow-lg shadow-cyan-500/5 p-7 flex flex-col transition-all duration-300 hover:translate-y-[-2px] relative">
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2"><span className="px-3 py-1 rounded-full text-xs font-semibold bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg shadow-cyan-500/20">Early Access</span></div>
+                <h3 className="text-lg font-semibold text-white">Teams</h3>
+                <p className="text-xs text-slate-500 mt-0.5 mb-5">For teams and organisations</p>
+                <div className="mb-6 flex items-end min-h-[48px]">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold bg-cyan-500/10 text-cyan-400 border border-cyan-500/25">
+                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+                    Limited spots available
+                  </span>
+                </div>
+                <ul className="space-y-2.5 mb-7 flex-1">
+                  {["Multiple users & namespaces","Full name & metadata management","API access with scoped keys","CLI with MCP & agentic access","Activity log & notifications","Safe & multisig support","Dedicated support","Batch operations"].map((f, i) => (
+                    <li key={i} className="flex items-start gap-2 text-[13px]"><HiCheck className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" /><span className="text-slate-400">{f}</span></li>
+                  ))}
+                </ul>
+                <Link to={contact} className="button-primary w-full text-center py-3 rounded-lg text-sm font-semibold transition-all">Apply for Early Access</Link>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ── Roadmap ── */}
+        <section className="py-20 md:py-28 border-t border-white/5">
+          <div className="container mx-auto px-4 md:px-6">
+            <div className="text-center mb-12">
+              <p className="text-sm font-medium tracking-widest text-cyan-400 uppercase mb-3">Roadmap</p>
+              <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-white">What's shipping</h2>
+            </div>
+            <div className="max-w-xl mx-auto grid grid-cols-2 gap-x-8 gap-y-3 text-sm">
+              {ROADMAP.map(([f, live], i) => (
+                <div key={i} className="flex items-center gap-2.5 py-1">
+                  <span className={`w-2 h-2 rounded-full shrink-0 ${live ? "bg-emerald-400 shadow-sm shadow-emerald-400/50" : "bg-slate-700"}`} />
+                  <span className={live ? "text-slate-300" : "text-slate-500"}>{f}</span>
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-center gap-6 mt-8 text-xs text-slate-600">
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400/50" /> Live</span>
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-slate-700" /> Coming soon</span>
+            </div>
+          </div>
+        </section>
+
+        {/* ── Early access ── */}
+        <section className="py-20 md:py-28 border-t border-white/5">
+          <div className="container mx-auto px-4 md:px-6">
+            <div className="max-w-3xl mx-auto rounded-2xl bg-slate-900/60 p-8 md:p-12 text-center relative overflow-hidden" style={{ border: "1px solid rgba(51, 65, 85, 0.4)", boxShadow: "none" }}>
+              <div className="absolute inset-0" style={{ background: "linear-gradient(135deg, rgba(6,182,212,0.04), transparent, rgba(59,130,246,0.04))" }} />
+              <div className="relative">
+                <h2 className="text-2xl md:text-3xl font-bold text-white mb-3">Early access for teams</h2>
+                <p className="text-slate-400 text-sm mb-6" style={{ textAlign: "center" }}>Namespace audit, hands-on setup, and early-access pricing. Limited spots.</p>
+                <Link to={contact} className="button-primary rounded-lg">Apply for Early Access <HiArrowRight className="ml-2 w-4 h-4" /></Link>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ── Blog ── */}
+        <LatestPostsCarousel limit={6} />
+
+        {/* ── FAQ ── */}
+        <section className="py-20 md:py-28 border-t border-white/5">
+          <div className="container mx-auto px-4 md:px-6">
+            <div className="max-w-2xl mx-auto">
+              <div className="text-center mb-10">
+                <p className="text-sm font-medium tracking-widest text-cyan-400 uppercase mb-3">FAQ</p>
+                <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-white">Common questions</h2>
+              </div>
+              <div className="rounded-xl border border-slate-800 bg-slate-900/30 divide-y divide-slate-800">
+                {FAQS.map(([q, a], i) => (
+                  <button key={i} className="w-full text-left px-6 py-5 group" onClick={() => setFaqOpen(faqOpen === i ? null : i)}>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-medium text-slate-200 group-hover:text-white transition-colors pr-4">{q}</span>
+                      <HiChevronDown className={`h-5 w-5 text-slate-500 shrink-0 transition-transform duration-200 ${faqOpen === i ? "rotate-180" : ""}`} />
+                    </div>
+                    <div className={`overflow-hidden transition-all duration-300 ${faqOpen === i ? "max-h-40 pt-3" : "max-h-0"}`}>
+                      <p className="text-sm text-slate-400 leading-relaxed">{a}</p>
+                    </div>
+                  </button>
                 ))}
               </div>
             </div>
           </div>
-        </footer>
-      </div>
+        </section>
+
+        {/* ── Final CTA ── */}
+        <section className="py-24 md:py-32 border-t border-white/5 relative overflow-hidden">
+          <div className="container mx-auto px-4 md:px-6 text-center relative z-10">
+            <h2 className="text-3xl md:text-5xl font-bold tracking-tight text-white mb-5">
+              Give your project{" "}
+              <span className="bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">a real identity</span>
+            </h2>
+            <p className="text-slate-500 text-lg mb-8">Free to start. No credit card.</p>
+            <div className="flex justify-center gap-4">
+              <Link to={app} className="button-primary rounded-lg text-base px-8 py-3.5">Get Started Free <HiArrowRight className="ml-2 w-4 h-4" /></Link>
+              <Link to={contact} className="inline-flex items-center px-6 py-3.5 rounded-lg text-sm font-semibold text-slate-400 border border-slate-700 hover:border-slate-600 hover:text-white transition-all">Talk to sales</Link>
+            </div>
+          </div>
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] bg-cyan-500/[0.04] rounded-full blur-3xl pointer-events-none" />
+        </section>
+      </main>
+
+      {/* ── Footer ── */}
+      <footer className="border-t border-white/5 py-8">
+        <div className="container mx-auto px-4 md:px-6 flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2.5">
+            <img src="/img/logo.svg" alt="" className="h-5 w-5 opacity-60" />
+            <span className="text-xs text-slate-600">&copy; {new Date().getFullYear()} Enscribe · Human-readable onchain identity for teams</span>
+          </div>
+          <div className="flex items-center gap-5">
+            {[
+              ["https://x.com/enscribe_", <FaXTwitter className="h-4 w-4" />, "X"],
+              ["https://github.com/enscribexyz/enscribe", <FaGithub className="h-4 w-4" />, "GitHub"],
+              ["https://www.youtube.com/@enscribexyz", <FaYoutube className="h-4 w-4" />, "YouTube"],
+              ["https://t.me/enscribers", <FaTelegram className="h-4 w-4" />, "Telegram"],
+              ["https://discord.gg/8QUMMdS5GY", <FaDiscord className="h-4 w-4" />, "Discord"],
+              ["https://warpcast.com/enscribe", <SiFarcaster className="h-4 w-4" />, "Farcaster"],
+            ].map(([to, icon, label]) => (<Link key={label} to={to} className="text-slate-600 hover:text-slate-400 transition-colors" aria-label={label}>{icon}</Link>))}
+          </div>
+        </div>
+      </footer>
+    </div>
   )
 }

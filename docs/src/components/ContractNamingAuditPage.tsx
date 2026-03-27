@@ -31,7 +31,7 @@ export default function ContractNamingAuditPage() {
 
     const {siteConfig} = useDocusaurusContext();
     const customFields = (siteConfig.customFields ?? {}) as SiteCustomFields;
-    const FORMSPREE_URL = customFields.formspreeUrl ?? "";
+    const FORMSPREE_URL = customFields.formspreeAuditUrl ?? "";
 
     const [form, setForm] = useState<FormState>(initialFormState);
     const [isSubmitting, setIsSubmitting] = useState(false);

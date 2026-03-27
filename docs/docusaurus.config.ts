@@ -6,7 +6,7 @@ import 'dotenv/config';
 /** @type {import('@docusaurus/types').Config} */
 const config = {
   title: "Enscribe",
-  tagline: "Smart contract identity and naming infrastructure for Ethereum",
+  tagline: "Team-based identity infrastructure for protocols, built on ENS and DNS on Ethereum",
   favicon: "img/favicon.ico",
 
   url: "https://www.enscribe.xyz",
@@ -165,7 +165,9 @@ const config = {
   customFields: {
     // Put your custom environment here
     appUrl: process.env.APP_URL,
-    formspreeUrl: process.env.FORMSPREE_URL,
+    platformUrl: process.env.PLATFORM_URL || 'https://platform.enscribe.xyz',
+    formspreeAuditUrl: process.env.FORMSPREE_AUDIT_URL,
+    formspreeWaitlistUrl: process.env.FORMSPREE_WAITLIST_URL,
     calendarUrl: 'https://calendar.app.google/J1xEJA4Hr3GBqJ4K8',
   },
 
@@ -176,13 +178,13 @@ const config = {
       image: "img/social-card.png",
 
       metadata: [
-        { name: 'keywords', content: 'smart contract naming, smart contract identity, ENS, Ethereum Name Service, Ethereum smart contracts, ENS smart contract naming, protocol infrastructure, smart contract naming audits, naming audits, Enscribe' },
-        { name: 'description', content: 'Enscribe provides infrastructure for naming and managing smart contracts and wallets using ENS.' },
+        { name: 'keywords', content: 'identity infrastructure, ENS management, namespace operations, team ENS management, ENS API, contract identity, wallet identity, DNS on ENS, DNSSEC, Ethereum Name Service, protocol infrastructure, Enscribe' },
+        { name: 'description', content: 'Enscribe is team-based identity infrastructure for protocols. Name and manage your contracts, wallets, multisigs, and agents under one namespace — built on ENS and DNS on Ethereum.' },
         { name: 'twitter:card', content: 'summary_large_image' },
         { name: 'twitter:image', content: 'https://www.enscribe.xyz/img/social-card.png' },
         { property: 'og:image', content: 'https://www.enscribe.xyz/img/social-card.png' },
-        { property: 'og:title', content: 'Smart contract identity and naming infrastructure for Ethereum | Enscribe' },
-        { property: 'og:description', content: 'Enscribe provides infrastructure for naming and managing smart contracts and wallets using ENS.' },
+        { property: 'og:title', content: 'Team-based identity infrastructure for protocols | Enscribe' },
+        { property: 'og:description', content: 'Name and manage your contracts, wallets, multisigs, and agents under one namespace — as a team, not an individual. Built on ENS and DNS on Ethereum.' },
       ],
 
       headTags: [
