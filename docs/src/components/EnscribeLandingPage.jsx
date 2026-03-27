@@ -163,7 +163,7 @@ function FreePricingCard({ formspreeUrl }) {
             {status === "submitting" ? "Joining…" : "Join the Waitlist"}
           </button>
           {status === "error" && (
-            <p className="text-xs text-red-400" style={{ textAlign: "center" }}>Something went wrong — try again or email us at <a href="mailto:hello@enscribe.xyz" className="underline">hello@enscribe.xyz</a></p>
+            <p className="text-xs text-red-400" style={{ textAlign: "center" }}>Something went wrong — try again or email us at <a href="mailto:hi@enscribe.xyz" className="underline">hi@enscribe.xyz</a></p>
           )}
         </form>
       )}
@@ -238,7 +238,7 @@ function EarlyAccessModal({ isOpen, onClose, formspreeUrl, onSuccess }) {
                 {status === "submitting" ? "Submitting…" : "Submit"}
               </button>
               {status === "error" && (
-                <p className="text-xs text-red-400" style={{ textAlign: "center" }}>Something went wrong — try again or email us at <a href="mailto:hello@enscribe.xyz" className="underline">hello@enscribe.xyz</a></p>
+                <p className="text-xs text-red-400" style={{ textAlign: "center" }}>Something went wrong — try again or email us at <a href="mailto:hi@enscribe.xyz" className="underline">hi@enscribe.xyz</a></p>
               )}
             </form>
           </>
@@ -294,7 +294,7 @@ export default function EnscribeLandingPage() {
     ["Multi-user workspaces",1],["Record & metadata management",1],["Safe integration",1],["One-click execution",1],
     ["API with scoped keys",1],["CLI with MCP",1],["DNSSEC import",1],["Activity log",1],
     ["Smart account support",0],["Approval workflows",0],["Autorenewals",0],["Activity notifications",0],
-    ["Custom roles & permissions",0],["ENSv2 / Namechain",0],["x402 support",0],
+    ["Custom roles & permissions",0],["ENSv2 support",0],["x402 support",0],
   ]
 
   const FAQS = [
