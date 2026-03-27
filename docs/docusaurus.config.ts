@@ -6,7 +6,7 @@ import 'dotenv/config';
 /** @type {import('@docusaurus/types').Config} */
 const config = {
   title: "Enscribe",
-  tagline: "Team-based identity infrastructure for protocols, built on ENS and DNS on Ethereum",
+  tagline: "Name and manage your contracts, wallets, and agents as a team. Identity infrastructure built on ENS and DNS on Ethereum.",
   favicon: "img/favicon.ico",
 
   url: "https://www.enscribe.xyz",
@@ -179,12 +179,12 @@ const config = {
       image: "img/social-card.png",
 
       metadata: [
-        { name: 'keywords', content: 'identity infrastructure, ENS management, namespace operations, team ENS management, ENS API, contract identity, wallet identity, DNS on ENS, DNSSEC, Ethereum Name Service, protocol infrastructure, Enscribe' },
-        { name: 'description', content: 'Enscribe is team-based identity infrastructure for protocols. Name and manage your contracts, wallets, multisigs, and agents under one namespace — built on ENS and DNS on Ethereum.' },
+        { name: 'keywords', content: 'identity infrastructure, ENS management, team ENS management, ENS API, contract identity, wallet identity, DNS on ENS, DNSSEC, Ethereum Name Service, protocol infrastructure, onchain identity, smart contract naming, ENS names for teams, ENS for organisations, agentic identity, Enscribe' },
+        { name: 'description', content: 'Name and manage your contracts, wallets, and agents as a team. Identity infrastructure built on ENS and DNS on Ethereum.' },
         { name: 'twitter:card', content: 'summary_large_image' },
         { name: 'twitter:image', content: 'https://www.enscribe.xyz/img/social-card.png' },
         { property: 'og:image', content: 'https://www.enscribe.xyz/img/social-card.png' },
-        { property: 'og:title', content: 'Team-based identity infrastructure for protocols | Enscribe' },
+        { property: 'og:title', content: 'Identity infrastructure for onchain teams | Enscribe' },
         { property: 'og:description', content: 'Name and manage your contracts, wallets, multisigs, and agents under one namespace — as a team, not an individual. Built on ENS and DNS on Ethereum.' },
       ],
 

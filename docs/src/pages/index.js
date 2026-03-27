@@ -8,7 +8,7 @@ export default function Home() {
   return (
       <>
         <Head>
-          <title>{siteConfig.title} | Team-Based Identity Infrastructure for Protocols</title>
+          <title>{siteConfig.title} | Identity Infrastructure for Onchain Teams</title>
           <meta name="description" content={siteConfig.tagline} />
           <html className="enscribe-landing-page" />
         </Head>
