@@ -171,10 +171,92 @@ function FreePricingCard({ formspreeUrl }) {
   )
 }
 
+/* ─── Early access modal ─── */
+function EarlyAccessModal({ isOpen, onClose, formspreeUrl, onSuccess }) {
+  const [name, setName] = useState("")
+  const [protocol, setProtocol] = useState("")
+  const [deployed, setDeployed] = useState("")
+  const [email, setEmail] = useState("")
+  const [status, setStatus] = useState("idle") // idle | submitting | success | error
+  const modalRef = useRef(null)
+
+  // Trap focus, close on Escape, prevent body scroll
+  useEffect(() => {
+    if (!isOpen) return
+    document.body.style.overflow = "hidden"
+    const handleKey = (e) => { if (e.key === "Escape") onClose() }
+    document.addEventListener("keydown", handleKey)
+    // Focus first input
+    const timer = setTimeout(() => { const input = modalRef.current?.querySelector("input"); if (input) input.focus() }, 50)
+    return () => { document.body.style.overflow = ""; document.removeEventListener("keydown", handleKey); clearTimeout(timer) }
+  }, [isOpen, onClose])
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    if (!name || !protocol || !deployed || !email) return
+    setStatus("submitting")
+    try {
+      const res = await fetch(formspreeUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ name, protocol, deployed, email, _subject: "Early Access Application" }),
+      })
+      if (res.ok) { setStatus("success"); onSuccess?.() } else { setStatus("error") }
+    } catch { setStatus("error") }
+  }
+
+  const isValid = name && protocol && deployed && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+
+  if (!isOpen) return null
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+      <div ref={modalRef} className="relative w-full max-w-[480px] rounded-2xl border border-slate-700/60 bg-[#0d1220] p-6 md:p-8 shadow-2xl shadow-cyan-500/[0.06]" onClick={(e) => e.stopPropagation()}>
+        {/* Close button */}
+        <button onClick={onClose} className="absolute top-4 right-4 text-slate-500 hover:text-white transition-colors" aria-label="Close">
+          <HiX className="w-5 h-5" />
+        </button>
+
+        {status === "success" ? (
+          <div className="py-8 text-center">
+            <div className="w-12 h-12 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mx-auto mb-4">
+              <HiCheck className="w-6 h-6 text-emerald-400" />
+            </div>
+            <p className="text-lg font-semibold text-white mb-2">Thanks — we'll be in touch within 24 hours.</p>
+          </div>
+        ) : (
+          <>
+            <h3 className="text-lg font-semibold text-white mb-1">Apply for Early Access</h3>
+            <p className="text-xs text-slate-500 mb-6">Tell us about your project and we'll be in touch within 24 hours.</p>
+            <form onSubmit={handleSubmit} className="space-y-3">
+              <input type="text" required placeholder="Your name" value={name} onChange={(e) => setName(e.target.value)} className="w-full px-3 py-2.5 rounded-lg bg-slate-800/80 border border-slate-700 text-white text-sm placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-cyan-500/40 focus:border-cyan-500/40" />
+              <input type="email" required placeholder="Your email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-3 py-2.5 rounded-lg bg-slate-800/80 border border-slate-700 text-white text-sm placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-cyan-500/40 focus:border-cyan-500/40" />
+              <input type="text" required placeholder="Your project/protocol, e.g. Uniswap, Nouns DAO" value={protocol} onChange={(e) => setProtocol(e.target.value)} className="w-full px-3 py-2.5 rounded-lg bg-slate-800/80 border border-slate-700 text-white text-sm placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-cyan-500/40 focus:border-cyan-500/40" />
+              <input type="text" required placeholder="What do you manage? e.g. contracts, wallets, Safes" value={deployed} onChange={(e) => setDeployed(e.target.value)} className="w-full px-3 py-2.5 rounded-lg bg-slate-800/80 border border-slate-700 text-white text-sm placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-cyan-500/40 focus:border-cyan-500/40" />
+              <button type="submit" disabled={status === "submitting"} className={`w-full text-center py-3 rounded-lg text-sm font-semibold transition-all disabled:opacity-50 ${isValid ? "bg-cyan-500 text-white hover:bg-cyan-400" : "bg-slate-700 text-slate-400 cursor-default"}`}>
+                {status === "submitting" ? "Submitting…" : "Submit"}
+              </button>
+              {status === "error" && (
+                <p className="text-xs text-red-400" style={{ textAlign: "center" }}>Something went wrong — try again or email us at <a href="mailto:hello@enscribe.xyz" className="underline">hello@enscribe.xyz</a></p>
+              )}
+            </form>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export default function EnscribeLandingPage() {
   const { siteConfig: { customFields } } = useDocusaurusContext()
   const [menuOpen, setMenuOpen] = useState(false)
   const [faqOpen, setFaqOpen] = useState(null)
+  const [showEarlyAccess, setShowEarlyAccess] = useState(false)
+  const [hasApplied, setHasApplied] = useState(false)
+
+  const openEarlyAccess = () => { if (!hasApplied) setShowEarlyAccess(true) }
+  const earlyAccessLabel = hasApplied ? "Applied ✓" : "Apply for Early Access"
 
   const app = customFields.platformUrl || "https://platform.enscribe.xyz"
   const contact = customFields.calendarUrl
@@ -209,7 +291,7 @@ export default function EnscribeLandingPage() {
   ]
 
   const ROADMAP = [
-    ["Multi-user workspaces",1],["Record & metadata management",1],["Safe integration",1],["Batch naming",1],
+    ["Multi-user workspaces",1],["Record & metadata management",1],["Safe integration",1],["One-click execution",1],
     ["API with scoped keys",1],["CLI with MCP",1],["DNSSEC import",1],["Activity log",1],
     ["Smart account support",0],["Approval workflows",0],["Autorenewals",0],["Activity notifications",0],
     ["Custom roles & permissions",0],["ENSv2 / Namechain",0],["x402 support",0],
@@ -232,16 +314,16 @@ export default function EnscribeLandingPage() {
           <Link to="/" className="flex items-center gap-2.5 hover:opacity-90 transition-opacity"><img src="/img/logo.svg" alt="Enscribe" className="h-7 w-7" /><span className="text-xl font-bold tracking-tight">Enscribe</span></Link>
           <nav className="hidden md:flex items-center gap-1">{NAV.map(({ label, to }) => (<Link key={label} to={to} data-noBrokenLinkCheck={to.startsWith("#")} className="px-3 py-2 text-sm text-slate-400 hover:text-white transition-colors rounded-md">{label}</Link>))}</nav>
           <div className="hidden md:flex items-center gap-3">
-            <Link to={app} className="px-4 py-2 text-sm font-medium text-slate-300 hover:text-white border border-slate-700 hover:border-slate-600 rounded-lg transition-all">Sign in</Link>
-            <Link to={app} className="button-primary rounded-lg text-sm">Get Started</Link>
+            <Link to={customFields.appUrl} className="px-4 py-2 text-sm text-slate-500 hover:text-slate-300 transition-colors">Classic App</Link>
+            <button onClick={openEarlyAccess} disabled={hasApplied} className="button-primary rounded-lg text-sm disabled:opacity-60">{earlyAccessLabel}</button>
           </div>
           <button onClick={() => setMenuOpen(!menuOpen)} className="md:hidden text-slate-400 hover:text-white" aria-label="Menu">{menuOpen ? <HiX className="h-6 w-6" /> : <HiMenu className="h-6 w-6" />}</button>
           {menuOpen && (
             <div className="absolute top-16 left-0 w-full bg-[#0a0e1a] border-t border-white/5 px-6 py-6 space-y-4 shadow-2xl z-50 md:hidden">
               {NAV.map(({ label, to }) => (<Link key={label} to={to} data-noBrokenLinkCheck={to.startsWith("#")} className="block text-lg font-medium text-slate-300 hover:text-cyan-400" onClick={() => setMenuOpen(false)}>{label}</Link>))}
               <div className="pt-4 flex flex-col gap-3">
-                <Link to={app} className="text-center py-2.5 text-sm font-medium text-slate-300 border border-slate-700 rounded-lg" onClick={() => setMenuOpen(false)}>Sign in</Link>
-                <Link to={app} className="button-primary rounded-lg text-sm text-center" onClick={() => setMenuOpen(false)}>Get Started</Link>
+                <Link to={customFields.appUrl} className="text-center py-2.5 text-sm text-slate-500" onClick={() => setMenuOpen(false)}>Classic App</Link>
+                <button onClick={() => { setMenuOpen(false); openEarlyAccess() }} disabled={hasApplied} className="button-primary rounded-lg text-sm text-center w-full disabled:opacity-60">{earlyAccessLabel}</button>
               </div>
             </div>
           )}
@@ -257,7 +339,7 @@ export default function EnscribeLandingPage() {
               <div className="flex-1 max-w-xl">
                 <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-slate-800/80 text-slate-300 border border-slate-700/60 mb-6">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  Trusted by Nouns DAO, Liquity, Cork &amp; more
+                  Built on ENS
                 </div>
                 <h1 className="text-4xl sm:text-5xl lg:text-[3.5rem] font-bold tracking-tight leading-[1.08] mb-6">
                   Identity infrastructure{" "}
@@ -267,8 +349,8 @@ export default function EnscribeLandingPage() {
                   Name and manage your contracts, wallets, and agents under one namespace. As a team.
                 </p>
                 <div className="flex flex-wrap gap-3">
-                  <Link to={app} className="button-primary rounded-lg">Get Started Free <HiArrowRight className="ml-2 w-4 h-4" /></Link>
-                  <Link to={contact} className="inline-flex items-center justify-center px-6 py-3 rounded-lg text-sm font-semibold text-slate-300 border border-slate-700 hover:border-slate-600 hover:text-white transition-all gap-2">Talk to Us</Link>
+                  <button onClick={openEarlyAccess} disabled={hasApplied} className="button-primary rounded-lg disabled:opacity-60">{earlyAccessLabel} {!hasApplied && <HiArrowRight className="ml-2 w-4 h-4" />}</button>
+                  <Link to="#pricing" data-noBrokenLinkCheck className="inline-flex items-center justify-center px-6 py-3 rounded-lg text-sm font-semibold text-slate-300 border border-slate-700 hover:border-slate-600 hover:text-white transition-all gap-2">Join the Waitlist</Link>
                 </div>
               </div>
 
@@ -374,7 +456,7 @@ export default function EnscribeLandingPage() {
                       <div className="w-6 h-6 rounded bg-cyan-500/20 flex items-center justify-center"><img src="/img/logo.svg" alt="" className="w-4 h-4" /></div>
                       <span className="text-xs font-semibold text-white">myprotocol</span>
                     </div>
-                    {["Contracts", "Assign", "Metadata", "Activity", "Settings"].map((item, i) => (
+                    {["Contracts and Wallets", "Name Management", "Activity", "Org Management"].map((item, i) => (
                       <div key={item} className={`px-3 py-2 rounded-md text-xs font-medium transition-colors ${i === 0 ? "bg-cyan-500/10 text-cyan-400" : "text-slate-500 hover:text-slate-400"}`}>{item}</div>
                     ))}
                   </div>
@@ -382,25 +464,26 @@ export default function EnscribeLandingPage() {
                   <div className="flex-1 p-5 md:p-6">
                     <div className="flex items-center justify-between mb-5">
                       <div>
-                        <div className="text-sm font-semibold text-white">Contracts</div>
+                        <div className="text-sm font-semibold text-white">Contracts and Wallets</div>
                         <div className="text-xs text-slate-500 mt-0.5">myprotocol.eth · Ethereum Mainnet</div>
                       </div>
-                      <div className="px-3 py-1.5 rounded-lg bg-cyan-500/10 text-cyan-400 text-xs font-medium border border-cyan-500/20 hover:bg-cyan-500/15 transition-colors cursor-default">+ Add contract</div>
+                      <div className="px-3 py-1.5 rounded-lg bg-cyan-500/10 text-cyan-400 text-xs font-medium border border-cyan-500/20 hover:bg-cyan-500/15 transition-colors cursor-default">+ Add address</div>
                     </div>
                     {/* Table */}
-                    <div className="grid grid-cols-4 gap-4 text-[11px] text-slate-500 font-medium border-b border-slate-800 pb-2 uppercase tracking-wider">
-                      <span>Contract</span><span>Chain</span><span>ENS name</span><span>Status</span>
+                    <div className="grid gap-4 text-[11px] text-slate-500 font-medium border-b border-slate-800 pb-2 uppercase tracking-wider" style={{ gridTemplateColumns: "1.1fr 0.8fr 0.8fr 1.7fr 0.7fr" }}>
+                      <span>Address</span><span>Type</span><span>Chain</span><span>ENS name</span><span>Status</span>
                     </div>
                     {[
-                      { addr: "0x830B…c706", chain: "Ethereum", name: "governance.myprotocol.eth", ok: true },
-                      { addr: "0xCCcC…0407", chain: "Base", name: "treasury.myprotocol.eth", ok: true },
-                      { addr: "0x807D…EeE1", chain: "Ethereum", name: "—", ok: false },
-                      { addr: "0x9b95…dE81", chain: "Arbitrum", name: "router.myprotocol.eth", ok: true },
+                      { addr: "0x830B…c706", type: "Contract", chain: "Ethereum", name: "governance.myprotocol.eth", ok: true },
+                      { addr: "0xCCcC…0407", type: "Wallet", chain: "Base", name: "treasury.myprotocol.eth", ok: true },
+                      { addr: "0x807D…EeE1", type: "Contract", chain: "Ethereum", name: "—", ok: false },
+                      { addr: "0x9b95…dE81", type: "Wallet", chain: "Arbitrum", name: "ops.myprotocol.eth", ok: true },
                     ].map((r, i) => (
-                      <div key={i} className="grid grid-cols-4 gap-4 text-xs py-3 border-b border-slate-800/40 items-center">
+                      <div key={i} className="grid gap-4 text-xs py-3 border-b border-slate-800/40 items-center" style={{ gridTemplateColumns: "1.1fr 0.8fr 0.8fr 1.7fr 0.7fr" }}>
                         <span className="font-mono text-slate-400">{r.addr}</span>
+                        <span className="text-slate-500">{r.type}</span>
                         <span className="text-slate-500">{r.chain}</span>
-                        <span className={r.ok ? "text-cyan-400 font-mono" : "text-slate-600"}>{r.name}</span>
+                        <span className={r.ok ? "text-cyan-400 font-mono break-all" : "text-slate-600"}>{r.name}</span>
                         <span className={`inline-flex w-fit px-2 py-0.5 rounded-full text-[10px] font-medium ${r.ok ? "text-emerald-400 bg-emerald-500/10 border border-emerald-500/20" : "text-amber-400 bg-amber-500/10 border border-amber-500/20"}`}>{r.ok ? "Named" : "Pending"}</span>
                       </div>
                     ))}
@@ -466,7 +549,7 @@ export default function EnscribeLandingPage() {
                     <li key={i} className="flex items-start gap-2 text-[13px]"><HiCheck className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" /><span className="text-slate-400">{f}</span></li>
                   ))}
                 </ul>
-                <Link to={contact} className="button-primary w-full text-center py-3 rounded-lg text-sm font-semibold transition-all">Apply for Early Access</Link>
+                <button onClick={openEarlyAccess} disabled={hasApplied} className="button-primary w-full text-center py-3 rounded-lg text-sm font-semibold transition-all disabled:opacity-60">{earlyAccessLabel}</button>
               </div>
             </div>
           </div>
@@ -502,7 +585,7 @@ export default function EnscribeLandingPage() {
               <div className="relative">
                 <h2 className="text-2xl md:text-3xl font-bold text-white mb-3">Early access for teams</h2>
                 <p className="text-slate-400 text-sm mb-6" style={{ textAlign: "center" }}>Namespace audit, hands-on setup, and early-access pricing. Limited spots.</p>
-                <Link to={contact} className="button-primary rounded-lg">Apply for Early Access <HiArrowRight className="ml-2 w-4 h-4" /></Link>
+                <button onClick={openEarlyAccess} disabled={hasApplied} className="button-primary rounded-lg disabled:opacity-60">{earlyAccessLabel} {!hasApplied && <HiArrowRight className="ml-2 w-4 h-4" />}</button>
               </div>
             </div>
           </div>
@@ -545,13 +628,21 @@ export default function EnscribeLandingPage() {
             </h2>
             <p className="text-slate-500 text-lg mb-8">Free to start. No credit card.</p>
             <div className="flex justify-center gap-4">
-              <Link to={app} className="button-primary rounded-lg text-base px-8 py-3.5">Get Started Free <HiArrowRight className="ml-2 w-4 h-4" /></Link>
-              <Link to={contact} className="inline-flex items-center px-6 py-3.5 rounded-lg text-sm font-semibold text-slate-400 border border-slate-700 hover:border-slate-600 hover:text-white transition-all">Talk to sales</Link>
+              <button onClick={openEarlyAccess} disabled={hasApplied} className="button-primary rounded-lg text-base px-8 py-3.5 disabled:opacity-60">{earlyAccessLabel} {!hasApplied && <HiArrowRight className="ml-2 w-4 h-4" />}</button>
+              <Link to="#pricing" data-noBrokenLinkCheck className="inline-flex items-center px-6 py-3.5 rounded-lg text-sm font-semibold text-slate-400 border border-slate-700 hover:border-slate-600 hover:text-white transition-all">Join the Waitlist</Link>
             </div>
           </div>
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] bg-cyan-500/[0.04] rounded-full blur-3xl pointer-events-none" />
         </section>
       </main>
+
+      {/* ── Early Access Modal ── */}
+      <EarlyAccessModal
+        isOpen={showEarlyAccess}
+        onClose={() => setShowEarlyAccess(false)}
+        formspreeUrl={customFields.formspreeEarlyAccessUrl}
+        onSuccess={() => { setHasApplied(true); setTimeout(() => setShowEarlyAccess(false), 2500) }}
+      />
 
       {/* ── Footer ── */}
       <footer className="border-t border-white/5 py-8">
@@ -570,6 +661,9 @@ export default function EnscribeLandingPage() {
               ["https://warpcast.com/enscribe", <SiFarcaster className="h-4 w-4" />, "Farcaster"],
             ].map(([to, icon, label]) => (<Link key={label} to={to} className="text-slate-600 hover:text-slate-400 transition-colors" aria-label={label}>{icon}</Link>))}
           </div>
+        </div>
+        <div className="container mx-auto px-4 md:px-6 mt-4 pt-4 border-t border-white/[0.03]">
+          <p className="text-xs text-slate-700" style={{ textAlign: "center" }}>Looking for the original Enscribe app? <Link to={customFields.appUrl} className="text-slate-500 hover:text-slate-400 underline transition-colors">app.enscribe.xyz</Link></p>
         </div>
       </footer>
     </div>

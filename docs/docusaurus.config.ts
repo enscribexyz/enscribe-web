@@ -168,6 +168,7 @@ const config = {
     platformUrl: process.env.PLATFORM_URL || 'https://platform.enscribe.xyz',
     formspreeAuditUrl: process.env.FORMSPREE_AUDIT_URL,
     formspreeWaitlistUrl: process.env.FORMSPREE_WAITLIST_URL,
+    formspreeEarlyAccessUrl: process.env.FORMSPREE_EARLY_ACCESS_URL,
     calendarUrl: 'https://calendar.app.google/J1xEJA4Hr3GBqJ4K8',
   },
 
