@@ -14,9 +14,14 @@ module.exports = function relatedPostsPlugin() {
       }
 
       const {blogPosts} = blogContent;
+      const now = new Date();
+      const publishedBlogPosts = blogPosts.filter((post) => {
+        const postDate = new Date(post.metadata.date);
+        return !Number.isNaN(postDate.getTime()) && postDate <= now;
+      });
 
       // ── Recent posts for landing-page carousel ──
-      const recentPosts = blogPosts.slice(0, 6).map((post) => {
+      const recentPosts = publishedBlogPosts.slice(0, 6).map((post) => {
         const {permalink, title, description, date, authors} = post.metadata;
         return {
           permalink,
@@ -29,7 +34,7 @@ module.exports = function relatedPostsPlugin() {
 
       // Build tag label → posts index
       const tagIndex = new Map();
-      for (const post of blogPosts) {
+      for (const post of publishedBlogPosts) {
         const {tags, permalink, title, date, authors} = post.metadata;
         const author = authors?.[0];
         const entry = {
@@ -49,7 +54,7 @@ module.exports = function relatedPostsPlugin() {
 
       // For each post, find related posts ranked by shared tag count
       const relatedPosts = {};
-      for (const post of blogPosts) {
+      for (const post of publishedBlogPosts) {
         const {tags, permalink} = post.metadata;
         const scored = new Map();
 
