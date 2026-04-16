@@ -8,7 +8,7 @@ import { L2_CHAIN_NAMES, getChainName, type L2ChainName, waitForChainSwitch } fr
 import { useChainConfig } from '@/hooks/useChainConfig'
 import { getL2ChainId, getL2ChainDisplayName } from '@/lib/l2ChainConfig'
 import { isAddress, encodeFunctionData, namehash } from 'viem'
-import { getParentNode, fetchOwnedDomains } from '@/utils/ens'
+import { getParentNode, fetchOwnedDomains, tryNormalizeEnsName } from '@/utils/ens'
 import { readContract, writeContract, waitForTransactionReceipt } from 'viem/actions'
 import { getPublicClient } from '@/lib/viemClient'
 import enscribeV2ContractABI from '../contracts/EnscribeV2'
@@ -18,6 +18,9 @@ import reverseRegistrarABI from '@/contracts/ReverseRegistrar'
 import type { Step, BatchFormEntry } from '@/types'
 import { checkOwnable, checkContractOwner, checkReverseClaimable, checkOwnableOnL2, checkContractOwnerOnL2 } from '@/utils/contractChecks'
 import { checkOperatorApproval, setOperatorApproval } from '@/utils/operatorAccess'
+import { checkEnsNameManager, type ManagerCheck } from '@/utils/ensPermissions'
+import { logMetric, isTestNet } from '@/utils/componentUtils'
+import { v4 as uuid } from 'uuid'
 import {
   buildDisplayEntriesWithAutoParents,
   groupEntriesForBatching,
@@ -39,6 +42,9 @@ export function useBatchNaming() {
   const config = useChainConfig()
   const isSafeWallet = useSafeWallet()
   const enscribeDomain = config?.ENSCRIBE_DOMAIN || ''
+
+  const corelationId = uuid()
+  const opType = 'batchnaming'
 
   const [batchEntries, setBatchEntries] = useState<BatchFormEntry[]>([
     { id: '1', address: '', label: '' }
@@ -68,6 +74,8 @@ export function useBatchNaming() {
   const [truncatedAddresses, setTruncatedAddresses] = useState<{ [key: string]: string }>({})
   const [operatorAccess, setOperatorAccess] = useState(false)
   const [accessLoading, setAccessLoading] = useState(false)
+  const [parentManagerCheck, setParentManagerCheck] = useState<ManagerCheck | null>(null)
+  const [parentManagerChecking, setParentManagerChecking] = useState(false)
   // Unsupported L2 gating for this page: Optimism/Arbitrum/Scroll/Linea/Base L2s should show guidance
   const isUnsupportedL2Chain = [
     CHAINS.OPTIMISM,
@@ -90,8 +98,10 @@ export function useBatchNaming() {
       return
     }
 
-    setParentName(enscribeDomain)
-    setParentType('web3labs')
+    // Batch naming does not support the default Enscribe parent — user must
+    // choose one of their own owned/managed names.
+    setParentName('')
+    setParentType('own')
     setError('')
     setLoading(false)
     setBatchEntries([{ id: '1', address: '', label: '' }])
@@ -137,6 +147,55 @@ export function useBatchNaming() {
 
     checkParentAccess()
   }, [parentName, walletClient, config?.ENS_REGISTRY])
+
+  // Check whether the connected wallet is the ENS manager (owner) of the
+  // parent name. Runs on parentName / wallet / chain change so the UI can
+  // gate the submit button before the user hits it.
+  useEffect(() => {
+    let cancelled = false
+    const run = async () => {
+      if (
+        !walletClient ||
+        !walletAddress ||
+        !config?.ENS_REGISTRY ||
+        !config?.NAME_WRAPPER ||
+        !parentName ||
+        !parentName.trim()
+      ) {
+        setParentManagerCheck(null)
+        setParentManagerChecking(false)
+        return
+      }
+
+      // Batch naming does not support the default Enscribe parent — always
+      // run the manager check regardless of parentType.
+      setParentManagerChecking(true)
+      const result = await checkEnsNameManager({
+        client: walletClient,
+        name: parentName,
+        walletAddress,
+        ensRegistry: config.ENS_REGISTRY,
+        nameWrapper: config.NAME_WRAPPER,
+      })
+      if (!cancelled) {
+        setParentManagerCheck(result)
+        setParentManagerChecking(false)
+      }
+    }
+
+    run()
+    return () => {
+      cancelled = true
+    }
+  }, [
+    parentName,
+    parentType,
+    walletAddress,
+    walletClient,
+    config?.ENS_REGISTRY,
+    config?.NAME_WRAPPER,
+    chain?.id,
+  ])
 
   useEffect(() => {
     if (parentName && batchEntries.some(e => e.address && e.label)) {
@@ -445,21 +504,34 @@ export function useBatchNaming() {
       return
     }
 
-    const validEntries = batchEntries.filter(
-      (e: BatchFormEntry) => e.address && e.label && isAddress(e.address)
-    )
+    const normalizedParent = tryNormalizeEnsName(parentName)
+    if (!normalizedParent) {
+      setCallDataList([])
+      return
+    }
+
+    const validEntries: BatchFormEntry[] = []
+    for (const e of batchEntries) {
+      if (!e.address || !e.label || !isAddress(e.address)) continue
+      const normalizedLabel = tryNormalizeEnsName(e.label)
+      if (!normalizedLabel) {
+        setCallDataList([])
+        return
+      }
+      validEntries.push({ ...e, label: normalizedLabel })
+    }
 
     if (validEntries.length === 0) {
       setCallDataList([])
       return
     }
 
-    const batchGroups = processAndGroupEntriesForBatching(validEntries, parentName)
+    const batchGroups = processAndGroupEntriesForBatching(validEntries, normalizedParent)
     const callDataArray: string[] = []
 
     try {
       // 1. Grant operator access
-      const parentNode = namehash(parentName)
+      const parentNode = namehash(normalizedParent)
 
       const owner = await readContract(walletClient, {
         address: config.ENS_REGISTRY as `0x${string}`,
@@ -499,16 +571,14 @@ export function useBatchNaming() {
 
       const uniqueCoinTypes = [...new Set(coinTypes)]
 
-      // Generate call data for each batch
-      batchGroups.forEach((batch, index) => {
-        const labels = batch.entries.map((e: BatchFormEntry) => {
-          const fullName = e.label
-          const parentSuffix = `.${batch.parentName}`
-          if (fullName.endsWith(parentSuffix)) {
-            return fullName.slice(0, -parentSuffix.length)
-          }
-          return fullName
-        })
+      // Generate call data for each batch (labels + parent already normalized)
+      batchGroups.forEach((batch) => {
+        const parentSuffix = `.${batch.parentName}`
+        const labels = batch.entries.map((e) =>
+          e.label.endsWith(parentSuffix)
+            ? e.label.slice(0, -parentSuffix.length)
+            : e.label,
+        )
         const addresses = batch.entries.map((e: BatchFormEntry) => e.address as `0x${string}`)
 
         let batchCallData
@@ -542,6 +612,7 @@ export function useBatchNaming() {
             continue
           }
 
+          // entry.label is already normalized (normalized above before grouping)
           const labelOnly = entry.label.split('.')[0]
           const reverseCallData = encodeFunctionData({
             abi: reverseRegistrarABI,
@@ -623,13 +694,15 @@ export function useBatchNaming() {
   }
 
   const grantOperatorAccess = async (): Promise<`0x${string}` | undefined> => {
+    const normalizedParentName = tryNormalizeEnsName(parentName)
     if (
       !walletClient ||
       !walletAddress ||
       !config?.ENS_REGISTRY ||
       !config?.ENSCRIBE_V2_CONTRACT ||
       !chain ||
-      !getParentNode(parentName)
+      !normalizedParentName ||
+      !getParentNode(normalizedParentName)
     ) {
       return
     }
@@ -641,7 +714,7 @@ export function useBatchNaming() {
         enscribeContract: config.ENSCRIBE_V2_CONTRACT,
         ensRegistry: config.ENS_REGISTRY,
         nameWrapper: config.NAME_WRAPPER,
-        parentName,
+        parentName: normalizedParentName,
         walletAddress,
         approved: true,
         isSafeWallet,
@@ -655,13 +728,15 @@ export function useBatchNaming() {
   }
 
   const revokeOperatorAccess = async (): Promise<`0x${string}` | undefined> => {
+    const normalizedParentName = tryNormalizeEnsName(parentName)
     if (
       !walletClient ||
       !walletAddress ||
       !config?.ENS_REGISTRY ||
       !config?.ENSCRIBE_V2_CONTRACT ||
       !chain ||
-      !getParentNode(parentName)
+      !normalizedParentName ||
+      !getParentNode(normalizedParentName)
     ) {
       return
     }
@@ -673,7 +748,7 @@ export function useBatchNaming() {
         enscribeContract: config.ENSCRIBE_V2_CONTRACT,
         ensRegistry: config.ENS_REGISTRY,
         nameWrapper: config.NAME_WRAPPER,
-        parentName,
+        parentName: normalizedParentName,
         walletAddress,
         approved: false,
         isSafeWallet,
@@ -823,18 +898,56 @@ export function useBatchNaming() {
       return
     }
 
+    if (parentManagerCheck && !parentManagerCheck.isManager) {
+      const msg =
+        parentManagerCheck.status === 'not-manager'
+          ? `Connected wallet is not the manager of "${parentName}"`
+          : parentManagerCheck.status === 'no-owner'
+            ? `"${parentName}" has no registered owner`
+            : `Cannot verify manager of "${parentName}"`
+      setError(msg)
+      toast({ title: 'Error', description: msg, variant: 'destructive' })
+      return
+    }
+
     if (!config) {
       console.error('Unsupported network')
       setError('Unsupported network')
       return
     }
 
+    const normalizedParent = tryNormalizeEnsName(parentName)
+    if (!normalizedParent) {
+      setError('Invalid parent ENS name')
+      toast({
+        title: 'Error',
+        description: 'Parent ENS name could not be normalized',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    const normalizedValidEntries: BatchFormEntry[] = []
+    for (const e of validEntries) {
+      const normalizedLabel = tryNormalizeEnsName(e.label)
+      if (!normalizedLabel) {
+        setError(`Invalid ENS name: "${e.label}"`)
+        toast({
+          title: 'Error',
+          description: `ENS name "${e.label}" could not be normalized`,
+          variant: 'destructive',
+        })
+        return
+      }
+      normalizedValidEntries.push({ ...e, label: normalizedLabel })
+    }
+
     setLoading(true)
     setError('')
 
     try {
-      // Process entries and group them into batches
-      const batchGroups = processAndGroupEntriesForBatching(validEntries, parentName)
+      // Process entries and group them into batches (already normalized)
+      const batchGroups = processAndGroupEntriesForBatching(normalizedValidEntries, normalizedParent)
 
       batchGroups.forEach((batch, index) => {
       })
@@ -847,7 +960,7 @@ export function useBatchNaming() {
 
       const steps: Step[] = []
 
-      const hasOperatorAccess = await checkOperatorAccess(parentName)
+      const hasOperatorAccess = await checkOperatorAccess(normalizedParent)
       setOperatorAccess(hasOperatorAccess)
       // Step 1: Grant operator access
       if(!hasOperatorAccess) {
@@ -941,6 +1054,26 @@ export function useBatchNaming() {
             if (!isSafeWallet) {
               await waitForTransactionReceipt(walletClient!, { hash })
             }
+
+            if (!isTestNet(chain!.id)) {
+              try {
+                await logMetric(
+                  corelationId,
+                  Date.now(),
+                  chain!.id,
+                  '',
+                  walletAddress!,
+                  batch.parentName,
+                  'batch::setNameBatch',
+                  isSafeWallet ? 'safe wallet' : (hash as string),
+                  'Batch',
+                  opType,
+                )
+              } catch (err) {
+                setError('Failed to log metric')
+              }
+            }
+
             return hash
           },
         })
@@ -982,6 +1115,24 @@ export function useBatchNaming() {
                   if (!isSafeWallet) {
                     await waitForTransactionReceipt(walletClient!, { hash: tx })
                   }
+                  if (!isTestNet(chain!.id)) {
+                    try {
+                      await logMetric(
+                        corelationId,
+                        Date.now(),
+                        chain!.id,
+                        entry.address,
+                        walletAddress!,
+                        entry.label,
+                        'batch::revres::setNameForAddr',
+                        isSafeWallet ? 'safe wallet' : (tx as string),
+                        'Ownable',
+                        opType,
+                      )
+                    } catch (err) {
+                      setError('Failed to log metric')
+                    }
+                  }
                   return tx
                 },
               })
@@ -1013,6 +1164,24 @@ export function useBatchNaming() {
                   })
                   if (!isSafeWallet) {
                     await waitForTransactionReceipt(walletClient!, { hash: tx })
+                  }
+                  if (!isTestNet(chain!.id)) {
+                    try {
+                      await logMetric(
+                        corelationId,
+                        Date.now(),
+                        chain!.id,
+                        entry.address,
+                        walletAddress!,
+                        entry.label,
+                        'batch::revres::setNameForAddr',
+                        isSafeWallet ? 'safe wallet' : (tx as string),
+                        'ReverseClaimer',
+                        opType,
+                      )
+                    } catch (err) {
+                      setError('Failed to log metric')
+                    }
                   }
                   return tx
                 },
@@ -1141,6 +1310,24 @@ export function useBatchNaming() {
                   if (!isSafeWallet) {
                     await waitForTransactionReceipt(walletClient!, { hash: txn })
                   }
+                  if (!isTestNet(l2Chain.chainId)) {
+                    try {
+                      await logMetric(
+                        corelationId,
+                        Date.now(),
+                        l2Chain.chainId,
+                        contract.address,
+                        walletAddress!,
+                        contract.label,
+                        'batch::revres::setNameForAddr',
+                        isSafeWallet ? 'safe wallet' : (txn as string),
+                        'L2Primary',
+                        opType,
+                      )
+                    } catch (err) {
+                      setError('Failed to log metric')
+                    }
+                  }
                   return txn
                 },
               })
@@ -1237,6 +1424,8 @@ export function useBatchNaming() {
     unsupportedL2Name,
     operatorAccess,
     accessLoading,
+    parentManagerCheck,
+    parentManagerChecking,
     handleGrantAccess,
     handleRevokeAccess,
     fileInputRef,

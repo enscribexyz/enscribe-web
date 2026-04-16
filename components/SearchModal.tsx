@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { CHAINS, CONTRACTS } from '@/utils/constants'
 import { readContract } from 'viem/actions'
 import { namehash } from 'viem/ens'
+import { tryNormalizeEnsName } from '@/utils/ens'
 
 interface SearchModalProps {
   isOpen: boolean
@@ -132,16 +133,26 @@ export default function SearchModal({
       } else if (containsDot) {
         // Not a valid address but contains a dot - try ENS resolution
         try {
-          const ensName = cleanedQuery as string
+          const rawEnsName = cleanedQuery as string
 
           // Validate ENS name format before attempting resolution
           // Check for common invalid patterns
           if (
-            ensName.startsWith('.') ||
-            ensName.endsWith('.') ||
-            ensName.includes('..') ||
-            ensName.split('.').some((label: string) => label.trim() === '')
+            rawEnsName.startsWith('.') ||
+            rawEnsName.endsWith('.') ||
+            rawEnsName.includes('..') ||
+            rawEnsName.split('.').some((label: string) => label.trim() === '')
           ) {
+            setError('Invalid ENS name format')
+            setSearchResults([])
+            setIsLoading(false)
+            return
+          }
+
+          // UTS-46 normalize before namehash / resolution so mixed-case,
+          // trailing-dot, and Unicode variants all reach the same node.
+          const ensName = tryNormalizeEnsName(rawEnsName)
+          if (!ensName) {
             setError('Invalid ENS name format')
             setSearchResults([])
             setIsLoading(false)
@@ -263,11 +274,12 @@ export default function SearchModal({
             setSearchResults([])
           } else {
             // ENS name doesn't resolve - show only Name Metadata option
-            const ensName = cleanedQuery as string
+            const fallbackName =
+              tryNormalizeEnsName(cleanedQuery) ?? cleanedQuery
             setSearchResults([
               {
-                name: ensName,
-                address: ensName,
+                name: fallbackName,
+                address: fallbackName,
                 type: 'nameMetadata',
                 title: 'Name Metadata',
               },

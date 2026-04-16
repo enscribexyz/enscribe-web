@@ -11,7 +11,7 @@ import {
   zeroAddress,
 } from 'viem'
 import { getEnsAddress, getEnsName, readContract } from 'viem/actions'
-import { normalize } from 'viem/ens'
+import { tryNormalizeEnsName } from '@/utils/ens'
 import { L2_CHAIN_NAMES, type L2ChainName } from '@/lib/chains'
 import { getL2ChainId } from '@/lib/l2ChainConfig'
 import { getPublicClient } from '@/lib/viemClient'
@@ -160,28 +160,14 @@ function requireTxHash(value: string): `0x${string}` {
 }
 
 function normalizeEnsName(value: string): string {
-  if (typeof value !== 'string') {
+  if (typeof value !== 'string' || !value.trim()) {
     throw new Error('ENS name is required.')
   }
-  const trimmed = value.trim().replace(/\.$/, '')
-  if (!trimmed) {
-    throw new Error('ENS name is required.')
+  const normalized = tryNormalizeEnsName(value)
+  if (!normalized) {
+    throw new Error('ENS name normalization failed.')
   }
-  try {
-    const normalized = normalize(trimmed)
-    if (typeof normalized === 'string' && normalized.trim()) {
-      return normalized
-    }
-  } catch {
-    // Fall back to ASCII validation below.
-  }
-
-  // Graceful fallback for plain ASCII ENS names if normalization library fails.
-  if (/^[a-z0-9-]+(?:\.[a-z0-9-]+)+$/i.test(trimmed)) {
-    return trimmed.toLowerCase()
-  }
-
-  throw new Error('ENS name normalization failed.')
+  return normalized
 }
 
 function ensureChainConfig(chainId: number) {

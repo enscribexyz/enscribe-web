@@ -22,6 +22,7 @@ import SetNameStepsModal from './SetNameStepsModal'
 import { Copy, Check, Info, ChevronDown, ChevronRight } from 'lucide-react'
 import { Checkbox } from '@/components/ui/checkbox'
 import { ContractStatusPanel } from '@/components/naming/ContractStatusPanel'
+import { shortAddress } from '@/utils/ensPermissions'
 import { SubmitButton } from '@/components/naming/SubmitButton'
 import { L2ChainPickerDialog } from '@/components/naming/L2ChainPickerDialog'
 
@@ -85,6 +86,10 @@ export default function NameContract() {
     setEnsNameChosen,
     selectedAction,
     setSelectedAction,
+    parentManagerCheck,
+    parentManagerChecking,
+    resolverPermissionCheck,
+    resolverPermissionChecking,
     isAdvancedOpen,
     setIsAdvancedOpen,
     callDataList,
@@ -383,6 +388,43 @@ export default function NameContract() {
             )}
           </>
         )}
+
+        {/* Parent-manager permission error (Create New Name flow) */}
+        {selectedAction === 'subname' &&
+          parentType !== 'web3labs' &&
+          parentType !== 'register' &&
+          parentName &&
+          !parentManagerChecking &&
+          parentManagerCheck &&
+          !parentManagerCheck.isManager && (
+            <p className="text-sm text-red-600 dark:text-red-400 mt-2">
+              {parentManagerCheck.status === 'not-manager'
+                ? `Connected wallet is not the manager of "${parentName}". Current manager: ${shortAddress(parentManagerCheck.manager)}${parentManagerCheck.isWrapped ? ' (wrapped)' : ''}. Only the manager can create subnames under this parent.`
+                : parentManagerCheck.status === 'no-owner'
+                  ? `"${parentName}" has no registered owner — it may not be registered on this network.`
+                  : parentManagerCheck.status === 'invalid-name'
+                    ? 'Invalid parent name.'
+                    : 'Could not verify parent manager — try again.'}
+            </p>
+          )}
+
+        {/* Resolver-write permission error (Use Existing Name flow) */}
+        {selectedAction === 'pick' &&
+          ensNameChosen &&
+          label &&
+          !resolverPermissionChecking &&
+          resolverPermissionCheck &&
+          !resolverPermissionCheck.canWrite && (
+            <p className="text-sm text-red-600 dark:text-red-400 mt-2">
+              {resolverPermissionCheck.status === 'not-authorized'
+                ? `Connected wallet is not authorized to modify the resolver records of "${label}". Node owner: ${shortAddress(resolverPermissionCheck.owner)}.`
+                : resolverPermissionCheck.status === 'no-resolver'
+                  ? `"${label}" has no resolver set — address records cannot be written until a resolver is configured.`
+                  : resolverPermissionCheck.status === 'invalid-name'
+                    ? 'Invalid ENS name.'
+                    : 'Could not verify resolver permission — try again.'}
+            </p>
+          )}
 
         {/* Full Contract Name Preview */}
         {((selectedAction === 'subname' &&
@@ -837,7 +879,15 @@ export default function NameContract() {
           isAddressInvalid ||
           (isEmpty(label) && !(selectedAction === 'pick' && ensNameChosen)) ||
           isUnsupportedL2Chain ||
-          parentType === 'register'
+          parentType === 'register' ||
+          (selectedAction === 'subname' &&
+            parentType !== 'web3labs' &&
+            (parentManagerChecking ||
+              !!(parentManagerCheck && !parentManagerCheck.isManager))) ||
+          (selectedAction === 'pick' &&
+            ensNameChosen &&
+            (resolverPermissionChecking ||
+              !!(resolverPermissionCheck && !resolverPermissionCheck.canWrite)))
         }
         onClick={() => setPrimaryName()}
       />

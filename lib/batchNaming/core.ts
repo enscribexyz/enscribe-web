@@ -1,5 +1,5 @@
 import { isAddress } from 'viem'
-import { normalize as normalizeEns } from 'viem/ens'
+import { tryNormalizeEnsName } from '@/utils/ens'
 
 export const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
 
@@ -35,19 +35,7 @@ export function isZeroAddressLike(address: string): boolean {
 }
 
 export function normalizeEnsNameValue(value: string): string | null {
-  const trimmed = value.trim().replace(/\.$/, '')
-  if (!trimmed) {
-    return null
-  }
-
-  try {
-    return normalizeEns(trimmed)
-  } catch {
-    if (/^[a-z0-9-]+(?:\.[a-z0-9-]+)+$/i.test(trimmed)) {
-      return trimmed.toLowerCase()
-    }
-    return null
-  }
+  return tryNormalizeEnsName(value)
 }
 
 export function toFullNameForParent(label: string, parent: string): string {

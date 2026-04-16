@@ -1,6 +1,6 @@
 import { CHAINS, CONTRACTS } from './constants'
 import { getEnsName, readContract } from 'viem/actions'
-import { namehash } from 'viem/ens'
+import { namehash, normalize as viemNormalize } from 'viem/ens'
 import L2ReverseRegistrarABI from '@/contracts/L2ReverseRegistrar'
 import { getPublicClient } from '@/lib/viemClient'
 import type { ENSDomain, TextRecords } from '@/types'
@@ -15,6 +15,45 @@ export function getParentNode(name: string): `0x${string}` | '' {
   } catch {
     return ''
   }
+}
+
+const ASCII_ENS_FALLBACK_REGEX = /^[a-z0-9-]+(?:\.[a-z0-9-]+)+$/i
+
+/**
+ * Returns the UTS-46 normalized form of an ENS name, or null if the input
+ * cannot be normalized. Trims whitespace and a trailing '.'. Falls back to
+ * a lowercased ASCII form for pure `[a-z0-9-]` labelled names that viem's
+ * normalize rejects for edge-case reasons — preserves prior behavior of
+ * lib/batchNaming/core.ts and lib/mcp/primaryNamingService.ts.
+ */
+export function tryNormalizeEnsName(value: string): string | null {
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim().replace(/\.$/, '')
+  if (!trimmed) return null
+  try {
+    const normalized = viemNormalize(trimmed)
+    if (typeof normalized === 'string' && normalized.trim()) {
+      return normalized
+    }
+  } catch {
+    // fall through
+  }
+  if (ASCII_ENS_FALLBACK_REGEX.test(trimmed)) {
+    return trimmed.toLowerCase()
+  }
+  return null
+}
+
+/**
+ * Like tryNormalizeEnsName but throws on invalid input. Use at contract
+ * submission boundaries where we must have a canonical name.
+ */
+export function normalizeEnsName(value: string): string {
+  const normalized = tryNormalizeEnsName(value)
+  if (!normalized) {
+    throw new Error('ENS name normalization failed.')
+  }
+  return normalized
 }
 
 /**

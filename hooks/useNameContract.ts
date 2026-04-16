@@ -63,6 +63,12 @@ import {
   checkOwnableOnL2,
   checkRecordExists,
 } from '@/utils/contractChecks'
+import {
+  checkEnsNameManager,
+  checkResolverWritePermission,
+  type ManagerCheck,
+  type ResolverPermissionCheck,
+} from '@/utils/ensPermissions'
 
 export function useNameContract() {
   const searchParams = useSearchParams()
@@ -125,6 +131,10 @@ export function useNameContract() {
   >(null)
   const [isAdvancedOpen, setIsAdvancedOpen] = useState<boolean>(false)
   const [callDataList, setCallDataList] = useState<string[]>([])
+  const [parentManagerCheck, setParentManagerCheck] = useState<ManagerCheck | null>(null)
+  const [parentManagerChecking, setParentManagerChecking] = useState(false)
+  const [resolverPermissionCheck, setResolverPermissionCheck] = useState<ResolverPermissionCheck | null>(null)
+  const [resolverPermissionChecking, setResolverPermissionChecking] = useState(false)
   const { copied, copyToClipboard, resetCopied } = useCopyToClipboard()
   const [allCallData, setAllCallData] = useState<string>('')
   const [isCallDataOpen, setIsCallDataOpen] = useState<boolean>(false)
@@ -155,6 +165,115 @@ export function useNameContract() {
         : null
 
   const unsupportedL2Name = getChainName(chain?.id ?? 0)
+
+  // Manager check for "Create New Name" flow — connected wallet must be
+  // the manager of the chosen parent. web3labs default parent bypasses this.
+  useEffect(() => {
+    let cancelled = false
+    const run = async () => {
+      if (
+        selectedAction !== 'subname' ||
+        parentType === 'web3labs' ||
+        parentType === 'register' ||
+        !walletClient ||
+        !walletAddress ||
+        !config?.ENS_REGISTRY ||
+        !config?.NAME_WRAPPER ||
+        !parentName ||
+        !parentName.trim()
+      ) {
+        setParentManagerCheck(null)
+        setParentManagerChecking(false)
+        return
+      }
+
+      // Defensive: skip if parentName matches the chain's default Enscribe
+      // parent, even when parentType says otherwise (covers casing and
+      // parentType/parentName lag).
+      const normalizedParent = parentName.trim().toLowerCase()
+      const normalizedDefault = (enscribeDomain || '').trim().toLowerCase()
+      if (normalizedDefault && normalizedParent === normalizedDefault) {
+        setParentManagerCheck(null)
+        setParentManagerChecking(false)
+        return
+      }
+
+      setParentManagerChecking(true)
+      const result = await checkEnsNameManager({
+        client: walletClient,
+        name: parentName,
+        walletAddress,
+        ensRegistry: config.ENS_REGISTRY,
+        nameWrapper: config.NAME_WRAPPER,
+      })
+      if (!cancelled) {
+        setParentManagerCheck(result)
+        setParentManagerChecking(false)
+      }
+    }
+    run()
+    return () => {
+      cancelled = true
+    }
+  }, [
+    selectedAction,
+    parentType,
+    parentName,
+    walletClient,
+    walletAddress,
+    config?.ENS_REGISTRY,
+    config?.NAME_WRAPPER,
+    chain?.id,
+  ])
+
+  // Resolver-write permission check for "Use Existing Name" flow — the
+  // connected wallet must either own the node or have resolver-level
+  // approval to overwrite its address record.
+  useEffect(() => {
+    let cancelled = false
+    const run = async () => {
+      if (
+        selectedAction !== 'pick' ||
+        !ensNameChosen ||
+        !walletClient ||
+        !walletAddress ||
+        !config?.ENS_REGISTRY ||
+        !config?.NAME_WRAPPER ||
+        !label ||
+        !label.trim()
+      ) {
+        setResolverPermissionCheck(null)
+        setResolverPermissionChecking(false)
+        return
+      }
+
+      setResolverPermissionChecking(true)
+      const result = await checkResolverWritePermission({
+        client: walletClient,
+        name: label,
+        walletAddress,
+        ensRegistry: config.ENS_REGISTRY,
+        nameWrapper: config.NAME_WRAPPER,
+      })
+      if (!cancelled) {
+        setResolverPermissionCheck(result)
+        setResolverPermissionChecking(false)
+      }
+    }
+    run()
+    return () => {
+      cancelled = true
+    }
+  }, [
+    selectedAction,
+    ensNameChosen,
+    label,
+    walletClient,
+    walletAddress,
+    config?.ENS_REGISTRY,
+    config?.NAME_WRAPPER,
+    chain?.id,
+  ])
 
   useEffect(() => {
     // Don't reset form if modal is open (to prevent closing during Optimism transaction)
@@ -966,6 +1085,40 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
     // Force clear error for "Use Existing Name" flow
     if (selectedAction === 'pick') {
       setError('')
+    }
+
+    // Permission gating: creating a new subname requires parent-manager rights.
+    if (
+      selectedAction === 'subname' &&
+      parentType !== 'web3labs' &&
+      parentType !== 'register' &&
+      parentManagerCheck &&
+      !parentManagerCheck.isManager
+    ) {
+      setError(
+        parentManagerCheck.status === 'not-manager'
+          ? `Connected wallet is not the manager of "${parentName}"`
+          : parentManagerCheck.status === 'no-owner'
+            ? `"${parentName}" has no registered owner`
+            : `Cannot verify manager of "${parentName}"`,
+      )
+      return
+    }
+
+    // Permission gating: overriding an existing name requires resolver-write rights.
+    if (
+      selectedAction === 'pick' &&
+      resolverPermissionCheck &&
+      !resolverPermissionCheck.canWrite
+    ) {
+      setError(
+        resolverPermissionCheck.status === 'not-authorized'
+          ? `Connected wallet is not authorized to modify the resolver records of "${label}"`
+          : resolverPermissionCheck.status === 'no-resolver'
+            ? `"${label}" has no resolver set`
+            : `Cannot verify resolver permission for "${label}"`,
+      )
+      return
     }
 
     if (isUnsupportedL2Chain) {
@@ -2128,6 +2281,10 @@ ${callDataArray.map((item, index) => `${index + 1}. ${item}`).join('\n')}`
     setEnsNameChosen,
     selectedAction,
     setSelectedAction,
+    parentManagerCheck,
+    parentManagerChecking,
+    resolverPermissionCheck,
+    resolverPermissionChecking,
     isAdvancedOpen,
     setIsAdvancedOpen,
     callDataList,
