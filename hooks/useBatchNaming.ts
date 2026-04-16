@@ -8,7 +8,7 @@ import { L2_CHAIN_NAMES, getChainName, type L2ChainName, waitForChainSwitch } fr
 import { useChainConfig } from '@/hooks/useChainConfig'
 import { getL2ChainId, getL2ChainDisplayName } from '@/lib/l2ChainConfig'
 import { isAddress, encodeFunctionData, namehash } from 'viem'
-import { getParentNode, fetchOwnedDomains } from '@/utils/ens'
+import { getParentNode, fetchOwnedDomains, tryNormalizeEnsName } from '@/utils/ens'
 import { readContract, writeContract, waitForTransactionReceipt } from 'viem/actions'
 import { getPublicClient } from '@/lib/viemClient'
 import enscribeV2ContractABI from '../contracts/EnscribeV2'
@@ -445,21 +445,34 @@ export function useBatchNaming() {
       return
     }
 
-    const validEntries = batchEntries.filter(
-      (e: BatchFormEntry) => e.address && e.label && isAddress(e.address)
-    )
+    const normalizedParent = tryNormalizeEnsName(parentName)
+    if (!normalizedParent) {
+      setCallDataList([])
+      return
+    }
+
+    const validEntries: BatchFormEntry[] = []
+    for (const e of batchEntries) {
+      if (!e.address || !e.label || !isAddress(e.address)) continue
+      const normalizedLabel = tryNormalizeEnsName(e.label)
+      if (!normalizedLabel) {
+        setCallDataList([])
+        return
+      }
+      validEntries.push({ ...e, label: normalizedLabel })
+    }
 
     if (validEntries.length === 0) {
       setCallDataList([])
       return
     }
 
-    const batchGroups = processAndGroupEntriesForBatching(validEntries, parentName)
+    const batchGroups = processAndGroupEntriesForBatching(validEntries, normalizedParent)
     const callDataArray: string[] = []
 
     try {
       // 1. Grant operator access
-      const parentNode = namehash(parentName)
+      const parentNode = namehash(normalizedParent)
 
       const owner = await readContract(walletClient, {
         address: config.ENS_REGISTRY as `0x${string}`,
@@ -499,16 +512,14 @@ export function useBatchNaming() {
 
       const uniqueCoinTypes = [...new Set(coinTypes)]
 
-      // Generate call data for each batch
-      batchGroups.forEach((batch, index) => {
-        const labels = batch.entries.map((e: BatchFormEntry) => {
-          const fullName = e.label
-          const parentSuffix = `.${batch.parentName}`
-          if (fullName.endsWith(parentSuffix)) {
-            return fullName.slice(0, -parentSuffix.length)
-          }
-          return fullName
-        })
+      // Generate call data for each batch (labels + parent already normalized)
+      batchGroups.forEach((batch) => {
+        const parentSuffix = `.${batch.parentName}`
+        const labels = batch.entries.map((e) =>
+          e.label.endsWith(parentSuffix)
+            ? e.label.slice(0, -parentSuffix.length)
+            : e.label,
+        )
         const addresses = batch.entries.map((e: BatchFormEntry) => e.address as `0x${string}`)
 
         let batchCallData
@@ -542,6 +553,7 @@ export function useBatchNaming() {
             continue
           }
 
+          // entry.label is already normalized (normalized above before grouping)
           const labelOnly = entry.label.split('.')[0]
           const reverseCallData = encodeFunctionData({
             abi: reverseRegistrarABI,
@@ -623,13 +635,15 @@ export function useBatchNaming() {
   }
 
   const grantOperatorAccess = async (): Promise<`0x${string}` | undefined> => {
+    const normalizedParentName = tryNormalizeEnsName(parentName)
     if (
       !walletClient ||
       !walletAddress ||
       !config?.ENS_REGISTRY ||
       !config?.ENSCRIBE_V2_CONTRACT ||
       !chain ||
-      !getParentNode(parentName)
+      !normalizedParentName ||
+      !getParentNode(normalizedParentName)
     ) {
       return
     }
@@ -641,7 +655,7 @@ export function useBatchNaming() {
         enscribeContract: config.ENSCRIBE_V2_CONTRACT,
         ensRegistry: config.ENS_REGISTRY,
         nameWrapper: config.NAME_WRAPPER,
-        parentName,
+        parentName: normalizedParentName,
         walletAddress,
         approved: true,
         isSafeWallet,
@@ -655,13 +669,15 @@ export function useBatchNaming() {
   }
 
   const revokeOperatorAccess = async (): Promise<`0x${string}` | undefined> => {
+    const normalizedParentName = tryNormalizeEnsName(parentName)
     if (
       !walletClient ||
       !walletAddress ||
       !config?.ENS_REGISTRY ||
       !config?.ENSCRIBE_V2_CONTRACT ||
       !chain ||
-      !getParentNode(parentName)
+      !normalizedParentName ||
+      !getParentNode(normalizedParentName)
     ) {
       return
     }
@@ -673,7 +689,7 @@ export function useBatchNaming() {
         enscribeContract: config.ENSCRIBE_V2_CONTRACT,
         ensRegistry: config.ENS_REGISTRY,
         nameWrapper: config.NAME_WRAPPER,
-        parentName,
+        parentName: normalizedParentName,
         walletAddress,
         approved: false,
         isSafeWallet,
@@ -829,12 +845,38 @@ export function useBatchNaming() {
       return
     }
 
+    const normalizedParent = tryNormalizeEnsName(parentName)
+    if (!normalizedParent) {
+      setError('Invalid parent ENS name')
+      toast({
+        title: 'Error',
+        description: 'Parent ENS name could not be normalized',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    const normalizedValidEntries: BatchFormEntry[] = []
+    for (const e of validEntries) {
+      const normalizedLabel = tryNormalizeEnsName(e.label)
+      if (!normalizedLabel) {
+        setError(`Invalid ENS name: "${e.label}"`)
+        toast({
+          title: 'Error',
+          description: `ENS name "${e.label}" could not be normalized`,
+          variant: 'destructive',
+        })
+        return
+      }
+      normalizedValidEntries.push({ ...e, label: normalizedLabel })
+    }
+
     setLoading(true)
     setError('')
 
     try {
-      // Process entries and group them into batches
-      const batchGroups = processAndGroupEntriesForBatching(validEntries, parentName)
+      // Process entries and group them into batches (already normalized)
+      const batchGroups = processAndGroupEntriesForBatching(normalizedValidEntries, normalizedParent)
 
       batchGroups.forEach((batch, index) => {
       })
@@ -847,7 +889,7 @@ export function useBatchNaming() {
 
       const steps: Step[] = []
 
-      const hasOperatorAccess = await checkOperatorAccess(parentName)
+      const hasOperatorAccess = await checkOperatorAccess(normalizedParent)
       setOperatorAccess(hasOperatorAccess)
       // Step 1: Grant operator access
       if(!hasOperatorAccess) {

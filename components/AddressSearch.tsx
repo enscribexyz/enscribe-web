@@ -8,6 +8,7 @@ import { Search } from 'lucide-react'
 import { CHAINS, CONTRACTS } from '@/utils/constants'
 import { readContract } from 'viem/actions'
 import { namehash } from 'viem/ens'
+import { tryNormalizeEnsName } from '@/utils/ens'
 
 interface AddressSearchProps {
   selectedChain?: number
@@ -81,6 +82,14 @@ export default function AddressSearch({
         // Not a valid address but contains a dot - try ENS resolution
         try {
 
+          // UTS-46 normalize before namehash / resolution / redirect.
+          const normalizedQuery = tryNormalizeEnsName(cleanedQuery)
+          if (!normalizedQuery) {
+            setError('Invalid ENS name format')
+            setIsLoading(false)
+            return
+          }
+
           // Determine if we're on a testnet
           const isTestnet = [
             CHAINS.SEPOLIA,
@@ -106,18 +115,18 @@ export default function AddressSearch({
               address: config.PUBLIC_RESOLVER as `0x${string}`,
               abi: publicResolverAbi,
               functionName: 'addr',
-              args: [namehash(cleanedQuery), toCoinType(selectedChain)],
+              args: [namehash(normalizedQuery), toCoinType(selectedChain)],
             }) as `0x${string}`
             resolvedAddress = address
           } else {
             const { getEnsAddress } = await import('viem/actions')
             const ensClient = getEnsClient(ensChainId)
-            resolvedAddress = await getEnsAddress(ensClient, { name: cleanedQuery })
+            resolvedAddress = await getEnsAddress(ensClient, { name: normalizedQuery })
           }
 
           if (resolvedAddress) {
             // Always use window.location for a full refresh to ensure contract status is re-checked
-            window.location.href = `/explore/${selectedChain}/${cleanedQuery}`
+            window.location.href = `/explore/${selectedChain}/${normalizedQuery}`
           } else {
             setError("ENS name doesn't resolve to any address")
           }

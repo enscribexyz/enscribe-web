@@ -64,6 +64,11 @@ export default function SetNameStepsModal({
 }: SetNameStepsModalProps) {
   const [currentStep, setCurrentStep] = useState(0)
   const [executing, setExecuting] = useState(false)
+  // Index of the step whose action is running right now. Tracks currentStep
+  // for the normal flow but can also point at the revoke step during
+  // failure-cleanup, so the spinner renders on whichever step is actually
+  // executing.
+  const [runningStepIndex, setRunningStepIndex] = useState<number | null>(null)
   const [lastTxHash, setLastTxHash] = useState<string | null>(null)
   const [allStepsCompleted, setAllStepsCompleted] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -99,6 +104,7 @@ export default function SetNameStepsModal({
     if (open && steps && steps.length > 0) {
       setCurrentStep(0)
       setExecuting(false)
+      setRunningStepIndex(null)
       setStepStatuses(Array(steps.length).fill('pending'))
       setStepTxHashes(Array(steps.length).fill(null))
       setLastTxHash(null)
@@ -119,6 +125,7 @@ export default function SetNameStepsModal({
     if (!open) {
       setCurrentStep(0)
       setExecuting(false)
+      setRunningStepIndex(null)
       setAllStepsCompleted(false)
       failureCleanupAttemptedRef.current = false
     }
@@ -174,6 +181,7 @@ export default function SetNameStepsModal({
     if (!walletClient) return
 
     setExecuting(true)
+    setRunningStepIndex(index)
     let tx: `0x${string}` | string | void = undefined
 
     const attemptRevokeCleanup = async () => {
@@ -187,6 +195,7 @@ export default function SetNameStepsModal({
       if (stepStatuses[revokeStepIndex] === 'completed') return
 
       failureCleanupAttemptedRef.current = true
+      setRunningStepIndex(revokeStepIndex)
       try {
         const cleanupTx = await steps[revokeStepIndex].action()
         if (cleanupTx) {
@@ -220,6 +229,7 @@ export default function SetNameStepsModal({
       setErrorMessage(error?.message || error.toString() || 'Unknown error occurred.')
       await attemptRevokeCleanup()
       setExecuting(false)
+      setRunningStepIndex(null)
       return
     }
 
@@ -279,6 +289,7 @@ export default function SetNameStepsModal({
       }
     } finally {
       setExecuting(false)
+      setRunningStepIndex(null)
     }
   }
 
@@ -475,7 +486,7 @@ export default function SetNameStepsModal({
                       {renderStepIcon(
                         index,
                         stepStatuses[index],
-                        index === currentStep,
+                        index === (runningStepIndex ?? currentStep),
                       )}
                       <span
                         className={`text-sm ${stepStatuses[index] === 'error' ? 'text-red-500' : 'text-gray-800 dark:text-gray-200'}`}
