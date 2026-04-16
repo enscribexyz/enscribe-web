@@ -17,6 +17,7 @@ import { ENSDomainPickerModal } from '@/components/naming/ENSDomainPickerModal'
 import { L2ChainPickerDialog } from '@/components/naming/L2ChainPickerDialog'
 import { CallDataPanel } from '@/components/naming/CallDataPanel'
 import { BatchEntryRow } from '@/components/naming/BatchEntryRow'
+import { shortAddress } from '@/utils/ensPermissions'
 
 export default function BatchNamingForm() {
   const {
@@ -64,6 +65,8 @@ export default function BatchNamingForm() {
     unsupportedL2Name,
     operatorAccess,
     accessLoading,
+    parentManagerCheck,
+    parentManagerChecking,
     handleGrantAccess,
     handleRevokeAccess,
     fileInputRef,
@@ -119,7 +122,7 @@ export default function BatchNamingForm() {
             value={parentName}
             onChange={(e) => {
               setParentName(e.target.value)
-              setParentType(e.target.value === enscribeDomain ? 'web3labs' : 'own')
+              setParentType('own')
             }}
             placeholder="mydomain.eth"
             className="flex-1 px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
@@ -133,7 +136,7 @@ export default function BatchNamingForm() {
                 >
             Select Domain
           </Button>
-          {operatorAccess && parentName && parentType !== 'web3labs' && (
+          {operatorAccess && parentName && (
             <Button
               variant="destructive"
               disabled={accessLoading}
@@ -142,7 +145,7 @@ export default function BatchNamingForm() {
               {accessLoading ? 'Revoking...' : 'Revoke Access'}
             </Button>
           )}
-          {!operatorAccess && parentName && parentType !== 'web3labs' && (
+          {!operatorAccess && parentName && (
             <Button
               disabled={accessLoading}
               onClick={handleGrantAccess}
@@ -151,13 +154,27 @@ export default function BatchNamingForm() {
             </Button>
           )}
         </div>
-        {parentName && parentType !== 'web3labs' && (
+        {parentName && (
           <p className="text-sm text-yellow-600 mt-2">
             {operatorAccess
               ? 'Note: You can revoke Operator role from Enscribe V2 here.'
               : 'Note: You can grant Operator role to Enscribe V2 here, otherwise it will be requested during batch naming.'}
           </p>
         )}
+        {parentName &&
+          !parentManagerChecking &&
+          parentManagerCheck &&
+          !parentManagerCheck.isManager && (
+            <p className="text-sm text-red-600 dark:text-red-400 mt-2">
+              {parentManagerCheck.status === 'not-manager'
+                ? `Connected wallet is not the manager of "${parentName}". Current manager: ${shortAddress(parentManagerCheck.manager)}${parentManagerCheck.isWrapped ? ' (wrapped)' : ''}. Only the manager can create subnames under this parent.`
+                : parentManagerCheck.status === 'no-owner'
+                  ? `"${parentName}" has no registered owner — it may not be registered on this network.`
+                  : parentManagerCheck.status === 'invalid-name'
+                    ? 'Invalid parent name.'
+                    : 'Could not verify parent manager — try again.'}
+            </p>
+          )}
 
 
       {/* Contracts Table */}
@@ -388,7 +405,14 @@ export default function BatchNamingForm() {
       {/* Submit Button */}
       <Button
         onClick={handleBatchNaming}
-        disabled={loading || !isConnected || !parentName || hasValidationErrors()}
+        disabled={
+          loading ||
+          !isConnected ||
+          !parentName ||
+          hasValidationErrors() ||
+          parentManagerChecking ||
+          !!(parentManagerCheck && !parentManagerCheck.isManager)
+        }
         className="relative overflow-hidden w-full py-6 text-lg font-medium transition-all duration-300 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-600 hover:shadow-lg hover:shadow-blue-500/30 hover:-translate-y-0.5 focus:ring-4 focus:ring-blue-500/30 group disabled:opacity-50 disabled:cursor-not-allowed"
         style={{ backgroundSize: '200% 100%' }}
       >
@@ -426,7 +450,8 @@ export default function BatchNamingForm() {
       )}
 
 
-      {/* ENS Domain Selection Modal */}
+      {/* ENS Domain Selection Modal — batch naming requires a user-owned
+          parent, so we don't offer the default Enscribe domain here. */}
       <ENSDomainPickerModal
         open={showENSModal}
         onOpenChange={setShowENSModal}
@@ -435,28 +460,9 @@ export default function BatchNamingForm() {
         title="Choose Domain"
         onSelectDomain={(domain) => {
           setParentName(domain)
-          setParentType(domain === enscribeDomain ? 'web3labs' : 'own')
+          setParentType('own')
           setShowENSModal(false)
         }}
-        extraSection={
-          <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-            <h3 className="text-base font-medium text-gray-900 dark:text-white mb-3">
-              Other Domains
-            </h3>
-            <div
-              className="px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-full cursor-pointer transition-colors inline-flex items-center bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700"
-              onClick={() => {
-                setParentName(enscribeDomain)
-                setParentType('web3labs')
-                setShowENSModal(false)
-              }}
-            >
-              <span className="text-gray-800 dark:text-gray-200 font-medium whitespace-nowrap">
-                {enscribeDomain}
-              </span>
-            </div>
-          </div>
-        }
       />
 
 

@@ -19,6 +19,7 @@ import { CheckCircle2 } from 'lucide-react'
 import Link from 'next/link'
 import SetNameStepsModal from './SetNameStepsModal'
 import { ENSDomainPickerModal } from '@/components/naming/ENSDomainPickerModal'
+import { shortAddress } from '@/utils/ensPermissions'
 
 export default function DeployForm() {
   const {
@@ -50,6 +51,8 @@ export default function DeployForm() {
     setIsReverseSetter,
     operatorAccess,
     setOperatorAccess,
+    parentManagerCheck,
+    parentManagerChecking,
     recordExists,
     setRecordExists,
     accessLoading,
@@ -414,6 +417,21 @@ export default function DeployForm() {
                   )}
                 </p>
               )}
+
+            {parentName &&
+              !parentManagerChecking &&
+              parentManagerCheck &&
+              !parentManagerCheck.isManager && (
+                <p className="text-sm text-red-600 dark:text-red-400 mt-2">
+                  {parentManagerCheck.status === 'not-manager'
+                    ? `Connected wallet is not the manager of "${parentName}". Current manager: ${shortAddress(parentManagerCheck.manager)}${parentManagerCheck.isWrapped ? ' (wrapped)' : ''}. Only the manager can create subnames under this parent.`
+                    : parentManagerCheck.status === 'no-owner'
+                      ? `"${parentName}" has no registered owner — it may not be registered on this network.`
+                      : parentManagerCheck.status === 'invalid-name'
+                        ? 'Invalid parent name.'
+                        : 'Could not verify parent manager — try again.'}
+                </p>
+              )}
           </>
         )}
 
@@ -452,7 +470,13 @@ export default function DeployForm() {
       <Button
         onClick={deployContract}
         disabled={
-          !isConnected || loading || !isValidBytecode || isUnsupportedL2Chain
+          !isConnected ||
+          loading ||
+          !isValidBytecode ||
+          isUnsupportedL2Chain ||
+          (parentType === 'own' &&
+            (parentManagerChecking ||
+              !!(parentManagerCheck && !parentManagerCheck.isManager)))
         }
         className="w-full mt-6 dark:bg-blue-700 dark:hover:bg-gray-800 dark:text-white font-medium py-3"
       >

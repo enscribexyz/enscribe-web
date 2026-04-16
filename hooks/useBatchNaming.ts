@@ -18,6 +18,7 @@ import reverseRegistrarABI from '@/contracts/ReverseRegistrar'
 import type { Step, BatchFormEntry } from '@/types'
 import { checkOwnable, checkContractOwner, checkReverseClaimable, checkOwnableOnL2, checkContractOwnerOnL2 } from '@/utils/contractChecks'
 import { checkOperatorApproval, setOperatorApproval } from '@/utils/operatorAccess'
+import { checkEnsNameManager, type ManagerCheck } from '@/utils/ensPermissions'
 import {
   buildDisplayEntriesWithAutoParents,
   groupEntriesForBatching,
@@ -68,6 +69,8 @@ export function useBatchNaming() {
   const [truncatedAddresses, setTruncatedAddresses] = useState<{ [key: string]: string }>({})
   const [operatorAccess, setOperatorAccess] = useState(false)
   const [accessLoading, setAccessLoading] = useState(false)
+  const [parentManagerCheck, setParentManagerCheck] = useState<ManagerCheck | null>(null)
+  const [parentManagerChecking, setParentManagerChecking] = useState(false)
   // Unsupported L2 gating for this page: Optimism/Arbitrum/Scroll/Linea/Base L2s should show guidance
   const isUnsupportedL2Chain = [
     CHAINS.OPTIMISM,
@@ -90,8 +93,10 @@ export function useBatchNaming() {
       return
     }
 
-    setParentName(enscribeDomain)
-    setParentType('web3labs')
+    // Batch naming does not support the default Enscribe parent — user must
+    // choose one of their own owned/managed names.
+    setParentName('')
+    setParentType('own')
     setError('')
     setLoading(false)
     setBatchEntries([{ id: '1', address: '', label: '' }])
@@ -137,6 +142,55 @@ export function useBatchNaming() {
 
     checkParentAccess()
   }, [parentName, walletClient, config?.ENS_REGISTRY])
+
+  // Check whether the connected wallet is the ENS manager (owner) of the
+  // parent name. Runs on parentName / wallet / chain change so the UI can
+  // gate the submit button before the user hits it.
+  useEffect(() => {
+    let cancelled = false
+    const run = async () => {
+      if (
+        !walletClient ||
+        !walletAddress ||
+        !config?.ENS_REGISTRY ||
+        !config?.NAME_WRAPPER ||
+        !parentName ||
+        !parentName.trim()
+      ) {
+        setParentManagerCheck(null)
+        setParentManagerChecking(false)
+        return
+      }
+
+      // Batch naming does not support the default Enscribe parent — always
+      // run the manager check regardless of parentType.
+      setParentManagerChecking(true)
+      const result = await checkEnsNameManager({
+        client: walletClient,
+        name: parentName,
+        walletAddress,
+        ensRegistry: config.ENS_REGISTRY,
+        nameWrapper: config.NAME_WRAPPER,
+      })
+      if (!cancelled) {
+        setParentManagerCheck(result)
+        setParentManagerChecking(false)
+      }
+    }
+
+    run()
+    return () => {
+      cancelled = true
+    }
+  }, [
+    parentName,
+    parentType,
+    walletAddress,
+    walletClient,
+    config?.ENS_REGISTRY,
+    config?.NAME_WRAPPER,
+    chain?.id,
+  ])
 
   useEffect(() => {
     if (parentName && batchEntries.some(e => e.address && e.label)) {
@@ -839,6 +893,18 @@ export function useBatchNaming() {
       return
     }
 
+    if (parentManagerCheck && !parentManagerCheck.isManager) {
+      const msg =
+        parentManagerCheck.status === 'not-manager'
+          ? `Connected wallet is not the manager of "${parentName}"`
+          : parentManagerCheck.status === 'no-owner'
+            ? `"${parentName}" has no registered owner`
+            : `Cannot verify manager of "${parentName}"`
+      setError(msg)
+      toast({ title: 'Error', description: msg, variant: 'destructive' })
+      return
+    }
+
     if (!config) {
       console.error('Unsupported network')
       setError('Unsupported network')
@@ -1279,6 +1345,8 @@ export function useBatchNaming() {
     unsupportedL2Name,
     operatorAccess,
     accessLoading,
+    parentManagerCheck,
+    parentManagerChecking,
     handleGrantAccess,
     handleRevokeAccess,
     fileInputRef,

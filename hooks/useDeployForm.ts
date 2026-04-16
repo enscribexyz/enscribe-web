@@ -30,6 +30,7 @@ import enscribeContractABI from '../contracts/Enscribe'
 import { isEmpty } from '@/utils/validation'
 import { checkRecordExists } from '@/utils/contractChecks'
 import { checkOperatorApproval, setOperatorApproval } from '@/utils/operatorAccess'
+import { checkEnsNameManager, type ManagerCheck } from '@/utils/ensPermissions'
 
 const OWNABLE_FUNCTION_SELECTORS = [
   '8da5cb5b', // owner()
@@ -91,6 +92,8 @@ export function useDeployForm() {
   const [isReverseSetter, setIsReverseSetter] = useState(false)
 
   const [operatorAccess, setOperatorAccess] = useState(false)
+  const [parentManagerCheck, setParentManagerCheck] = useState<ManagerCheck | null>(null)
+  const [parentManagerChecking, setParentManagerChecking] = useState(false)
   const [ensNameTaken, setEnsNameTaken] = useState(false)
   const [args, setArgs] = useState<ConstructorArg[]>([])
   const [abiText, setAbiText] = useState('')
@@ -154,6 +157,65 @@ export function useDeployForm() {
       )
     }
   }, [bytecode])
+
+  // Verify the connected wallet is the ENS manager of the chosen parent.
+  // Only applies when the user is using their own parent; the default
+  // Enscribe parent bypasses this check.
+  useEffect(() => {
+    let cancelled = false
+    const run = async () => {
+      if (
+        !walletClient ||
+        !walletAddress ||
+        !config?.ENS_REGISTRY ||
+        !config?.NAME_WRAPPER ||
+        !parentName ||
+        !parentName.trim() ||
+        parentType !== 'own'
+      ) {
+        setParentManagerCheck(null)
+        setParentManagerChecking(false)
+        return
+      }
+
+      // Even when parentType === 'own', skip if the user's input matches the
+      // chain's default Enscribe parent (defensive — covers casing mismatches
+      // and parentType/parentName lag).
+      const normalizedParent = parentName.trim().toLowerCase()
+      const normalizedDefault = (enscribeDomain || '').trim().toLowerCase()
+      if (normalizedDefault && normalizedParent === normalizedDefault) {
+        setParentManagerCheck(null)
+        setParentManagerChecking(false)
+        return
+      }
+
+      setParentManagerChecking(true)
+      const result = await checkEnsNameManager({
+        client: walletClient,
+        name: parentName,
+        walletAddress,
+        ensRegistry: config.ENS_REGISTRY,
+        nameWrapper: config.NAME_WRAPPER,
+      })
+      if (!cancelled) {
+        setParentManagerCheck(result)
+        setParentManagerChecking(false)
+      }
+    }
+
+    run()
+    return () => {
+      cancelled = true
+    }
+  }, [
+    parentName,
+    parentType,
+    walletAddress,
+    walletClient,
+    config?.ENS_REGISTRY,
+    config?.NAME_WRAPPER,
+    chain?.id,
+  ])
 
   const populateName = async () => {
     const name = await fetchGeneratedName()
@@ -516,6 +578,21 @@ export function useDeployForm() {
     }
     if (!parentName.trim()) {
       setError('Parent name cannot be empty')
+      return
+    }
+
+    if (
+      parentType === 'own' &&
+      parentManagerCheck &&
+      !parentManagerCheck.isManager
+    ) {
+      const msg =
+        parentManagerCheck.status === 'not-manager'
+          ? `Connected wallet is not the manager of "${parentName}"`
+          : parentManagerCheck.status === 'no-owner'
+            ? `"${parentName}" has no registered owner`
+            : `Cannot verify manager of "${parentName}"`
+      setError(msg)
       return
     }
 
@@ -1565,6 +1642,8 @@ export function useDeployForm() {
     setIsReverseSetter,
     operatorAccess,
     setOperatorAccess,
+    parentManagerCheck,
+    parentManagerChecking,
     recordExists,
     setRecordExists,
     accessLoading,
