@@ -19,6 +19,8 @@ import type { Step, BatchFormEntry } from '@/types'
 import { checkOwnable, checkContractOwner, checkReverseClaimable, checkOwnableOnL2, checkContractOwnerOnL2 } from '@/utils/contractChecks'
 import { checkOperatorApproval, setOperatorApproval } from '@/utils/operatorAccess'
 import { checkEnsNameManager, type ManagerCheck } from '@/utils/ensPermissions'
+import { logMetric, isTestNet } from '@/utils/componentUtils'
+import { v4 as uuid } from 'uuid'
 import {
   buildDisplayEntriesWithAutoParents,
   groupEntriesForBatching,
@@ -40,6 +42,9 @@ export function useBatchNaming() {
   const config = useChainConfig()
   const isSafeWallet = useSafeWallet()
   const enscribeDomain = config?.ENSCRIBE_DOMAIN || ''
+
+  const corelationId = uuid()
+  const opType = 'batchnaming'
 
   const [batchEntries, setBatchEntries] = useState<BatchFormEntry[]>([
     { id: '1', address: '', label: '' }
@@ -1049,6 +1054,26 @@ export function useBatchNaming() {
             if (!isSafeWallet) {
               await waitForTransactionReceipt(walletClient!, { hash })
             }
+
+            if (!isTestNet(chain!.id)) {
+              try {
+                await logMetric(
+                  corelationId,
+                  Date.now(),
+                  chain!.id,
+                  '',
+                  walletAddress!,
+                  batch.parentName,
+                  'batch::setNameBatch',
+                  isSafeWallet ? 'safe wallet' : (hash as string),
+                  'Batch',
+                  opType,
+                )
+              } catch (err) {
+                setError('Failed to log metric')
+              }
+            }
+
             return hash
           },
         })
@@ -1090,6 +1115,24 @@ export function useBatchNaming() {
                   if (!isSafeWallet) {
                     await waitForTransactionReceipt(walletClient!, { hash: tx })
                   }
+                  if (!isTestNet(chain!.id)) {
+                    try {
+                      await logMetric(
+                        corelationId,
+                        Date.now(),
+                        chain!.id,
+                        entry.address,
+                        walletAddress!,
+                        entry.label,
+                        'batch::revres::setNameForAddr',
+                        isSafeWallet ? 'safe wallet' : (tx as string),
+                        'Ownable',
+                        opType,
+                      )
+                    } catch (err) {
+                      setError('Failed to log metric')
+                    }
+                  }
                   return tx
                 },
               })
@@ -1121,6 +1164,24 @@ export function useBatchNaming() {
                   })
                   if (!isSafeWallet) {
                     await waitForTransactionReceipt(walletClient!, { hash: tx })
+                  }
+                  if (!isTestNet(chain!.id)) {
+                    try {
+                      await logMetric(
+                        corelationId,
+                        Date.now(),
+                        chain!.id,
+                        entry.address,
+                        walletAddress!,
+                        entry.label,
+                        'batch::revres::setNameForAddr',
+                        isSafeWallet ? 'safe wallet' : (tx as string),
+                        'ReverseClaimer',
+                        opType,
+                      )
+                    } catch (err) {
+                      setError('Failed to log metric')
+                    }
                   }
                   return tx
                 },
@@ -1248,6 +1309,24 @@ export function useBatchNaming() {
 
                   if (!isSafeWallet) {
                     await waitForTransactionReceipt(walletClient!, { hash: txn })
+                  }
+                  if (!isTestNet(l2Chain.chainId)) {
+                    try {
+                      await logMetric(
+                        corelationId,
+                        Date.now(),
+                        l2Chain.chainId,
+                        contract.address,
+                        walletAddress!,
+                        contract.label,
+                        'batch::revres::setNameForAddr',
+                        isSafeWallet ? 'safe wallet' : (txn as string),
+                        'L2Primary',
+                        opType,
+                      )
+                    } catch (err) {
+                      setError('Failed to log metric')
+                    }
                   }
                   return txn
                 },
