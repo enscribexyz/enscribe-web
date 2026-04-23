@@ -63,6 +63,52 @@ export interface ENSMetadata {
   registrant?: string | null
 }
 
+export type MetadataHistoryEventType =
+  | 'text'
+  | 'coinAddress'
+  | 'interface'
+  | 'ethAddress'
+  | 'contentHash'
+
+export interface MetadataHistoryEvent {
+  id: string
+  type: MetadataHistoryEventType
+  field: string
+  label: string
+  newValue: string | null
+  previousValue: string | null
+  blockNumber: number | null
+  timestamp?: string
+  txHash?: string
+  resolverAddress?: string | null
+}
+
+type RawMetadataHistoryEventType =
+  | 'TextChanged'
+  | 'MulticoinAddrChanged'
+  | 'InterfaceChanged'
+  | 'AddrChanged'
+  | 'ContenthashChanged'
+
+type RawMetadataHistoryEvent = {
+  id: string
+  __typename: RawMetadataHistoryEventType
+  blockNumber: number
+  key?: string | null
+  value?: string | null
+  coinType?: string | number | null
+  addr?: string | { id?: string | null } | null
+  interfaceID?: string | null
+  implementer?: string | null
+  hash?: string | null
+  resolverAddress?: string | null
+}
+
+type MetadataHistoryIdentity = {
+  field: string
+  type: MetadataHistoryEventType
+}
+
 export interface HierarchyNode {
   name: string
   metadata: ENSMetadata | null
@@ -149,6 +195,17 @@ export const COIN_TYPE_MAPPING: Record<string, { name: string; logo: string }> =
   '2148017999': { name: 'Scroll Sepolia', logo: '/images/scroll.svg' },
 }
 
+function getMetadataHistoryLimit(): number {
+  const rawValue = process.env.NEXT_PUBLIC_NAME_METADATA_HISTORY_LIMIT
+  const parsedValue = rawValue ? Number.parseInt(rawValue, 10) : 10
+
+  if (!Number.isFinite(parsedValue) || parsedValue <= 0) {
+    return 10
+  }
+
+  return Math.min(parsedValue, 10)
+}
+
 export function useNameMetadata({ initialName }: UseNameMetadataProps) {
   const { selectedChain } = useSelectedChain()
   const { chain, address: walletAddress } = useAccount()
@@ -160,6 +217,14 @@ export function useNameMetadata({ initialName }: UseNameMetadataProps) {
   const [searchName, setSearchName] = useState(initialName || '')
   const [currentName, setCurrentName] = useState('')
   const [metadata, setMetadata] = useState<ENSMetadata | null>(null)
+  const [rawMetadataHistory, setRawMetadataHistory] = useState<
+    RawMetadataHistoryEvent[]
+  >([])
+  const [metadataHistory, setMetadataHistory] = useState<MetadataHistoryEvent[]>(
+    [],
+  )
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [historyError, setHistoryError] = useState('')
   const [parentHierarchy, setParentHierarchy] = useState<HierarchyNode[]>([])
   const [subnameHierarchy, setSubnameHierarchy] = useState<SubnameNode[]>([])
   const [loading, setLoading] = useState(false)
@@ -177,6 +242,7 @@ export function useNameMetadata({ initialName }: UseNameMetadataProps) {
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false)
   const [recommendedKeys, setRecommendedKeys] = useState<string[]>([])
   const isSafeWallet = useSafeWallet()
+  const historyLimit = getMetadataHistoryLimit()
 
   // Use wallet chain if connected, otherwise use selected chain from ChainSelector
   const activeChainId = chain?.id || selectedChain || CHAINS.MAINNET
@@ -187,6 +253,10 @@ export function useNameMetadata({ initialName }: UseNameMetadataProps) {
     setSearchName('')
     setCurrentName('')
     setMetadata(null)
+    setRawMetadataHistory([])
+    setMetadataHistory([])
+    setHistoryLoading(false)
+    setHistoryError('')
     setParentHierarchy([])
     setSubnameHierarchy([])
     setError('')
@@ -494,6 +564,408 @@ export function useNameMetadata({ initialName }: UseNameMetadataProps) {
     return metadata
   }
 
+  const fetchMetadataHistoryFromSubgraph = async (
+    name: string,
+  ): Promise<RawMetadataHistoryEvent[]> => {
+    if (!config?.SUBGRAPH_API) {
+      return []
+    }
+
+    try {
+      const response = await fetch(config.SUBGRAPH_API, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${process.env.NEXT_PUBLIC_GRAPH_API_KEY || ''}`,
+        },
+        body: JSON.stringify({
+          query: `
+            query getDomainMetadataHistory($id: ID!, $limit: Int!) {
+              resolvers(where: { domain: $id }) {
+                id
+                address
+                events(first: $limit, orderBy: blockNumber, orderDirection: desc) {
+                  __typename
+                  ... on TextChanged {
+                    id
+                    key
+                    value
+                    blockNumber
+                  }
+                  ... on MulticoinAddrChanged {
+                    id
+                    coinType
+                    addr
+                    blockNumber
+                  }
+                  ... on InterfaceChanged {
+                    id
+                    interfaceID
+                    implementer
+                    blockNumber
+                  }
+                  ... on AddrChanged {
+                    id
+                    addr {
+                      id
+                    }
+                    blockNumber
+                  }
+                  ... on ContenthashChanged {
+                    id
+                    hash
+                    blockNumber
+                  }
+                }
+              }
+            }
+          `,
+          variables: {
+            id: namehash(name),
+            limit: historyLimit,
+          },
+        }),
+      })
+
+      const data = await response.json()
+
+      if (data.errors) {
+        throw new Error(
+          data.errors[0]?.message || 'Failed to fetch metadata history',
+        )
+      }
+
+      const resolvers = data.data?.resolvers || []
+
+      return resolvers
+        .flatMap((resolver: { address?: string; events?: RawMetadataHistoryEvent[] }) =>
+          (resolver.events || []).map((event) => ({
+            ...event,
+            resolverAddress: resolver.address || null,
+          })),
+        )
+        .sort((a: RawMetadataHistoryEvent, b: RawMetadataHistoryEvent) => {
+          return Number(b.blockNumber) - Number(a.blockNumber)
+        })
+        .slice(0, historyLimit)
+    } catch (err) {
+      console.error('Error fetching metadata history from subgraph:', err)
+      throw err
+    }
+  }
+
+  const isUnsetHistoryValue = (value: string | null | undefined) => {
+    if (!value) return true
+
+    const normalizedValue = value.trim().toLowerCase()
+
+    return (
+      normalizedValue === '' ||
+      normalizedValue === '0x' ||
+      normalizedValue === '0x0' ||
+      normalizedValue === '0x0000000000000000000000000000000000000000'
+    )
+  }
+
+  const getRawHistoryValue = (
+    event: RawMetadataHistoryEvent,
+  ): string | null => {
+    switch (event.__typename) {
+      case 'TextChanged':
+        return isUnsetHistoryValue(event.value) ? null : event.value || null
+      case 'MulticoinAddrChanged': {
+        const addrValue =
+          typeof event.addr === 'string' ? event.addr : event.addr?.id || null
+        return isUnsetHistoryValue(addrValue) ? null : addrValue
+      }
+      case 'InterfaceChanged':
+        return isUnsetHistoryValue(event.implementer)
+          ? null
+          : event.implementer || null
+      case 'AddrChanged': {
+        const addrValue =
+          typeof event.addr === 'string' ? event.addr : event.addr?.id || null
+        return isUnsetHistoryValue(addrValue) ? null : addrValue
+      }
+      case 'ContenthashChanged':
+        return isUnsetHistoryValue(event.hash) ? null : event.hash || null
+      default:
+        return null
+    }
+  }
+
+  const getHistoryIdentity = (
+    event: RawMetadataHistoryEvent,
+  ): MetadataHistoryIdentity => {
+    switch (event.__typename) {
+      case 'TextChanged':
+        return {
+          type: 'text',
+          field: event.key || 'text',
+        }
+      case 'MulticoinAddrChanged':
+        return {
+          type: 'coinAddress',
+          field: String(event.coinType || 'unknown'),
+        }
+      case 'InterfaceChanged':
+        return {
+          type: 'interface',
+          field: event.interfaceID || 'interface',
+        }
+      case 'AddrChanged':
+        return {
+          type: 'ethAddress',
+          field: 'eth',
+        }
+      case 'ContenthashChanged':
+        return {
+          type: 'contentHash',
+          field: 'contentHash',
+        }
+      default:
+        return {
+          type: 'text',
+          field: 'text',
+        }
+    }
+  }
+
+  const getHistoryLabel = (
+    identity: MetadataHistoryIdentity,
+    nextValue: string | null,
+  ) => {
+    const action = nextValue ? 'updated' : 'cleared'
+
+    switch (identity.type) {
+      case 'text':
+        return `Text record ${identity.field} ${action}`
+      case 'coinAddress': {
+        const coinInfo = COIN_TYPE_MAPPING[identity.field]
+        const coinLabel = coinInfo?.name || `Coin Type ${identity.field}`
+        return `${coinLabel} address ${action}`
+      }
+      case 'interface':
+        return `Interface ${identity.field} ${action}`
+      case 'ethAddress':
+        return `ETH address ${action}`
+      case 'contentHash':
+        return `Content hash ${action}`
+      default:
+        return `Metadata ${action}`
+    }
+  }
+
+  const normalizeMetadataHistory = (
+    rawEvents: RawMetadataHistoryEvent[],
+  ): MetadataHistoryEvent[] => {
+    const sortedEvents = [...rawEvents].sort(
+      (a, b) => Number(b.blockNumber) - Number(a.blockNumber),
+    )
+
+    return sortedEvents.map((event, index) => {
+      const identity = getHistoryIdentity(event)
+      const newValue = getRawHistoryValue(event)
+      const previousEvent = sortedEvents
+        .slice(index + 1)
+        .find((candidate) => {
+          const candidateIdentity = getHistoryIdentity(candidate)
+          return (
+            candidateIdentity.type === identity.type &&
+            candidateIdentity.field === identity.field
+          )
+        })
+
+      const previousValue = previousEvent
+        ? getRawHistoryValue(previousEvent)
+        : null
+
+      return {
+        id: event.id,
+        type: identity.type,
+        field: identity.field,
+        label: getHistoryLabel(identity, newValue),
+        newValue,
+        previousValue,
+        blockNumber:
+          typeof event.blockNumber === 'number'
+            ? event.blockNumber
+            : Number(event.blockNumber),
+        resolverAddress: event.resolverAddress || null,
+      }
+    })
+  }
+
+  const enrichMetadataHistoryWithTimestamps = async (
+    historyEvents: MetadataHistoryEvent[],
+  ): Promise<MetadataHistoryEvent[]> => {
+    const publicClient = getPublicClient(activeChainId)
+
+    if (!publicClient) {
+      return historyEvents
+    }
+
+    const uniqueBlockNumbers = Array.from(
+      new Set(
+        historyEvents
+          .map((event) => event.blockNumber)
+          .filter((blockNumber): blockNumber is number => blockNumber !== null),
+      ),
+    )
+
+    if (uniqueBlockNumbers.length === 0) {
+      return historyEvents
+    }
+
+    try {
+      const timestampEntries = await Promise.all(
+        uniqueBlockNumbers.map(async (blockNumber) => {
+          const block = await publicClient.getBlock({
+            blockNumber: BigInt(blockNumber),
+          })
+
+          return [
+            blockNumber,
+            new Date(Number(block.timestamp) * 1000).toISOString(),
+          ] as const
+        }),
+      )
+
+      const timestampByBlock = new Map<number, string>(timestampEntries)
+
+      return historyEvents.map((event) => ({
+        ...event,
+        timestamp:
+          event.blockNumber !== null
+            ? timestampByBlock.get(event.blockNumber)
+            : undefined,
+      }))
+    } catch (err) {
+      console.error('Error enriching metadata history timestamps:', err)
+      return historyEvents
+    }
+  }
+
+  const loadMetadataHistory = async (
+    name: string,
+  ): Promise<RawMetadataHistoryEvent[]> => {
+    setHistoryLoading(true)
+    setHistoryError('')
+
+    try {
+      const fetchedHistory = await fetchMetadataHistoryFromSubgraph(name)
+      const normalizedHistory = normalizeMetadataHistory(fetchedHistory)
+      const enrichedHistory =
+        await enrichMetadataHistoryWithTimestamps(normalizedHistory)
+      setRawMetadataHistory(fetchedHistory)
+      setMetadataHistory(enrichedHistory)
+      return fetchedHistory
+    } catch (err: any) {
+      setHistoryError(err.message || 'Failed to fetch metadata history')
+      return []
+    } finally {
+      setHistoryLoading(false)
+    }
+  }
+
+  const buildHierarchyNodes = (name: string): HierarchyNode[] => {
+    const parents = getParentHierarchy(name)
+    const hierarchyNodes: HierarchyNode[] = []
+
+    for (const parentName of parents) {
+      // Skip TLDs
+      if (parentName.split('.').length > 1) {
+        // Heal the parent name if it contains labelhashes
+        const healedParentName = healENSName(parentName)
+        hierarchyNodes.push({
+          name: healedParentName,
+          metadata: null,
+          expanded: false,
+        })
+      }
+    }
+
+    return hierarchyNodes
+  }
+
+  const loadNameData = async (name: string) => {
+    setLoading(true)
+    setError('')
+    setMetadata(null)
+    setParentHierarchy([])
+    setSubnameHierarchy([])
+    setRawMetadataHistory([])
+    setMetadataHistory([])
+    setHistoryError('')
+    setCurrentName(name)
+
+    // Start metadata history fetch immediately so it can resolve independently.
+    void loadMetadataHistory(name)
+
+    try {
+      const fetchedMetadata = await fetchENSMetadataFromSubgraph(name)
+      setMetadata(fetchedMetadata)
+
+      if (fetchedMetadata.error) {
+        setError(fetchedMetadata.error)
+      }
+
+      const hierarchyNodes = buildHierarchyNodes(name)
+      setParentHierarchy(hierarchyNodes)
+
+      if (hierarchyNodes.length > 0) {
+        await loadParentMetadata(0)
+      }
+
+      const subnames = await fetchDirectSubnames(name)
+      setSubnameHierarchy(subnames)
+    } catch (err: any) {
+      setError(err.message || 'Failed to fetch metadata')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const delay = (ms: number) =>
+    new Promise((resolve) => {
+      setTimeout(resolve, ms)
+    })
+
+  const refreshMetadataForName = async (name: string) => {
+    try {
+      const refreshedMetadata = await fetchENSMetadataFromSubgraph(name)
+      setMetadata(refreshedMetadata)
+
+      if (refreshedMetadata.error) {
+        setError(refreshedMetadata.error)
+      }
+    } catch (err) {
+      console.error('Error refreshing ENS metadata:', err)
+    }
+  }
+
+  const refreshMetadataAndHistoryAfterEdit = async (name: string) => {
+    const previousLatestHistoryId = rawMetadataHistory[0]?.id || null
+    const historyRetryDelay = isSafeWallet ? 6000 : 3000
+
+    await Promise.allSettled([
+      refreshMetadataForName(name),
+      (async () => {
+        const refreshedHistory = await loadMetadataHistory(name)
+        const refreshedLatestHistoryId = refreshedHistory[0]?.id || null
+
+        // Give the subgraph one more chance to index the latest write event.
+        if (
+          previousLatestHistoryId &&
+          refreshedLatestHistoryId === previousLatestHistoryId
+        ) {
+          await delay(historyRetryDelay)
+          await loadMetadataHistory(name)
+        }
+      })(),
+    ])
+  }
+
   const fetchDirectSubnames = async (
     parentName: string,
   ): Promise<SubnameNode[]> => {
@@ -639,62 +1111,16 @@ export function useNameMetadata({ initialName }: UseNameMetadataProps) {
   }
 
   const handleSearchForName = async (name: string) => {
-    setLoading(true)
-    setError('')
-    setMetadata(null)
-    setParentHierarchy([])
-
     // Check if it's a TLD (no dots in the name)
     const parts = name.split('.')
     if (parts.length === 1) {
       setError(
         'TLDs (like .eth) are not supported. Please enter a full ENS name (e.g., vitalik.eth)',
       )
-      setLoading(false)
       return
     }
 
-    setCurrentName(name)
-
-    try {
-      const fetchedMetadata = await fetchENSMetadataFromSubgraph(name)
-      setMetadata(fetchedMetadata)
-
-      if (fetchedMetadata.error) {
-        setError(fetchedMetadata.error)
-      }
-
-      // Fetch parent hierarchy (exclude TLDs)
-      const parents = getParentHierarchy(name)
-      const hierarchyNodes: HierarchyNode[] = []
-
-      for (const parentName of parents) {
-        // Skip TLDs
-        if (parentName.split('.').length > 1) {
-          // Heal the parent name if it contains labelhashes
-          const healedParentName = healENSName(parentName)
-          hierarchyNodes.push({
-            name: healedParentName,
-            metadata: null,
-            expanded: false,
-          })
-        }
-      }
-
-      setParentHierarchy(hierarchyNodes)
-
-      if (hierarchyNodes.length > 0) {
-        await loadParentMetadata(0)
-      }
-
-      // Load direct subnames
-      const subnames = await fetchDirectSubnames(name)
-      setSubnameHierarchy(subnames)
-    } catch (err: any) {
-      setError(err.message || 'Failed to fetch metadata')
-    } finally {
-      setLoading(false)
-    }
+    await loadNameData(name)
   }
 
   const handleSearch = async () => {
@@ -702,11 +1128,6 @@ export function useNameMetadata({ initialName }: UseNameMetadataProps) {
       setError('Please enter an ENS name')
       return
     }
-
-    setLoading(true)
-    setError('')
-    setMetadata(null)
-    setParentHierarchy([])
 
     try {
       const normalizedName = normalize(searchName.trim())
@@ -717,51 +1138,12 @@ export function useNameMetadata({ initialName }: UseNameMetadataProps) {
         setError(
           'TLDs (like .eth) are not supported. Please enter a full ENS name (e.g., vitalik.eth)',
         )
-        setLoading(false)
         return
       }
 
-      setCurrentName(normalizedName)
-
-      // Fetch current name metadata
-      const fetchedMetadata = await fetchENSMetadataFromSubgraph(normalizedName)
-      setMetadata(fetchedMetadata)
-
-      if (fetchedMetadata.error) {
-        setError(fetchedMetadata.error)
-      }
-
-      // Fetch parent hierarchy (exclude TLDs)
-      const parents = getParentHierarchy(normalizedName)
-      const hierarchyNodes: HierarchyNode[] = []
-
-      for (const parentName of parents) {
-        // Skip TLDs
-        if (parentName.split('.').length > 1) {
-          // Heal the parent name if it contains labelhashes
-          const healedParentName = healENSName(parentName)
-          hierarchyNodes.push({
-            name: healedParentName,
-            metadata: null,
-            expanded: false,
-          })
-        }
-      }
-
-      setParentHierarchy(hierarchyNodes)
-
-      // Load first parent metadata automatically
-      if (hierarchyNodes.length > 0) {
-        await loadParentMetadata(0)
-      }
-
-      // Load direct subnames
-      const subnames = await fetchDirectSubnames(normalizedName)
-      setSubnameHierarchy(subnames)
+      await loadNameData(normalizedName)
     } catch (err: any) {
       setError(err.message || 'Failed to fetch metadata')
-    } finally {
-      setLoading(false)
     }
   }
 
@@ -1174,9 +1556,9 @@ export function useNameMetadata({ initialName }: UseNameMetadataProps) {
 
       setIsModalOpen(false)
 
-      // Refresh metadata (with longer delay for Safe wallets)
+      // Refresh metadata and history after indexing has had a moment to catch up.
       setTimeout(() => {
-        handleSearchForName(currentName)
+        void refreshMetadataAndHistoryAfterEdit(currentName)
       }, isSafeWallet ? 5000 : 2000)
     } catch (err: any) {
       console.error('Error setting text records:', err)
@@ -1238,11 +1620,6 @@ export function useNameMetadata({ initialName }: UseNameMetadataProps) {
   useEffect(() => {
     const autoFetch = async () => {
       if (initialName && !currentName && !loading && config?.SUBGRAPH_API) {
-        setLoading(true)
-        setError('')
-        setMetadata(null)
-        setParentHierarchy([])
-
         try {
           const normalizedName = normalize(initialName.trim())
 
@@ -1251,47 +1628,12 @@ export function useNameMetadata({ initialName }: UseNameMetadataProps) {
             setError(
               'TLDs (like .eth) are not supported. Please enter a full ENS name (e.g., vitalik.eth)',
             )
-            setLoading(false)
             return
           }
 
-          setCurrentName(normalizedName)
-
-          const fetchedMetadata =
-            await fetchENSMetadataFromSubgraph(normalizedName)
-          setMetadata(fetchedMetadata)
-
-          if (fetchedMetadata.error) {
-            setError(fetchedMetadata.error)
-          }
-
-          const parents = getParentHierarchy(normalizedName)
-          const hierarchyNodes: HierarchyNode[] = []
-
-          for (const parentName of parents) {
-            if (parentName.split('.').length > 1) {
-              // Heal the parent name if it contains labelhashes
-              const healedParentName = healENSName(parentName)
-              hierarchyNodes.push({
-                name: healedParentName,
-                metadata: null,
-                expanded: false,
-              })
-            }
-          }
-
-          setParentHierarchy(hierarchyNodes)
-
-          if (hierarchyNodes.length > 0) {
-            await loadParentMetadata(0)
-          }
-
-          const subnames = await fetchDirectSubnames(normalizedName)
-          setSubnameHierarchy(subnames)
+          await loadNameData(normalizedName)
         } catch (err: any) {
           setError(err.message || 'Failed to fetch metadata')
-        } finally {
-          setLoading(false)
         }
       }
     }
@@ -1312,6 +1654,9 @@ export function useNameMetadata({ initialName }: UseNameMetadataProps) {
     loading,
     error,
     metadata,
+    metadataHistory,
+    historyLoading,
+    historyError,
     parentHierarchy,
     subnameHierarchy,
     isModalOpen,
@@ -1358,5 +1703,6 @@ export function useNameMetadata({ initialName }: UseNameMetadataProps) {
     config,
     isSafeWallet,
     walletClient,
+    historyLimit,
   }
 }

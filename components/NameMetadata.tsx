@@ -18,6 +18,7 @@ import {
   COIN_TYPE_MAPPING,
   type ENSMetadata,
   type HierarchyNode,
+  type MetadataHistoryEvent,
   type SubnameNode,
 } from '@/hooks/useNameMetadata'
 
@@ -31,6 +32,9 @@ export default function NameMetadata({ initialName }: NameMetadataProps) {
     loading,
     error,
     metadata,
+    metadataHistory,
+    historyLoading,
+    historyError,
     parentHierarchy,
     subnameHierarchy,
     isModalOpen,
@@ -50,7 +54,6 @@ export default function NameMetadata({ initialName }: NameMetadataProps) {
     setShowContractMetadata,
     setCustomKey,
     setCustomValue,
-    setSearchName,
     toggleParentExpansion,
     navigateToName,
     handleExploreAddress,
@@ -67,6 +70,7 @@ export default function NameMetadata({ initialName }: NameMetadataProps) {
     walletAddress,
     isOwnerOrManager,
     config,
+    historyLimit,
   } = useNameMetadata({ initialName })
 
   return (
@@ -205,6 +209,18 @@ export default function NameMetadata({ initialName }: NameMetadataProps) {
             </div>
           )}
 
+          {!loading && currentName && (
+            <div className="mt-8">
+              <MetadataHistoryDisplay
+                currentName={currentName}
+                history={metadataHistory}
+                historyLoading={historyLoading}
+                historyError={historyError}
+                historyLimit={historyLimit}
+              />
+            </div>
+          )}
+
           {/* Direct Subnames */}
           {!loading && subnameHierarchy.length > 0 && (
             <div className="mb-8">
@@ -216,7 +232,6 @@ export default function NameMetadata({ initialName }: NameMetadataProps) {
                   <SubnameHierarchyNode
                     key={subname.name}
                     node={subname}
-                    index={index}
                     onToggle={() => toggleSubnameExpansion(index)}
                     onNavigate={navigateToName}
                     onExplore={handleExploreAddress}
@@ -565,7 +580,6 @@ function ParentHierarchyNode({
 // Subname Hierarchy Node Component
 interface SubnameHierarchyNodeProps {
   node: SubnameNode
-  index: number
   onToggle: () => void
   onNavigate: (name: string) => void
   onExplore: (name: string) => void
@@ -573,7 +587,6 @@ interface SubnameHierarchyNodeProps {
 
 function SubnameHierarchyNode({
   node,
-  index,
   onToggle,
   onNavigate,
   onExplore,
@@ -749,6 +762,190 @@ function MetadataDisplay({ metadata }: MetadataDisplayProps) {
           <p className="text-sm text-red-600 dark:text-red-400">
             {metadata.error}
           </p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+interface MetadataHistoryDisplayProps {
+  currentName: string
+  history: MetadataHistoryEvent[]
+  historyLoading: boolean
+  historyError: string
+  historyLimit: number
+}
+
+function formatHistoryTypeLabel(type: MetadataHistoryEvent['type']) {
+  switch (type) {
+    case 'coinAddress':
+      return 'Address'
+    case 'ethAddress':
+      return 'ETH Address'
+    case 'contentHash':
+      return 'Content Hash'
+    default:
+      return type.charAt(0).toUpperCase() + type.slice(1)
+  }
+}
+
+function formatHistoryFieldLabel(event: MetadataHistoryEvent) {
+  switch (event.type) {
+    case 'coinAddress': {
+      const chainInfo = COIN_TYPE_MAPPING[event.field]
+      return chainInfo?.name || `Coin Type ${event.field}`
+    }
+    case 'ethAddress':
+      return 'ETH Address'
+    case 'contentHash':
+      return 'Content Hash'
+    default:
+      return event.field
+  }
+}
+
+function formatHistoryValue(
+  value: string | null,
+  fallback: string,
+): { value: string; mono: boolean } {
+  if (!value) {
+    return { value: fallback, mono: false }
+  }
+
+  return { value, mono: true }
+}
+
+function formatHistoryTimestamp(timestamp?: string) {
+  if (!timestamp) return 'Timestamp unavailable'
+
+  const parsedDate = new Date(timestamp)
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return 'Timestamp unavailable'
+  }
+
+  return parsedDate.toLocaleString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  })
+}
+
+function MetadataHistoryDisplay({
+  currentName,
+  history,
+  historyLoading,
+  historyError,
+  historyLimit,
+}: MetadataHistoryDisplayProps) {
+  const showInitialLoading = historyLoading && history.length === 0
+  const showRefreshing = historyLoading && history.length > 0
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+          Metadata History
+        </h3>
+        <div className="flex flex-col sm:items-end">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Showing the most recent {historyLimit} metadata changes for{' '}
+            {currentName}.
+          </p>
+          {showRefreshing && (
+            <div className="mt-1 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              Refreshing recent changes...
+            </div>
+          )}
+        </div>
+      </div>
+
+      {showInitialLoading && (
+        <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 space-y-3">
+          <Skeleton className="h-5 w-1/3" />
+          <Skeleton className="h-16 w-full" />
+          <Skeleton className="h-16 w-full" />
+          <Skeleton className="h-16 w-full" />
+        </div>
+      )}
+
+      {!historyLoading && historyError && (
+        <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-4">
+          <p className="text-sm text-red-600 dark:text-red-400">
+            {historyError}
+          </p>
+        </div>
+      )}
+
+      {!historyLoading && !historyError && history.length === 0 && (
+        <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            No recent metadata changes found for this name.
+          </p>
+        </div>
+      )}
+
+      {!historyLoading && !historyError && history.length > 0 && (
+        <div className="space-y-3">
+          {history.map((event) => {
+            const newValue = formatHistoryValue(event.newValue, 'Cleared')
+            const previousValue = formatHistoryValue(
+              event.previousValue,
+              'No earlier value in recent history',
+            )
+
+            return (
+              <div
+                key={event.id}
+                className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4"
+              >
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-3">
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
+                      {event.label}
+                    </h4>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      {formatHistoryTimestamp(event.timestamp)}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      Block {event.blockNumber ?? 'Unknown'}
+                    </p>
+                  </div>
+                  <span className="inline-flex w-fit px-2.5 py-1 rounded-full text-xs font-medium bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 capitalize">
+                    {formatHistoryTypeLabel(event.type)}
+                  </span>
+                </div>
+
+                <div className="space-y-2">
+                  <InfoRow
+                    label="Field"
+                    value={formatHistoryFieldLabel(event)}
+                    mono={event.type === 'interface' || event.type === 'text'}
+                  />
+                  <InfoRow
+                    label="New Value"
+                    value={newValue.value}
+                    mono={newValue.mono}
+                  />
+                  <InfoRow
+                    label="Previous Value"
+                    value={previousValue.value}
+                    mono={previousValue.mono}
+                  />
+                  {event.resolverAddress && (
+                    <InfoRow
+                      label="Resolver"
+                      value={event.resolverAddress}
+                      mono
+                    />
+                  )}
+                </div>
+              </div>
+            )
+          })}
         </div>
       )}
     </div>
