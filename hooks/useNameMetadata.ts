@@ -69,6 +69,9 @@ export type MetadataHistoryEventType =
   | 'interface'
   | 'ethAddress'
   | 'contentHash'
+  | 'resolverChanged'
+  | 'subnameCreated'
+  | 'subnameDeleted'
 
 export interface MetadataHistoryEvent {
   id: string
@@ -89,6 +92,7 @@ type RawMetadataHistoryEventType =
   | 'InterfaceChanged'
   | 'AddrChanged'
   | 'ContenthashChanged'
+  | 'NewResolver'
 
 type RawMetadataHistoryEvent = {
   id: string
@@ -101,12 +105,22 @@ type RawMetadataHistoryEvent = {
   interfaceID?: string | null
   implementer?: string | null
   hash?: string | null
+  resolver?: string | { id?: string | null; address?: string | null } | null
   resolverAddress?: string | null
 }
 
 type MetadataHistoryIdentity = {
   field: string
   type: MetadataHistoryEventType
+}
+
+type RawSubnameCreationEvent = {
+  id: string
+  name: string
+  createdAt?: string | null
+  owner?: {
+    id?: string | null
+  } | null
 }
 
 export interface HierarchyNode {
@@ -195,6 +209,8 @@ export const COIN_TYPE_MAPPING: Record<string, { name: string; logo: string }> =
   '2148017999': { name: 'Scroll Sepolia', logo: '/images/scroll.svg' },
 }
 
+const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
+
 function getMetadataHistoryLimit(): number {
   const rawValue = process.env.NEXT_PUBLIC_NAME_METADATA_HISTORY_LIMIT
   const parsedValue = rawValue ? Number.parseInt(rawValue, 10) : 10
@@ -204,6 +220,43 @@ function getMetadataHistoryLimit(): number {
   }
 
   return Math.min(parsedValue, 10)
+}
+
+function normalizeHistoryTimestamp(timestamp?: string | null): string | undefined {
+  if (!timestamp) return undefined
+
+  const numericTimestamp = Number(timestamp)
+  if (Number.isFinite(numericTimestamp) && numericTimestamp > 0) {
+    return new Date(numericTimestamp * 1000).toISOString()
+  }
+
+  const parsedDate = new Date(timestamp)
+  if (Number.isNaN(parsedDate.getTime())) {
+    return undefined
+  }
+
+  return parsedDate.toISOString()
+}
+
+function normalizeHistoryBlockNumber(
+  blockNumber: number | string | null | undefined,
+): number | null {
+  if (blockNumber === null || blockNumber === undefined) {
+    return null
+  }
+
+  const normalizedBlockNumber =
+    typeof blockNumber === 'number' ? blockNumber : Number(blockNumber)
+
+  if (
+    !Number.isFinite(normalizedBlockNumber) ||
+    !Number.isInteger(normalizedBlockNumber) ||
+    normalizedBlockNumber < 0
+  ) {
+    return null
+  }
+
+  return normalizedBlockNumber
 }
 
 export function useNameMetadata({ initialName }: UseNameMetadataProps) {
@@ -581,6 +634,20 @@ export function useNameMetadata({ initialName }: UseNameMetadataProps) {
         body: JSON.stringify({
           query: `
             query getDomainMetadataHistory($id: ID!, $limit: Int!) {
+              domain(id: $id) {
+                events(first: $limit, orderBy: blockNumber, orderDirection: desc) {
+                  __typename
+                  ... on NewResolver {
+                    id
+                    blockNumber
+                    resolver {
+                      id
+                      address
+                    }
+                  }
+                }
+              }
+
               resolvers(where: { domain: $id }) {
                 id
                 address
@@ -635,15 +702,30 @@ export function useNameMetadata({ initialName }: UseNameMetadataProps) {
         )
       }
 
+      const domainEvents = (data.data?.domain?.events || []).map(
+        (event: RawMetadataHistoryEvent) => ({
+          ...event,
+          resolverAddress:
+            typeof event.resolver === 'string'
+              ? event.resolver
+              : event.resolver?.address || event.resolver?.id || null,
+        }),
+      )
       const resolvers = data.data?.resolvers || []
 
-      return resolvers
-        .flatMap((resolver: { address?: string; events?: RawMetadataHistoryEvent[] }) =>
-          (resolver.events || []).map((event) => ({
-            ...event,
-            resolverAddress: resolver.address || null,
-          })),
-        )
+      return [
+        ...domainEvents,
+        ...resolvers.flatMap(
+          (resolver: {
+            address?: string
+            events?: RawMetadataHistoryEvent[]
+          }) =>
+            (resolver.events || []).map((event) => ({
+              ...event,
+              resolverAddress: resolver.address || null,
+            })),
+        ),
+      ]
         .sort((a: RawMetadataHistoryEvent, b: RawMetadataHistoryEvent) => {
           return Number(b.blockNumber) - Number(a.blockNumber)
         })
@@ -651,6 +733,77 @@ export function useNameMetadata({ initialName }: UseNameMetadataProps) {
     } catch (err) {
       console.error('Error fetching metadata history from subgraph:', err)
       throw err
+    }
+  }
+
+  const fetchSubnameCreationHistoryFromSubgraph = async (
+    name: string,
+  ): Promise<MetadataHistoryEvent[]> => {
+    if (!config?.SUBGRAPH_API) {
+      return []
+    }
+
+    try {
+      const response = await fetch(config.SUBGRAPH_API, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${process.env.NEXT_PUBLIC_GRAPH_API_KEY || ''}`,
+        },
+        body: JSON.stringify({
+          query: `
+            query getRecentSubnameCreations($parentId: ID!, $limit: Int!) {
+              domains(
+                where: { parent: $parentId }
+                first: $limit
+                orderBy: createdAt
+                orderDirection: desc
+              ) {
+                id
+                name
+                createdAt
+                owner {
+                  id
+                }
+              }
+            }
+          `,
+          variables: {
+            parentId: namehash(name),
+            limit: historyLimit,
+          },
+        }),
+      })
+
+      const data = await response.json()
+
+      if (data.errors) {
+        throw new Error(
+          data.errors[0]?.message || 'Failed to fetch subname history',
+        )
+      }
+
+      const domains = (data.data?.domains || []) as RawSubnameCreationEvent[]
+
+      return domains.map((domain) => {
+        const ownerId = domain.owner?.id || null
+        const isDeleted = ownerId?.toLowerCase() === ZERO_ADDRESS
+
+        return {
+          id: `subname-history-${domain.id}`,
+          type: isDeleted ? 'subnameDeleted' : 'subnameCreated',
+          field: healENSName(domain.name || 'Unknown'),
+          label: isDeleted ? 'Subname deleted' : 'Subname created',
+          newValue: ownerId,
+          previousValue: null,
+          blockNumber: null,
+          timestamp: normalizeHistoryTimestamp(domain.createdAt),
+          resolverAddress: null,
+        }
+      })
+    } catch (err) {
+      console.error('Error fetching subname creation history from subgraph:', err)
+      return []
     }
   }
 
@@ -689,6 +842,13 @@ export function useNameMetadata({ initialName }: UseNameMetadataProps) {
       }
       case 'ContenthashChanged':
         return isUnsetHistoryValue(event.hash) ? null : event.hash || null
+      case 'NewResolver': {
+        const resolverValue =
+          typeof event.resolver === 'string'
+            ? event.resolver
+            : event.resolver?.address || event.resolver?.id || null
+        return isUnsetHistoryValue(resolverValue) ? null : resolverValue
+      }
       default:
         return null
     }
@@ -723,6 +883,11 @@ export function useNameMetadata({ initialName }: UseNameMetadataProps) {
           type: 'contentHash',
           field: 'contentHash',
         }
+      case 'NewResolver':
+        return {
+          type: 'resolverChanged',
+          field: 'resolver',
+        }
       default:
         return {
           type: 'text',
@@ -751,6 +916,12 @@ export function useNameMetadata({ initialName }: UseNameMetadataProps) {
         return `ETH address ${action}`
       case 'contentHash':
         return `Content hash ${action}`
+      case 'resolverChanged':
+        return `Resolver ${action}`
+      case 'subnameCreated':
+        return 'Subname created'
+      case 'subnameDeleted':
+        return 'Subname deleted'
       default:
         return `Metadata ${action}`
     }
@@ -760,7 +931,9 @@ export function useNameMetadata({ initialName }: UseNameMetadataProps) {
     rawEvents: RawMetadataHistoryEvent[],
   ): MetadataHistoryEvent[] => {
     const sortedEvents = [...rawEvents].sort(
-      (a, b) => Number(b.blockNumber) - Number(a.blockNumber),
+      (a, b) =>
+        (normalizeHistoryBlockNumber(b.blockNumber) || 0) -
+        (normalizeHistoryBlockNumber(a.blockNumber) || 0),
     )
 
     return sortedEvents.map((event, index) => {
@@ -787,10 +960,7 @@ export function useNameMetadata({ initialName }: UseNameMetadataProps) {
         label: getHistoryLabel(identity, newValue),
         newValue,
         previousValue,
-        blockNumber:
-          typeof event.blockNumber === 'number'
-            ? event.blockNumber
-            : Number(event.blockNumber),
+        blockNumber: normalizeHistoryBlockNumber(event.blockNumber),
         resolverAddress: event.resolverAddress || null,
       }
     })
@@ -809,7 +979,12 @@ export function useNameMetadata({ initialName }: UseNameMetadataProps) {
       new Set(
         historyEvents
           .map((event) => event.blockNumber)
-          .filter((blockNumber): blockNumber is number => blockNumber !== null),
+          .filter(
+            (blockNumber): blockNumber is number =>
+              blockNumber !== null &&
+              Number.isFinite(blockNumber) &&
+              Number.isInteger(blockNumber),
+          ),
       ),
     )
 
@@ -846,6 +1021,24 @@ export function useNameMetadata({ initialName }: UseNameMetadataProps) {
     }
   }
 
+  const sortHistoryEventsDescending = (
+    historyEvents: MetadataHistoryEvent[],
+  ): MetadataHistoryEvent[] => {
+    return [...historyEvents].sort((a, b) => {
+      const aTimestamp = a.timestamp ? Date.parse(a.timestamp) : Number.NaN
+      const bTimestamp = b.timestamp ? Date.parse(b.timestamp) : Number.NaN
+
+      if (Number.isFinite(aTimestamp) && Number.isFinite(bTimestamp)) {
+        return bTimestamp - aTimestamp
+      }
+
+      if (Number.isFinite(aTimestamp)) return -1
+      if (Number.isFinite(bTimestamp)) return 1
+
+      return (b.blockNumber || 0) - (a.blockNumber || 0)
+    })
+  }
+
   const loadMetadataHistory = async (
     name: string,
   ): Promise<RawMetadataHistoryEvent[]> => {
@@ -853,12 +1046,19 @@ export function useNameMetadata({ initialName }: UseNameMetadataProps) {
     setHistoryError('')
 
     try {
-      const fetchedHistory = await fetchMetadataHistoryFromSubgraph(name)
+      const [fetchedHistory, subnameCreationHistory] = await Promise.all([
+        fetchMetadataHistoryFromSubgraph(name),
+        fetchSubnameCreationHistoryFromSubgraph(name),
+      ])
       const normalizedHistory = normalizeMetadataHistory(fetchedHistory)
       const enrichedHistory =
         await enrichMetadataHistoryWithTimestamps(normalizedHistory)
+      const mergedHistory = sortHistoryEventsDescending([
+        ...enrichedHistory,
+        ...subnameCreationHistory,
+      ]).slice(0, historyLimit)
       setRawMetadataHistory(fetchedHistory)
-      setMetadataHistory(enrichedHistory)
+      setMetadataHistory(mergedHistory)
       return fetchedHistory
     } catch (err: any) {
       setHistoryError(err.message || 'Failed to fetch metadata history')

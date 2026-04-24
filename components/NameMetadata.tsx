@@ -210,7 +210,7 @@ export default function NameMetadata({ initialName }: NameMetadataProps) {
           )}
 
           {!loading && currentName && (
-            <div className="mt-8">
+            <div className="mt-8 mb-10">
               <MetadataHistoryDisplay
                 currentName={currentName}
                 history={metadataHistory}
@@ -784,6 +784,11 @@ function formatHistoryTypeLabel(type: MetadataHistoryEvent['type']) {
       return 'ETH Address'
     case 'contentHash':
       return 'Content Hash'
+    case 'resolverChanged':
+      return 'Resolver'
+    case 'subnameCreated':
+    case 'subnameDeleted':
+      return 'Subname'
     default:
       return type.charAt(0).toUpperCase() + type.slice(1)
   }
@@ -799,6 +804,11 @@ function formatHistoryFieldLabel(event: MetadataHistoryEvent) {
       return 'ETH Address'
     case 'contentHash':
       return 'Content Hash'
+    case 'resolverChanged':
+      return 'Resolver'
+    case 'subnameCreated':
+    case 'subnameDeleted':
+      return event.field
     default:
       return event.field
   }
@@ -833,6 +843,124 @@ function formatHistoryTimestamp(timestamp?: string) {
   })
 }
 
+function isDeletionHistoryEvent(event: MetadataHistoryEvent) {
+  const normalizedLabel = event.label.toLowerCase()
+  return (
+    event.type === 'subnameDeleted' ||
+    normalizedLabel.includes('deleted') ||
+    normalizedLabel.includes('cleared')
+  )
+}
+
+function getHistoryEventToneClasses(event: MetadataHistoryEvent) {
+  if (isDeletionHistoryEvent(event)) {
+    return {
+      badge:
+        'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800',
+    }
+  }
+
+  return {
+    badge:
+        'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 border-green-200 dark:border-green-800',
+  }
+}
+
+function MetadataHistoryItem({ event }: { event: MetadataHistoryEvent }) {
+  const [isExpanded, setIsExpanded] = React.useState(false)
+  const tone = getHistoryEventToneClasses(event)
+  const newValue = formatHistoryValue(
+    event.newValue,
+    event.type === 'subnameCreated'
+      ? 'Owner unavailable'
+      : event.type === 'subnameDeleted'
+        ? '0x0000000000000000000000000000000000000000'
+        : 'Cleared',
+  )
+  const previousValue = formatHistoryValue(
+    event.previousValue,
+    'No earlier value in recent history',
+  )
+  const fieldLabel =
+    event.type === 'subnameCreated' || event.type === 'subnameDeleted'
+      ? 'Subname'
+      : 'Field'
+  const newValueLabel =
+    event.type === 'subnameCreated' || event.type === 'subnameDeleted'
+      ? 'Owner'
+      : 'New Value'
+  const showPreviousValue =
+    event.type !== 'subnameCreated' && event.type !== 'subnameDeleted'
+
+  return (
+    <div className="bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800">
+      <button
+        type="button"
+        onClick={() => setIsExpanded((prev) => !prev)}
+        className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left"
+      >
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center justify-between gap-3 min-w-0">
+            <span
+              className={`inline-flex w-fit px-2.5 py-1 rounded-full text-xs font-medium border ${tone.badge} flex-shrink-0`}
+            >
+              {event.label}
+            </span>
+            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+              {formatHistoryTimestamp(event.timestamp)}
+            </p>
+          </div>
+        </div>
+        {isExpanded ? (
+          <ChevronUp className="w-4 h-4 text-gray-500 dark:text-gray-400 flex-shrink-0" />
+        ) : (
+          <ChevronDown className="w-4 h-4 text-gray-500 dark:text-gray-400 flex-shrink-0" />
+        )}
+      </button>
+
+      {isExpanded && (
+        <div className="px-4 pb-4 space-y-2 border-t border-gray-200 dark:border-gray-800">
+          <div className="pt-3">
+            <InfoRow
+              label={fieldLabel}
+              value={formatHistoryFieldLabel(event)}
+              mono={event.type === 'interface' || event.type === 'text'}
+            />
+            <InfoRow
+              label={newValueLabel}
+              value={newValue.value}
+              mono={newValue.mono}
+            />
+            {showPreviousValue && (
+              <InfoRow
+                label="Previous Value"
+                value={previousValue.value}
+                mono={previousValue.mono}
+              />
+            )}
+            <InfoRow
+              label="Event Type"
+              value={formatHistoryTypeLabel(event.type)}
+            />
+            <InfoRow
+              label="Block"
+              value={String(event.blockNumber ?? 'Unknown')}
+              mono={event.blockNumber !== null}
+            />
+            {event.resolverAddress && (
+              <InfoRow
+                label="Resolver"
+                value={event.resolverAddress}
+                mono
+              />
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function MetadataHistoryDisplay({
   currentName,
   history,
@@ -840,30 +968,40 @@ function MetadataHistoryDisplay({
   historyError,
   historyLimit,
 }: MetadataHistoryDisplayProps) {
+  const [isExpanded, setIsExpanded] = React.useState(false)
   const showInitialLoading = historyLoading && history.length === 0
   const showRefreshing = historyLoading && history.length > 0
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-          Metadata History
-        </h3>
-        <div className="flex flex-col sm:items-end">
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            Showing the most recent {historyLimit} metadata changes for{' '}
+      <button
+        type="button"
+        onClick={() => setIsExpanded((prev) => !prev)}
+        className="w-full flex items-start justify-between gap-3 text-left bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-4"
+      >
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+            Name History
+          </h3>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+            Click to see the most recent {historyLimit} name changes for{' '}
             {currentName}.
           </p>
           {showRefreshing && (
-            <div className="mt-1 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+            <div className="mt-2 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
               Refreshing recent changes...
             </div>
           )}
         </div>
-      </div>
+        {isExpanded ? (
+          <ChevronUp className="w-5 h-5 text-gray-500 dark:text-gray-400 flex-shrink-0" />
+        ) : (
+          <ChevronDown className="w-5 h-5 text-gray-500 dark:text-gray-400 flex-shrink-0" />
+        )}
+      </button>
 
-      {showInitialLoading && (
+      {isExpanded && showInitialLoading && (
         <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 space-y-3">
           <Skeleton className="h-5 w-1/3" />
           <Skeleton className="h-16 w-full" />
@@ -872,7 +1010,7 @@ function MetadataHistoryDisplay({
         </div>
       )}
 
-      {!historyLoading && historyError && (
+      {isExpanded && !historyLoading && historyError && (
         <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-4">
           <p className="text-sm text-red-600 dark:text-red-400">
             {historyError}
@@ -880,72 +1018,19 @@ function MetadataHistoryDisplay({
         </div>
       )}
 
-      {!historyLoading && !historyError && history.length === 0 && (
+      {isExpanded && !historyLoading && !historyError && history.length === 0 && (
         <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4">
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            No recent metadata changes found for this name.
+            No recent changes found for this name.
           </p>
         </div>
       )}
 
-      {!historyLoading && !historyError && history.length > 0 && (
-        <div className="space-y-3">
-          {history.map((event) => {
-            const newValue = formatHistoryValue(event.newValue, 'Cleared')
-            const previousValue = formatHistoryValue(
-              event.previousValue,
-              'No earlier value in recent history',
-            )
-
-            return (
-              <div
-                key={event.id}
-                className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4"
-              >
-                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-3">
-                  <div>
-                    <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
-                      {event.label}
-                    </h4>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                      {formatHistoryTimestamp(event.timestamp)}
-                    </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                      Block {event.blockNumber ?? 'Unknown'}
-                    </p>
-                  </div>
-                  <span className="inline-flex w-fit px-2.5 py-1 rounded-full text-xs font-medium bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 capitalize">
-                    {formatHistoryTypeLabel(event.type)}
-                  </span>
-                </div>
-
-                <div className="space-y-2">
-                  <InfoRow
-                    label="Field"
-                    value={formatHistoryFieldLabel(event)}
-                    mono={event.type === 'interface' || event.type === 'text'}
-                  />
-                  <InfoRow
-                    label="New Value"
-                    value={newValue.value}
-                    mono={newValue.mono}
-                  />
-                  <InfoRow
-                    label="Previous Value"
-                    value={previousValue.value}
-                    mono={previousValue.mono}
-                  />
-                  {event.resolverAddress && (
-                    <InfoRow
-                      label="Resolver"
-                      value={event.resolverAddress}
-                      mono
-                    />
-                  )}
-                </div>
-              </div>
-            )
-          })}
+      {isExpanded && !historyLoading && !historyError && history.length > 0 && (
+        <div className="space-y-2">
+          {history.map((event) => (
+            <MetadataHistoryItem key={event.id} event={event} />
+          ))}
         </div>
       )}
     </div>
