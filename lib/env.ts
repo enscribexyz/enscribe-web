@@ -20,6 +20,17 @@ function optionalEnv(name: string, fallback = ''): string {
   return process.env[name] ?? fallback
 }
 
+function optionalIntEnv(name: string, fallback: number, max?: number): number {
+  const rawValue = process.env[name]
+  const parsedValue = rawValue ? Number.parseInt(rawValue, 10) : fallback
+
+  if (!Number.isFinite(parsedValue) || parsedValue <= 0) {
+    return fallback
+  }
+
+  return typeof max === 'number' ? Math.min(parsedValue, max) : parsedValue
+}
+
 // ─── Client-safe env vars ────────────────────────────────────────────────────
 
 export const env = {
@@ -60,6 +71,13 @@ export const env = {
   TOPIC0_SET_NAME: optionalEnv(
     'NEXT_PUBLIC_TOPIC0_SET_NAME',
     '0xbce672f287ca218b7a90c84485d9b40640252149f0e8c2932fe972e3fbc6fdc3',
+  ),
+
+  // Name metadata history
+  NAME_METADATA_HISTORY_LIMIT: optionalIntEnv(
+    'NEXT_PUBLIC_NAME_METADATA_HISTORY_LIMIT',
+    10,
+    10,
   ),
 } as const
 
