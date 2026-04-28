@@ -30,6 +30,7 @@ import { SecurityAuditBadges } from '@/components/ens/SecurityAuditBadges'
 import { AttestationsPanel } from '@/components/ens/AttestationsPanel'
 import { AssociatedENSNamesList } from '@/components/ens/AssociatedENSNamesList'
 import { OwnedENSNamesList } from '@/components/ens/OwnedENSNamesList'
+import { NameHistorySection } from '@/components/ens/NameHistorySection'
 import { useENSDetails } from '@/hooks/useENSDetails'
 
 interface ENSDetailsProps {
@@ -83,8 +84,13 @@ export default function ENSDetails({
     textRecords,
     hasAttestations,
     effectiveChainId,
+    currentHistoryName,
     config,
     etherscanUrl,
+    metadataHistory,
+    historyLoading,
+    historyError,
+    historyLimit,
     implementationExpanded,
     setImplementationExpanded,
     otherDetailsExpanded,
@@ -908,6 +914,19 @@ export default function ENSDetails({
                   </div>
                 )}
               </div>
+            </div>
+          )}
+
+          {currentHistoryName && (
+            <div className="mt-8">
+              <NameHistorySection
+                currentName={currentHistoryName}
+                history={metadataHistory}
+                historyLoading={historyLoading}
+                historyError={historyError}
+                historyLimit={historyLimit}
+                variant="card"
+              />
             </div>
           )}
 

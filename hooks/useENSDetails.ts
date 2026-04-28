@@ -14,6 +14,7 @@ import { getENS, fetchOwnedDomains } from '@/utils/ens'
 import { useToast } from '@/hooks/use-toast'
 import type { ENSDomain, TextRecords, VerificationStatus } from '@/types'
 import type { PublicClient } from 'viem'
+import { useNameHistory } from '@/hooks/useNameHistory'
 
 interface UseENSDetailsProps {
   address: string
@@ -92,6 +93,17 @@ export function useENSDetails({
   const etherscanUrl = config?.ETHERSCAN_URL || 'https://etherscan.io/'
   const SOURCIFY_URL = 'https://repo.sourcify.dev/'
   const shouldUseWalletClient = isConnected && chainId === chain?.id
+  const currentHistoryName = queriedENSName || primaryName || selectedForwardName
+  const {
+    metadataHistory,
+    historyLoading,
+    historyError,
+    historyLimit,
+  } = useNameHistory({
+    chainId: effectiveChainId || CHAINS.MAINNET,
+    name: currentHistoryName,
+    enabled: Boolean(config?.SUBGRAPH_API),
+  })
 
   // ─── Data fetching callbacks ───────────────────────────────────────────────
 
@@ -813,10 +825,15 @@ export function useENSDetails({
     // Provider/config
     customProvider,
     effectiveChainId,
+    currentHistoryName,
     config,
     etherscanUrl,
     SOURCIFY_URL,
     shouldUseWalletClient,
+    metadataHistory,
+    historyLoading,
+    historyError,
+    historyLimit,
     // UI state
     implementationExpanded,
     setImplementationExpanded,
