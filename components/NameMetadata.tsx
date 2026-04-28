@@ -866,6 +866,14 @@ function getHistoryEventToneClasses(event: MetadataHistoryEvent) {
   }
 }
 
+function formatHistoryCountLabel(
+  count: number,
+  singular: string,
+  plural: string,
+) {
+  return `${count} ${count === 1 ? singular : plural}`
+}
+
 function MetadataHistoryItem({ event }: { event: MetadataHistoryEvent }) {
   const [isExpanded, setIsExpanded] = React.useState(false)
   const tone = getHistoryEventToneClasses(event)
@@ -971,19 +979,35 @@ function MetadataHistoryDisplay({
   const [isExpanded, setIsExpanded] = React.useState(false)
   const showInitialLoading = historyLoading && history.length === 0
   const showRefreshing = historyLoading && history.length > 0
+  const deletionCount = history.filter((event) =>
+    isDeletionHistoryEvent(event),
+  ).length
+  const positiveCount = history.length - deletionCount
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <button
         type="button"
         onClick={() => setIsExpanded((prev) => !prev)}
-        className="w-full flex items-start justify-between gap-3 text-left bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-4"
+        className="w-full flex items-start justify-between gap-3 text-left"
       >
-        <div>
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-            Name History
-          </h3>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+              Name History
+            </h3>
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-medium">
+              <span className="text-green-600 dark:text-green-400">
+                +
+                {formatHistoryCountLabel(positiveCount, 'change', 'changes')}
+              </span>
+              <span className="text-red-600 dark:text-red-400">
+                -
+                {formatHistoryCountLabel(deletionCount, 'deletion', 'deletions')}
+              </span>
+            </div>
+          </div>
+          <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
             Click to see the most recent {historyLimit} name changes for{' '}
             {currentName}.
           </p>
@@ -1002,7 +1026,7 @@ function MetadataHistoryDisplay({
       </button>
 
       {isExpanded && showInitialLoading && (
-        <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 space-y-3">
+        <div className="bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-4 space-y-3">
           <Skeleton className="h-5 w-1/3" />
           <Skeleton className="h-16 w-full" />
           <Skeleton className="h-16 w-full" />
@@ -1011,28 +1035,36 @@ function MetadataHistoryDisplay({
       )}
 
       {isExpanded && !historyLoading && historyError && (
-        <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-4">
+        <div className="bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-900/40 p-4">
           <p className="text-sm text-red-600 dark:text-red-400">
             {historyError}
           </p>
         </div>
       )}
 
-      {isExpanded && !historyLoading && !historyError && history.length === 0 && (
-        <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4">
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            No recent changes found for this name.
-          </p>
-        </div>
-      )}
+      {isExpanded &&
+        !historyLoading &&
+        !historyError &&
+        history.length === 0 && (
+          <div className="bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-4">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              No recent changes found for this name.
+            </p>
+          </div>
+        )}
 
-      {isExpanded && !historyLoading && !historyError && history.length > 0 && (
-        <div className="space-y-2">
-          {history.map((event) => (
-            <MetadataHistoryItem key={event.id} event={event} />
-          ))}
-        </div>
-      )}
+      {isExpanded &&
+        !historyLoading &&
+        !historyError &&
+        history.length > 0 && (
+          <div className="bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-4">
+            <div className="space-y-2">
+              {history.map((event) => (
+                <MetadataHistoryItem key={event.id} event={event} />
+              ))}
+            </div>
+          </div>
+        )}
     </div>
   )
 }
