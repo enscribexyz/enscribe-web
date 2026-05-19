@@ -254,37 +254,32 @@ export function useNameMetadata({ initialName }: UseNameMetadataProps) {
                   contentHash
                   texts
                   coinTypes
+                  events(first: 1000, orderBy: blockNumber, orderDirection: desc) {
+                    __typename
+                    ... on TextChanged {
+                      id
+                      key
+                      value
+                      blockNumber
+                    }
+                    ... on MulticoinAddrChanged {
+                      id
+                      coinType
+                      addr
+                      blockNumber
+                    }
+                    ... on InterfaceChanged {
+                      id
+                      interfaceID
+                      implementer
+                      blockNumber
+                    }
+                  }
                 }
                 ttl
                 isMigrated
                 createdAt
                 expiryDate
-              }
-
-              # Get resolver with all its events
-              resolvers(where: { domain: $id }) {
-                id
-                events(first: 1000, orderBy: blockNumber, orderDirection: desc) {
-                  __typename
-                  ... on TextChanged {
-                    id
-                    key
-                    value
-                    blockNumber
-                  }
-                  ... on MulticoinAddrChanged {
-                    id
-                    coinType
-                    addr
-                    blockNumber
-                  }
-                  ... on InterfaceChanged {
-                    id
-                    interfaceID
-                    implementer
-                    blockNumber
-                  }
-                }
               }
             }
           `,
@@ -318,28 +313,18 @@ export function useNameMetadata({ initialName }: UseNameMetadataProps) {
       metadata.createdAt = domain.createdAt
       metadata.expiryDate = domain.expiryDate
 
-      // Process all metadata events across all resolvers
+      // Process metadata events from the current resolver only
       const textRecordsMap = new Map<string, string>()
       const interfacesMap = new Map<string, string>()
       const coinAddressesMap = new Map<string, string>()
 
-      // Collect all events from all resolvers for this domain
-      const allEvents: any[] = []
-      if (data.data.resolvers) {
-        data.data.resolvers.forEach((resolver: any) => {
-          if (resolver.events) {
-            allEvents.push(...resolver.events)
-          }
-        })
-      }
-
-      // Sort all events by block number descending (most recent first)
-      const sortedEvents = allEvents.sort(
+      // Sort current resolver events by block number descending (most recent first)
+      const currentResolverEvents = [...(domain.resolver?.events || [])].sort(
         (a, b) => b.blockNumber - a.blockNumber,
       )
 
       // Process events
-      sortedEvents.forEach((event: any) => {
+      currentResolverEvents.forEach((event: any) => {
         if (event.__typename === 'TextChanged' && event.key) {
           if (!textRecordsMap.has(event.key)) {
             // Only add if value is not null and not empty string
@@ -373,8 +358,8 @@ export function useNameMetadata({ initialName }: UseNameMetadataProps) {
         if (domain.resolver.texts && Array.isArray(domain.resolver.texts)) {
           for (const textKey of domain.resolver.texts) {
             if (!textRecordsMap.has(textKey)) {
-              // Find the most recent TextChanged event for this key from all events
-              const textEvent = sortedEvents.find(
+              // Find the most recent TextChanged event for this key on the current resolver
+              const textEvent = currentResolverEvents.find(
                 (e: any) => e.__typename === 'TextChanged' && e.key === textKey,
               )
               if (
@@ -396,7 +381,7 @@ export function useNameMetadata({ initialName }: UseNameMetadataProps) {
           for (const coinType of domain.resolver.coinTypes) {
             const coinTypeStr = coinType.toString()
             if (!coinAddressesMap.has(coinTypeStr)) {
-              const coinEvent = sortedEvents.find(
+              const coinEvent = currentResolverEvents.find(
                 (e: any) =>
                   e.__typename === 'MulticoinAddrChanged' &&
                   e.coinType.toString() === coinTypeStr,
