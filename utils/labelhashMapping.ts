@@ -34,6 +34,16 @@ export const labelhashMap: Record<string, string> = {
     'donation-handler',
   '0x84cfcaac021d7e304d207228676da47ee7642e1ec0a20b23df4300d25e15d7ad':
     'retropgf',
+  '0xc8c7a728a789fd3f8c6d7b2939c59bf5f132539f4f28eeea97c6eedaa9bfcae2':
+    'klerosliquidextraviews',
+  '0xaf663939e18ba27f297c0a383cc492e1830a1938669dcdedd79be82af7fa6a29':
+    'transactionbatcher',
+  '0xb515bba4772222be6ad745a3852d294a455c81982ed15e5a16239e651043ea55':
+    'beaconrng',
+  '0x25b07817d48791886bac992d95c03bedf8dfe743f0ee5d030096e87cbf4a9f51':
+    'klerosliquid',
+  '0xcb4f50b006c8a9f0eab30cecfe85a21fab78afe4981ac06f7ff8062496d55e74':
+    'chainlink-vrf',
 }
 
 /**
@@ -42,12 +52,10 @@ export const labelhashMap: Record<string, string> = {
  * @returns The healed label if found, otherwise the original labelhash
  */
 export function healLabelhash(labelhash: string): string {
-
   // Normalize the labelhash by ensuring it has 0x prefix
   const normalizedHash = labelhash.startsWith('0x')
     ? labelhash
     : `0x${labelhash}`
-
 
   // Look up in the mapping
   const healedLabel = labelhashMap[normalizedHash.toLowerCase()]
