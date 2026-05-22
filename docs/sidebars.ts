@@ -19,6 +19,18 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'category',
+      label: 'Using Platform',
+      items: [
+        {type: 'doc', id: 'platform/index', label: 'Overview'},
+        {type: 'doc', id: 'platform/creating-organizations', label: 'Creating organizations'},
+        {type: 'doc', id: 'platform/onboarding-namespaces', label: 'Onboarding namespaces'},
+        {type: 'doc', id: 'platform/adding-contracts-and-addresses', label: 'Adding contracts and addresses'},
+        {type: 'doc', id: 'platform/managing-names', label: 'Managing names'},
+        {type: 'doc', id: 'platform/viewing-activity', label: 'Viewing activity'},
+      ],
+    },
+    {
+      type: 'category',
       label: 'Concepts',
       items: [
         {type: 'doc', id: 'introduction/overview', label: 'Overview'},

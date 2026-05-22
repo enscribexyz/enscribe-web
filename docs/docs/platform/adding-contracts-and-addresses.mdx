@@ -1,0 +1,58 @@
+---
+description: Add contracts, wallets, and Safe wallets to a namespace in Platform.
+keywords:
+  - add contract
+  - add wallet
+  - namespace inventory
+sidebar_position: 3
+---
+
+# Adding contracts and addresses
+
+Once a namespace is live, the **Contracts and Wallets** page becomes the working inventory for that namespace. This is where you add addresses that your team wants to track and name.
+
+## What you can add
+
+Platform supports three address types:
+
+- contracts,
+- wallets, and
+- Safe wallets.
+
+When you paste an address into the add dialog, Platform detects the address type automatically before submission.
+
+## Add an address
+
+1. Open the namespace.
+2. Go to **Contracts and Wallets**.
+3. Click **Add Address**.
+4. Paste a `0x...` address.
+5. Confirm once Platform detects the address type.
+
+After the address is saved, Platform tries to resolve ENS names for it.
+
+## What Platform shows after import
+
+The contracts table includes:
+
+- the address,
+- the detected type,
+- ENS names already found for that address,
+- naming status, and
+- the date the address was added.
+
+If Platform finds names under your organization's namespace, it surfaces them directly in the table. If it finds names outside your namespace, it notes that separately during resolution.
+
+## Sync behavior
+
+Platform also runs a background sync against the namespace so the inventory can pick up addresses and naming state discovered onchain.
+
+That means the table is not only a manual input list. It also reflects namespace state that Platform can reconcile from ENS.
+
+## Search and filtering
+
+Use the search box to find entries by:
+
+- address,
+- stored ENS name, or
+- resolved ENS names discovered under the namespace.

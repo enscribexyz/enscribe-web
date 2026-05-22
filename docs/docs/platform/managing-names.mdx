@@ -1,0 +1,58 @@
+---
+description: Manage subnames and ENS records inside a namespace from Platform.
+keywords:
+  - manage subnames
+  - ens records
+  - namespace tree
+sidebar_position: 4
+---
+
+# Managing names
+
+The **Name Management** view is where Platform turns a namespace into an editable ENS tree. From here, your team can create subnames, delete subnames, and update ENS records.
+
+## What you can manage
+
+Inside a namespace, Platform supports:
+
+- creating subnames under the namespace,
+- deleting existing subnames,
+- editing text records,
+- editing address records for different coin types, and
+- updating the content hash.
+
+## How editing works
+
+Platform stages changes before sending them onchain.
+
+The workflow is:
+
+1. Select a name in the namespace tree.
+2. Stage subname or record changes.
+3. Review the full change set in the staging panel.
+4. Confirm the transaction flow.
+
+This review step is useful when you are batching several record edits into one pass.
+
+## Access and permission checks
+
+Before Platform can write changes, it checks whether Enscribe has the right level of control over the selected name.
+
+Depending on the name state, Platform may ask you to:
+
+- connect a wallet,
+- switch to the correct chain,
+- unwrap the name first, or
+- transfer manager access to the configured Enscribe target.
+
+For Safe-managed namespaces, the target is the namespace Safe. For direct Enscribe mode, the target is the Enscribe-managed address.
+
+## Important behavior to know
+
+- Platform only allows edits within the current namespace.
+- Read-only organization roles can view this page, but they cannot submit write actions.
+- If a name is wrapped and cannot be unwrapped because of fuse settings, Platform blocks the write path and explains why.
+
+## Related settings
+
+If you need to inspect manager mode, copy the namespace namehash, review Safe signer setup, or create namespace-scoped API keys, open **Namespace Settings** from the same workspace.

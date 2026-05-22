@@ -1,0 +1,67 @@
+---
+description: Import an ENS name into Platform and set up namespace management for your organization.
+keywords:
+  - onboarding namespace
+  - import ens name
+  - ens manager access
+sidebar_position: 2
+---
+
+# Onboarding namespaces
+
+Each namespace in Platform is backed by a single ENS name. During onboarding, Platform imports that name into your organization and sets up how Enscribe will manage it.
+
+## Namespace onboarding flow
+
+Platform walks you through five steps:
+
+1. Select network.
+2. Import name.
+3. Choose a manager method.
+4. Transfer manager access.
+5. Invite team members.
+
+## Select network
+
+Platform stores mainnet and testnet onboarding separately.
+
+- **Testnet** is available for setup today.
+- **Mainnet** appears in the selector, but is currently marked unavailable.
+
+If your wallet is connected, Platform tries to switch it to the right network during setup.
+
+## Import name
+
+Platform reads ENS second-level domains owned by your connected wallet and lets you choose one as the namespace.
+
+- You can only select one ENS name per namespace.
+- Names already imported into the same organization are excluded from the picker.
+- If you do not see a name yet, you can refresh the list.
+
+Platform also includes a DNS import helper for teams bringing a DNS domain into ENS. The UI links out to ENS Manager and explains the DNSSEC and TXT record steps needed before the imported name appears.
+
+## Choose a manager method
+
+Platform currently shows three manager modes:
+
+- **Safe Multisig**: Deploy a new Safe that holds manager rights. Enscribe is always one of the required signers.
+- **Enscribe**: Transfer manager access directly to the Enscribe-managed address.
+- **Enscribe Smart Session**: Shown in the UI as coming soon.
+
+Use Safe Multisig when your team wants multisig approvals around naming and record updates. Use Enscribe when you want the shortest setup path.
+
+## Transfer manager access
+
+After you choose a manager mode, Platform asks the connected wallet to hand control of the ENS name to the selected target.
+
+Depending on the name state, Platform may:
+
+- check the current ENS manager,
+- ask you to unwrap a wrapped name first, or
+- submit an ENS `setOwner` transaction.
+
+If you are onboarding through a Safe flow, Platform waits for the Safe transaction to execute before continuing.
+
+## Invite teammates
+
+The last step lets you invite members by email. This step is optional. You can skip it and invite people later from **Org Management**.
