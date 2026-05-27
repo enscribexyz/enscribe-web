@@ -7,12 +7,12 @@ const sidebars: SidebarsConfig = {
       type: 'category',
       label: 'Using Enscribe',
       items: [
-        {type: 'doc', id: 'platform/index', label: 'Overview'},
-        {type: 'doc', id: 'platform/creating-organizations', label: 'Creating organizations'},
-        {type: 'doc', id: 'platform/onboarding-namespaces', label: 'Onboarding namespaces'},
-        {type: 'doc', id: 'platform/adding-contracts-and-addresses', label: 'Adding contracts and addresses'},
-        {type: 'doc', id: 'platform/managing-names', label: 'Managing names'},
-        {type: 'doc', id: 'platform/viewing-activity', label: 'Viewing activity'},
+        {type: 'doc', id: 'enscribe/index', label: 'Overview'},
+        {type: 'doc', id: 'enscribe/creating-organizations', label: 'Creating organizations'},
+        {type: 'doc', id: 'enscribe/onboarding-namespaces', label: 'Onboarding namespaces'},
+        {type: 'doc', id: 'enscribe/adding-contracts-and-addresses', label: 'Adding contracts and addresses'},
+        {type: 'doc', id: 'enscribe/managing-names', label: 'Managing names'},
+        {type: 'doc', id: 'enscribe/viewing-activity', label: 'Viewing activity'},
         {
           type: 'category',
           label: 'Enscribe Explorer',
