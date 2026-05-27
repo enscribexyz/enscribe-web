@@ -67,111 +67,11 @@ function LatestPostsCarousel({ limit = 6 }) {
   )
 }
 
-/* ─── Pricing card ─── */
-function PricingCard({ name, price, period, tag, features, cta, ctaLink, highlight, badge, status }) {
-  const isPrice = price.startsWith("$") || price === "Custom"
-  return (
-    <div className={`relative rounded-2xl border p-7 flex flex-col transition-all duration-300 hover:translate-y-[-2px] ${highlight ? "border-cyan-500/40 bg-cyan-500/[0.04] shadow-lg shadow-cyan-500/5" : "border-slate-800 bg-slate-900/40 hover:border-slate-700"}`}>
-      {badge && (<div className="absolute -top-3 left-1/2 -translate-x-1/2"><span className="px-3 py-1 rounded-full text-xs font-semibold bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg shadow-cyan-500/20">{badge}</span></div>)}
-      <h3 className="text-lg font-semibold text-white">{name}</h3>
-      <p className="text-xs text-slate-500 mt-0.5 mb-5">{tag}</p>
-      <div className="mb-6 min-h-[48px] flex items-end">
-        {isPrice ? (
-          <><span className="text-4xl font-bold text-white">{price}</span>{period && <span className="text-slate-500 text-sm ml-1 mb-1">/{period}</span>}</>
-        ) : (
-          <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold border ${highlight ? "bg-cyan-500/10 text-cyan-400 border-cyan-500/25" : "bg-slate-800/80 text-slate-300 border-slate-700/60"}`}>
-            <span className={`w-1.5 h-1.5 rounded-full ${highlight ? "bg-cyan-400 animate-pulse" : "bg-slate-500"}`} />
-            {price}
-          </span>
-        )}
-      </div>
-      <ul className="space-y-2.5 mb-7 flex-1">
-        {features.map((f, i) => (<li key={i} className="flex items-start gap-2 text-[13px]"><HiCheck className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" /><span className="text-slate-400">{f}</span></li>))}
-      </ul>
-      <Link to={ctaLink} className={`w-full text-center py-3 rounded-lg text-sm font-semibold transition-all ${highlight ? "button-primary" : "text-slate-300 border border-slate-700 hover:border-slate-500 hover:text-white"}`}>{cta}</Link>
-    </div>
-  )
-}
-
-
 /* ═══════════════════════════════════ */
 /*  LANDING PAGE                      */
 /* ═══════════════════════════════════ */
 
-/* ─── Free tier card with inline waitlist form ─── */
-function FreePricingCard({ formspreeUrl }) {
-  const [showForm, setShowForm] = useState(false)
-  const [email, setEmail] = useState("")
-  const [project, setProject] = useState("")
-  const [status, setStatus] = useState("idle") // idle | submitting | success | error
-
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    if (!email) return
-    setStatus("submitting")
-    try {
-      const res = await fetch(formspreeUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ email, project: project || undefined, _subject: "Waitlist signup (Free)" }),
-      })
-      setStatus(res.ok ? "success" : "error")
-    } catch {
-      setStatus("error")
-    }
-  }
-
-  return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-7 flex flex-col hover:border-slate-700 transition-all duration-300 hover:translate-y-[-2px]">
-      <h3 className="text-lg font-semibold text-white">Free</h3>
-      <p className="text-xs text-slate-500 mt-0.5 mb-5">For individuals</p>
-      <div className="mb-6"><span className="text-4xl font-bold text-white">$0</span><span className="text-slate-500 text-sm ml-1">/mo</span></div>
-      <ul className="space-y-2.5 mb-7 flex-1">
-        {["1 user, 1 namespace","Basic name management","7-day activity log","Expiry notifications","Community support"].map((f, i) => (
-          <li key={i} className="flex items-start gap-2 text-[13px]"><HiCheck className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" /><span className="text-slate-400">{f}</span></li>
-        ))}
-      </ul>
-
-      {status === "success" ? (
-        <div className="w-full text-center py-3 rounded-lg text-sm font-medium text-emerald-400 border border-emerald-500/20 bg-emerald-500/5">
-          You're on the list — we'll be in touch ✓
-        </div>
-      ) : !showForm ? (
-        <button onClick={() => setShowForm(true)} className="w-full text-center py-3 rounded-lg text-sm font-semibold text-slate-300 border border-slate-700 hover:border-slate-500 hover:text-white transition-all">Join the Waitlist</button>
-      ) : (
-        <form onSubmit={handleSubmit} className="space-y-2.5" onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); setShowForm(false); setEmail(""); setProject(""); setStatus("idle") } }}>
-          <input
-            type="email"
-            required
-            placeholder="you@example.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full px-3 py-2.5 rounded-lg bg-slate-800/80 border border-slate-700 text-white text-sm placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-cyan-500/40 focus:border-cyan-500/40"
-          />
-          <input
-            type="text"
-            placeholder="What's your project? (optional)"
-            value={project}
-            onChange={(e) => setProject(e.target.value)}
-            className="w-full px-3 py-2.5 rounded-lg bg-slate-800/80 border border-slate-700 text-white text-sm placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-cyan-500/40 focus:border-cyan-500/40"
-          />
-          <button
-            type="submit"
-            disabled={status === "submitting"}
-            className={`w-full text-center py-2.5 rounded-lg text-sm font-semibold transition-all disabled:opacity-50 ${/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? "bg-cyan-500 text-white hover:bg-cyan-400" : "bg-slate-700 text-slate-400 cursor-default"}`}
-          >
-            {status === "submitting" ? "Joining…" : "Join the Waitlist"}
-          </button>
-          {status === "error" && (
-            <p className="text-xs text-red-400" style={{ textAlign: "center" }}>Something went wrong — try again or email us at <a href="mailto:hi@enscribe.xyz" className="underline">hi@enscribe.xyz</a></p>
-          )}
-        </form>
-      )}
-    </div>
-  )
-}
-
-/* ─── Early access modal ─── */
+/* ─── Contact modal ─── */
 function EarlyAccessModal({ isOpen, onClose, formspreeUrl, onSuccess }) {
   const [name, setName] = useState("")
   const [protocol, setProtocol] = useState("")
@@ -199,7 +99,7 @@ function EarlyAccessModal({ isOpen, onClose, formspreeUrl, onSuccess }) {
       const res = await fetch(formspreeUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ name, protocol, deployed, email, _subject: "Early Access Application" }),
+        body: JSON.stringify({ name, protocol, deployed, email, _subject: "Website contact request" }),
       })
       if (res.ok) { setStatus("success"); onSuccess?.() } else { setStatus("error") }
     } catch { setStatus("error") }
@@ -227,7 +127,7 @@ function EarlyAccessModal({ isOpen, onClose, formspreeUrl, onSuccess }) {
           </div>
         ) : (
           <>
-            <h3 className="text-lg font-semibold text-white mb-1">Apply for Early Access</h3>
+            <h3 className="text-lg font-semibold text-white mb-1">Talk to us</h3>
             <p className="text-xs text-slate-500 mb-6">Tell us about your project and we'll be in touch very soon.</p>
             <form onSubmit={handleSubmit} className="space-y-3">
               <input type="text" required placeholder="Your name" value={name} onChange={(e) => setName(e.target.value)} className="w-full px-3 py-2.5 rounded-lg bg-slate-800/80 border border-slate-700 text-white text-sm placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-cyan-500/40 focus:border-cyan-500/40" />
@@ -256,14 +156,12 @@ export default function EnscribeLandingPage() {
   const [hasApplied, setHasApplied] = useState(false)
 
   const openEarlyAccess = () => { if (!hasApplied) setShowEarlyAccess(true) }
-  const earlyAccessLabel = hasApplied ? "Applied ✓" : "Apply for Early Access"
+  const talkToUsLabel = hasApplied ? "Submitted ✓" : "Talk to us"
 
-  const app = customFields.platformUrl || "https://platform.enscribe.xyz"
-  const contact = customFields.calendarUrl
+  const app = "https://dashboard.enscribe.xyz/"
 
   const NAV = [
     { label: "Product", to: "#product" },
-    { label: "Pricing", to: "#pricing" },
     { label: "Docs", to: "/docs" },
     { label: "Blog", to: "/blog" },
   ]
@@ -292,7 +190,7 @@ export default function EnscribeLandingPage() {
 
   const ROADMAP = [
     ["Multi-user workspaces",1],["Record & metadata management",1],["Safe integration",1],["One-click execution",1],
-    ["API with scoped keys",1],["CLI with MCP",1],["DNSSEC import",1],["Activity log",1],
+    ["API with scoped keys",1],["CLI with MCP",1],["Activity log",1],["DNSSEC import",0],
     ["Smart account support",0],["Approval workflows",0],["Autorenewals",0],["Activity notifications",0],
     ["Custom roles & permissions",0],["ENSv2 support",0],["x402 support",0],
   ]
@@ -315,7 +213,7 @@ export default function EnscribeLandingPage() {
           <nav className="hidden md:flex items-center gap-1">{NAV.map(({ label, to }) => (<Link key={label} to={to} data-noBrokenLinkCheck={to.startsWith("#")} className="px-3 py-2 text-sm text-slate-400 hover:text-white transition-colors rounded-md">{label}</Link>))}</nav>
           <div className="hidden md:flex items-center gap-3">
             <Link to={customFields.appUrl} className="px-4 py-2 text-sm text-slate-500 hover:text-slate-300 transition-colors">Classic App</Link>
-            <button onClick={openEarlyAccess} disabled={hasApplied} className="button-primary rounded-lg text-sm disabled:opacity-60">{earlyAccessLabel}</button>
+            <Link to={app} target="_blank" rel="noopener noreferrer" className="button-primary rounded-lg text-sm">Launch App</Link>
           </div>
           <button onClick={() => setMenuOpen(!menuOpen)} className="md:hidden text-slate-400 hover:text-white" aria-label="Menu">{menuOpen ? <HiX className="h-6 w-6" /> : <HiMenu className="h-6 w-6" />}</button>
           {menuOpen && (
@@ -323,7 +221,7 @@ export default function EnscribeLandingPage() {
               {NAV.map(({ label, to }) => (<Link key={label} to={to} data-noBrokenLinkCheck={to.startsWith("#")} className="block text-lg font-medium text-slate-300 hover:text-cyan-400" onClick={() => setMenuOpen(false)}>{label}</Link>))}
               <div className="pt-4 flex flex-col gap-3">
                 <Link to={customFields.appUrl} className="text-center py-2.5 text-sm text-slate-500" onClick={() => setMenuOpen(false)}>Classic App</Link>
-                <button onClick={() => { setMenuOpen(false); openEarlyAccess() }} disabled={hasApplied} className="button-primary rounded-lg text-sm text-center w-full disabled:opacity-60">{earlyAccessLabel}</button>
+                <Link to={app} target="_blank" rel="noopener noreferrer" className="button-primary rounded-lg text-sm text-center" onClick={() => setMenuOpen(false)}>Launch App</Link>
               </div>
             </div>
           )}
@@ -349,8 +247,8 @@ export default function EnscribeLandingPage() {
                   Name and manage your contracts, wallets, and agents under one namespace. As a team.
                 </p>
                 <div className="flex flex-wrap gap-3">
-                  <button onClick={openEarlyAccess} disabled={hasApplied} className="button-primary rounded-lg disabled:opacity-60">{earlyAccessLabel} {!hasApplied && <HiArrowRight className="ml-2 w-4 h-4" />}</button>
-                  <Link to="#pricing" data-noBrokenLinkCheck className="inline-flex items-center justify-center px-6 py-3 rounded-lg text-sm font-semibold text-slate-300 border border-slate-700 hover:border-slate-600 hover:text-white transition-all gap-2">Join the Waitlist</Link>
+                  <Link to={app} target="_blank" rel="noopener noreferrer" className="button-primary rounded-lg">Launch App <HiArrowRight className="ml-2 w-4 h-4" /></Link>
+                  <button onClick={openEarlyAccess} disabled={hasApplied} className="inline-flex items-center justify-center px-6 py-3 rounded-lg text-sm font-semibold text-slate-300 border border-slate-700 hover:border-slate-600 hover:text-white transition-all gap-2 disabled:opacity-60">{talkToUsLabel}</button>
                 </div>
               </div>
 
@@ -520,40 +418,6 @@ export default function EnscribeLandingPage() {
           </div>
         </section>
 
-        {/* ── Pricing ── */}
-        <section id="pricing" className="py-20 md:py-28 border-t border-white/5">
-          <div className="container mx-auto px-4 md:px-6">
-            <div className="text-center mb-14">
-              <p className="text-sm font-medium tracking-widest text-cyan-400 uppercase mb-3">Pricing</p>
-              <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-white mb-4">Start free. Scale with your team.</h2>
-              <p className="text-slate-500">Unlimited viewers on every plan.</p>
-            </div>
-            <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
-              {/* Free */}
-              <FreePricingCard formspreeUrl={customFields.formspreeWaitlistUrl} />
-
-              {/* Teams */}
-              <div className="rounded-2xl border border-cyan-500/40 bg-cyan-500/[0.04] shadow-lg shadow-cyan-500/5 p-7 flex flex-col transition-all duration-300 hover:translate-y-[-2px] relative">
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2"><span className="px-3 py-1 rounded-full text-xs font-semibold bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg shadow-cyan-500/20">Early Access</span></div>
-                <h3 className="text-lg font-semibold text-white">Teams</h3>
-                <p className="text-xs text-slate-500 mt-0.5 mb-5">For teams and organisations</p>
-                <div className="mb-6 flex items-end min-h-[48px]">
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold bg-cyan-500/10 text-cyan-400 border border-cyan-500/25">
-                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-                    Limited spots available
-                  </span>
-                </div>
-                <ul className="space-y-2.5 mb-7 flex-1">
-                  {["Multiple users & namespaces","Full name & metadata management","API access with scoped keys","CLI with MCP & agentic access","Activity log & notifications","Safe & multisig support","Dedicated support","Batch operations"].map((f, i) => (
-                    <li key={i} className="flex items-start gap-2 text-[13px]"><HiCheck className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" /><span className="text-slate-400">{f}</span></li>
-                  ))}
-                </ul>
-                <button onClick={openEarlyAccess} disabled={hasApplied} className="button-primary w-full text-center py-3 rounded-lg text-sm font-semibold transition-all disabled:opacity-60">{earlyAccessLabel}</button>
-              </div>
-            </div>
-          </div>
-        </section>
-
         {/* ── Roadmap ── */}
         <section className="py-20 md:py-28 border-t border-white/5">
           <div className="container mx-auto px-4 md:px-6">
@@ -572,20 +436,6 @@ export default function EnscribeLandingPage() {
             <div className="flex justify-center gap-6 mt-8 text-xs text-slate-600">
               <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400/50" /> Live</span>
               <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-slate-700" /> Coming soon</span>
-            </div>
-          </div>
-        </section>
-
-        {/* ── Early access ── */}
-        <section className="py-20 md:py-28 border-t border-white/5">
-          <div className="container mx-auto px-4 md:px-6">
-            <div className="max-w-3xl mx-auto rounded-2xl bg-slate-900/60 p-8 md:p-12 text-center relative overflow-hidden" style={{ border: "1px solid rgba(51, 65, 85, 0.4)", boxShadow: "none" }}>
-              <div className="absolute inset-0" style={{ background: "linear-gradient(135deg, rgba(6,182,212,0.04), transparent, rgba(59,130,246,0.04))" }} />
-              <div className="relative">
-                <h2 className="text-2xl md:text-3xl font-bold text-white mb-3">Early access for teams</h2>
-                <p className="text-slate-400 text-sm mb-6" style={{ textAlign: "center" }}>Namespace audit, hands-on setup, and early-access pricing. Limited spots.</p>
-                <button onClick={openEarlyAccess} disabled={hasApplied} className="button-primary rounded-lg disabled:opacity-60">{earlyAccessLabel} {!hasApplied && <HiArrowRight className="ml-2 w-4 h-4" />}</button>
-              </div>
             </div>
           </div>
         </section>
@@ -625,17 +475,17 @@ export default function EnscribeLandingPage() {
               Give your project{" "}
               <span className="bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">a real identity</span>
             </h2>
-            <p className="text-slate-500 text-lg mb-8">Free to start. No credit card.</p>
+            <p className="text-slate-500 text-lg mb-8">Start free. Talk to us when you're scaling up.</p>
             <div className="flex justify-center gap-4">
-              <button onClick={openEarlyAccess} disabled={hasApplied} className="button-primary rounded-lg text-base px-8 py-3.5 disabled:opacity-60">{earlyAccessLabel} {!hasApplied && <HiArrowRight className="ml-2 w-4 h-4" />}</button>
-              <Link to="#pricing" data-noBrokenLinkCheck className="inline-flex items-center px-6 py-3.5 rounded-lg text-sm font-semibold text-slate-400 border border-slate-700 hover:border-slate-600 hover:text-white transition-all">Join the Waitlist</Link>
+              <Link to={app} target="_blank" rel="noopener noreferrer" className="button-primary rounded-lg text-base px-8 py-3.5">Launch App <HiArrowRight className="ml-2 w-4 h-4" /></Link>
+              <button onClick={openEarlyAccess} disabled={hasApplied} className="inline-flex items-center px-6 py-3.5 rounded-lg text-sm font-semibold text-slate-400 border border-slate-700 hover:border-slate-600 hover:text-white transition-all disabled:opacity-60">{talkToUsLabel}</button>
             </div>
           </div>
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] bg-cyan-500/[0.04] rounded-full blur-3xl pointer-events-none" />
         </section>
       </main>
 
-      {/* ── Early Access Modal ── */}
+      {/* ── Contact Modal ── */}
       <EarlyAccessModal
         isOpen={showEarlyAccess}
         onClose={() => setShowEarlyAccess(false)}
