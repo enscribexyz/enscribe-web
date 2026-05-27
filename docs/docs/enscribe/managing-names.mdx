@@ -27,25 +27,18 @@ Enscribe stages changes before sending them onchain.
 
 The workflow is:
 
-1. Select a name in the namespace tree.
-2. Stage subname or record changes.
-3. Review the full change set in the staging panel.
-4. Confirm the transaction flow.
-
+1. Hover mouse over a name in the namespace tree and click on the + button
+![plus](/img/enscribe-namemgmt-plusbutton.png)
+2. Enter the subname and click on the check button
+![addname](/img/enscribe-namemgmt-addname.png)
+3. Added name will now be staged. 
+![stage](/img/enscribe-namemgmt-stage.png)
+3. Click on the Review Changes button to review the changes in the staging panel
+![review](/img/enscribe-namemgmt-review.png)
 This review step is useful when you are batching several record edits into one pass.
-
-## Access and permission checks
-
-Before Enscribe can write changes, it checks whether Enscribe has the right level of control over the selected name.
-
-Depending on the name state, Enscribe may ask you to:
-
-- connect a wallet,
-- switch to the correct chain,
-- unwrap the name first, or
-- transfer manager access to the configured Enscribe target.
-
-For Safe-managed namespaces, the target is the namespace Safe. For direct Enscribe mode, the target is the Enscribe-managed address.
+4. Click on the Confirm & Execute button to submit the transaction
+5. You will be automatically redirected to the Activity page
+![activity](/img/enscribe-activity.png)
 
 ## Important behavior to know
 
