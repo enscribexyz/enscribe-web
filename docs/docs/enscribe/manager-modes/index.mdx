@@ -1,0 +1,34 @@
+---
+description: Learn what manager modes are in Enscribe and when to use Safe, Enscribe, or Smart Session.
+keywords:
+  - manager modes
+  - enscribe manager modes
+  - namespace manager
+  - ens management
+sidebar_position: 1
+---
+
+# Overview
+
+import DocCardList from '@theme/DocCardList';
+import {useCurrentSidebarCategory} from '@docusaurus/theme-common';
+
+Manager mode is the control model Enscribe uses for a namespace.
+
+When you onboard a namespace, you choose how manager access should be held and how write actions should flow. This choice affects who controls the ENS name and how your team approves updates such as subname creation and record changes.
+
+## Available manager modes
+
+Enscribe currently shows three manager modes:
+
+- **Safe** for teams that want multisig approvals around namespace writes.
+- **Enscribe** for teams that want a more direct managed setup.
+- **Smart Session** for a future mode that is not available yet.
+
+Use the pages below to compare how each mode works.
+
+<DocCardList
+  items={useCurrentSidebarCategory().items.filter(
+    (item) => item.label?.toLowerCase() !== 'overview',
+  )}
+/>
