@@ -1,36 +1,65 @@
 ---
 sidebar_position: 1
-description: Enscribe helps teams name smart contracts with ENS, attach metadata, and make contract identity verifiable across onchain interfaces.
+description: Enscribe is a team workspace for managing ENS-backed namespaces, records, addresses, and naming operations from one place.
 keywords:
   - what is enscribe
-  - ens smart contracts
-  - contract naming
+  - enscribe platform
+  - ens workspace
+  - namespace management
   - onchain identity
-  - contract metadata
+  - ens records
 ---
 
 # What is Enscribe?
 
-Enscribe is infrastructure for smart contract identity on ENS.
+Enscribe is a team workspace for managing ENS-backed identity.
 
-It helps teams:
-- Name new contracts at deployment time
-- Name existing contracts after deployment
-- Add and inspect contract metadata and verification context
-- Explore contract and account identity across multiple chains
+It gives an organization one place to manage a namespace, add contracts and wallets, create subnames, update ENS records, and track what changed.
+
+## How Enscribe is organized
+
+Enscribe is built around two core concepts:
+
+- An **organization** is your team workspace.
+- A **namespace** is one ENS name managed inside that workspace.
+
+Each namespace has its own inventory, name management view, activity feed, settings, and API keys.
+
+## What teams use Enscribe for
+
+Teams use Enscribe to:
+
+- import an ENS name into a shared workspace,
+- add contracts, wallets, and Safe wallets to that namespace,
+- create subnames under the namespace,
+- update text records, address records, and content hashes,
+- stage several changes before submitting them onchain, and
+- review pending, completed, and failed operations from one activity log.
 
 ## Why Enscribe exists
 
-In many apps and wallets, contracts still appear as raw hex addresses. That creates operational and security risk because users and teams cannot quickly tell what a contract is.
+Managing ENS directly across separate tools can be hard to coordinate when several people share responsibility for the same namespace.
 
-Enscribe reduces that ambiguity by making ENS-based contract naming and metadata management practical in day-to-day workflows.
+One person may control the name, another may need to update records, and a third may need to review what happened later. If that work is spread across wallets, block explorers, and ad hoc notes, mistakes are easier to make and history is harder to follow.
 
-## What you can do in Enscribe
+Enscribe puts that workflow into one system. It adds shared organization access, namespace-level permissions, staged changes, and a clear record of operations.
 
-1. Deploy and name in one flow
-2. Name existing contracts with forward resolution and, when supported, primary names
-3. Browse named contracts and accounts in Explore mode
-4. Track contracts in deployment history
+## How Enscribe handles namespace control
+
+When a team onboards a namespace, Enscribe helps transfer management to a supported control model.
+
+Today, teams can choose:
+
+- **Safe Multisig**, when several signers should approve writes, or
+- **Enscribe**, when the team wants a direct managed setup.
+
+This makes it possible to run ENS updates as a team workflow instead of a single-wallet workflow.
+
+## Beyond manual editing
+
+Enscribe is not only a UI for clicking through record changes.
+
+Organizations and namespaces can also have API keys, which makes Enscribe useful for deployment pipelines, internal tools, and other systems that need programmatic access to namespace operations.
 
 ## Next concept
 

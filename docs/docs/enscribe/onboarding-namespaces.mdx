@@ -1,0 +1,88 @@
+---
+description: Import an ENS name into Enscribe and set up namespace management for your organization.
+keywords:
+  - onboarding namespace
+  - import ens name
+  - ens manager access
+sidebar_position: 2
+---
+
+# Onboarding namespaces
+
+Each namespace in Enscribe is backed by a single ENS name. During onboarding, Enscribe imports that name into your organization and sets up how Enscribe will manage it.
+
+![namespace example](/img/enscribe-namespace-landing.png)
+
+## Namespace onboarding flow
+
+Enscribe walks you through five steps:
+
+1. Select network (testnet for now; mainnet coming soon).
+2. Import name.
+3. Choose a manager method.
+4. Transfer manager access.
+5. Invite team members (optional).
+
+Start by clicking on **Add Namespace** in the top right corner of the page.
+
+## Select network
+
+Enscribe stores mainnet and testnet onboarding separately.
+
+- **Testnet** is available for setup today.
+- **Mainnet** appears in the selector, but is currently marked unavailable.
+
+![select network](/img/enscribe-namespace-select-network.png)
+
+## Import name
+
+Enscribe reads ENS second-level domains owned by your connected wallet and lets you choose one as the namespace.
+
+- You can only select one ENS name per namespace.
+- Names already imported into the same organization are excluded from the picker.
+- If you do not see a name yet, you can refresh the list.
+
+Enscribe also includes a DNS import helper for teams bringing a DNS domain into ENS. The UI links out to ENS Manager and explains the DNSSEC and TXT record steps needed before the imported name appears.
+
+![import name](/img/enscribe-namespace-select-name.png)
+
+## Choose a manager method
+
+Enscribe currently shows three manager modes:
+
+- [**Safe**](/docs/enscribe/manager-modes/safe): Deploy a new Safe that holds manager rights. Enscribe is one of the required signers.
+- [**Enscribe**](/docs/enscribe/manager-modes/enscribe): Transfer manager access directly to the Enscribe-managed address.
+- [**Smart Session**](/docs/enscribe/manager-modes/smart-session): Shown in the UI as coming soon.
+
+Use Safe Multisig when your team wants multisig approvals around naming and record updates. Use Enscribe when you want the shortest setup path.
+
+![choose manager method](/img/enscribe-namespace-select-manager.png)
+
+## Transfer manager access
+
+After you choose a manager mode, Enscribe asks the connected wallet to hand control of the ENS name to the selected target.
+
+Depending on the name state, Enscribe may:
+
+- check the current ENS manager,
+- ask you to unwrap a wrapped name first, or
+- submit an ENS `setOwner` transaction.
+
+If you are onboarding through a Safe flow, Enscribe waits for the Safe transaction to execute before continuing.
+
+![transfer manager](/img/enscribe-namespace-transfer-manager.png)
+- After completing the transfer, you will see a success message:
+![transfer manager done](/img/enscribe-namespace-transfer-complete.png)
+
+## Invite teammates
+
+The last step lets you invite members by email. This step is optional. You can skip it and invite people later from **Org Management**.
+
+![invite team members](/img/enscribe-namespace-invite-member.png)
+
+Click on **Create Namespace** to complete the onboarding.
+
+Once the onboarding is complete, you will be redirected to the namespace page:
+![namespace page](/img/enscribe-namespace-landing.png)
+
+You can now start managing the namespace by creating subnames, updating records, and inviting team members.

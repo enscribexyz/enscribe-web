@@ -1,0 +1,47 @@
+---
+description: Use the Enscribe manager mode when you want a direct managed setup for a namespace.
+keywords:
+  - enscribe manager mode
+  - direct namespace management
+  - enscribe managed address
+  - ens namespace management
+sidebar_position: 2
+---
+
+# Enscribe
+
+Enscribe is the direct manager mode for teams that want the shortest setup path.
+
+In this mode, your namespace manager access is transferred to an Enscribe-managed address instead of a Safe. This gives the workspace a direct control path for supported ENS operations.
+
+## When to use Enscribe
+
+Choose Enscribe when:
+
+- your team wants to get started quickly,
+- you do not need multisig approvals for each write,
+- one shared managed setup is enough for the namespace, or
+- you want a simpler onboarding path than Safe.
+
+## How Enscribe works in onboarding
+
+During namespace onboarding:
+
+1. You choose **Enscribe** as the manager mode.
+2. Enscribe shows the target manager address it will use.
+3. The connected wallet transfers ENS manager control to that address.
+4. Once the transfer is complete, the namespace is ready for record and subname management in the workspace.
+
+After setup, your team can use Enscribe to stage changes, review them, and execute namespace updates from the platform.
+
+## What this mode is good at
+
+Enscribe is the most direct way to make a namespace operational inside the workspace.
+
+It is a good fit when speed and simplicity matter more than signer-by-signer approval. Teams can still work together inside the organization, but the manager control model is more direct than the [Safe](/docs/enscribe/manager-modes/safe) mode.
+
+## Tradeoffs
+
+This mode does not add a Safe approval layer around each namespace write.
+
+If your team needs shared signer approval for operational or governance reasons, use Safe instead.

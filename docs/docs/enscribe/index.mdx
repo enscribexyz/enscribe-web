@@ -1,0 +1,42 @@
+---
+description: Learn how the Enscribe dashboard organizes organizations, namespaces, addresses, names, and activity.
+keywords:
+  - enscribe
+  - enscribe dashboard
+  - namespace management
+  - ens operations
+sidebar_position: 3
+---
+
+# Overview
+
+import DocCardList from '@theme/DocCardList';
+import {useCurrentSidebarCategory} from '@docusaurus/theme-common';
+
+Enscribe is a team dashboard for managing ENS-backed namespaces. It adds an organization layer on top of naming workflows, so a team can onboard a namespace, import addresses, manage records, and review recent operations from one place.
+
+## How Enscribe is organized
+
+- An **organization** is your team workspace.
+- A **namespace** is one ENS name imported into that organization.
+- Each namespace has its own contract inventory, name management view, activity feed, settings, and API keys.
+
+## What you can do in Enscribe
+
+- Create an organization and invite teammates.
+- Import an ENS name into the organization as a namespace.
+- Add contracts, wallets, and Safe wallets to that namespace.
+- Create subnames and update ENS records.
+- Track pending, confirmed, failed, and multisig-backed naming operations.
+
+## Before you start
+
+- You need to sign in before you can access the team dashboard.
+- Namespace onboarding currently supports **testnet** first. Mainnet onboarding is present in the UI, but marked unavailable.
+- To onboard a namespace, your wallet must control the ENS name you want to import.
+
+<DocCardList
+  items={useCurrentSidebarCategory().items.filter(
+    (item) => item.label?.toLowerCase() !== 'overview',
+  )}
+/>

@@ -1,0 +1,50 @@
+---
+description: Use Safe manager mode in Enscribe when ENS updates should follow a multisig approval flow.
+keywords:
+  - safe manager mode
+  - enscribe safe
+  - safe multisig
+  - ens namespace management
+sidebar_position: 1
+---
+
+# Safe
+
+Safe is the manager mode for teams that want ENS updates to go through a multisig approval flow.
+
+In this mode, Enscribe deploys a new Safe that becomes the manager for the namespace. Enscribe is one of the required signers, and the rest of the signer set comes from your team setup.
+
+## When to use Safe
+
+Choose Safe when:
+
+- several people should approve namespace changes,
+- your team already uses Safe for operational control,
+- you want a clear signer-based approval flow for ENS updates, or
+- you need a shared control model instead of a single managed address.
+
+## How Safe works in Enscribe
+
+During namespace onboarding, Enscribe can set up a Safe-based manager flow:
+
+1. You choose **Safe Multisig** as the manager mode.
+2. Enscribe prepares the Safe manager setup.
+3. The connected wallet transfers ENS manager control to that Safe.
+4. Future write actions, such as subname creation or record updates, follow the Safe approval and execution flow.
+
+After that, Enscribe keeps the namespace connected to Safe transaction state so the activity log can show pending approvals, executed transactions, and reconciled operations.
+
+## What this changes for day-to-day use
+
+With Safe as the manager:
+
+- writes do not rely on one person holding the namespace alone,
+- approvals can be shared across multiple signers,
+- the activity log can reflect Safe transaction hashes and signature progress, and
+- namespace changes fit more naturally into team governance.
+
+## Tradeoffs
+
+Safe adds review and coordination, which is helpful for control, but slower than a direct managed setup.
+
+If your team wants the shortest path to getting a namespace active, the [Enscribe](/docs/enscribe/manager-modes/enscribe) mode may be a better fit.
