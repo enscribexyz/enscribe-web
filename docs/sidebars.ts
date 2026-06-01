@@ -5,7 +5,7 @@ const sidebars: SidebarsConfig = {
     {type: 'doc', id: 'introduction/index', label: 'Quick Start'},
     {
       type: 'category',
-      label: 'Using Enscribe',
+      label: 'Enscribe',
       items: [
         {type: 'doc', id: 'enscribe/index', label: 'Overview'},
         {type: 'doc', id: 'enscribe/creating-organizations', label: 'Creating organizations'},
@@ -23,6 +23,12 @@ const sidebars: SidebarsConfig = {
         {type: 'doc', id: 'enscribe/adding-contracts-and-addresses', label: 'Adding contracts and addresses'},
         {type: 'doc', id: 'enscribe/managing-names', label: 'Managing names'},
         {type: 'doc', id: 'enscribe/viewing-activity', label: 'Viewing activity'},
+      ],
+    },
+    {
+      type: 'category',
+      label: 'Classic App',
+      items: [
         {
           type: 'category',
           label: 'Enscribe Explorer',
@@ -37,51 +43,51 @@ const sidebars: SidebarsConfig = {
             'getting-started/using-safe-wallet',
           ],
         },
+        {
+          type: 'category',
+          label: 'Concepts',
+          items: [
+            {type: 'doc', id: 'introduction/overview', label: 'Overview'},
+            'introduction/what-is-enscribe',
+            'introduction/what-is-ens',
+            'introduction/naming-contracts',
+            'introduction/contract-metadata',
+            'introduction/supported-networks',
+          ],
+        },
+        {
+          type: 'category',
+          label: 'Reference',
+          items: [
+            {type: 'doc', id: 'reference/index', label: 'Overview'},
+            'getting-started/bytcode-abi',
+            'getting-started/opearator-role',
+          ],
+        },
+        {
+          type: 'category',
+          label: 'Advanced',
+          items: [
+            {type: 'doc', id: 'advanced/index', label: 'Overview'},
+            'advanced/ens-terms',
+            'advanced/l1-l2-chains',
+            'advanced/design-architecture',
+          ],
+        },
+        {
+          type: 'category',
+          label: 'Developer tools',
+          items: [
+            {type: 'doc', id: 'dev-tools/index', label: 'Overview'},
+            'dev-tools/enscribe-ts',
+            'dev-tools/hardhat-enscribe',
+            'dev-tools/enscribe-sol',
+          ],
+        },
+        {type: 'link', label: 'API', href: '/api/enscribe-api'},
+        {type: 'doc', id: 'faqs', label: 'FAQs'},
       ],
     },
-    {
-      type: 'category',
-      label: 'Concepts',
-      items: [
-        {type: 'doc', id: 'introduction/overview', label: 'Overview'},
-        'introduction/what-is-enscribe',
-        'introduction/what-is-ens',
-        'introduction/naming-contracts',
-        'introduction/contract-metadata',
-        'introduction/supported-networks',
-      ],
-    },
-    {
-      type: 'category',
-      label: 'Reference',
-      items: [
-        {type: 'doc', id: 'reference/index', label: 'Overview'},
-        'getting-started/bytcode-abi',
-        'getting-started/opearator-role',
-      ],
-    },
-    {
-      type: 'category',
-      label: 'Advanced',
-      items: [
-        {type: 'doc', id: 'advanced/index', label: 'Overview'},
-        'advanced/ens-terms',
-        'advanced/l1-l2-chains',
-        'advanced/design-architecture',
-      ],
-    },
-    {
-      type: 'category',
-      label: 'Developer tools',
-      items: [
-        {type: 'doc', id: 'dev-tools/index', label: 'Overview'},
-        'dev-tools/enscribe-ts',
-        'dev-tools/hardhat-enscribe',
-        'dev-tools/enscribe-sol',
-      ],
-    },
-    {type: 'link', label: 'API', href: '/api/enscribe-api'},
-    {type: 'doc', id: 'faqs', label: 'FAQs'},
     {type: 'doc', id: 'brand', label: 'Brand'},
   ],
 };
