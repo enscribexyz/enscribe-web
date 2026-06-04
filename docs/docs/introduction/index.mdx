@@ -15,23 +15,90 @@ keywords:
 
 import AppUrl from '@site/src/components/AppUrl';
 
-- [Sign up](https://dashboard.enscribe.xyz)
-- Follow [Creating Organizations](/docs/enscribe/creating-organizations)
+### 1. Sign up or sign in
 
-![enscribe-platform-landing](/img/enscribe-platform-landing.png)
+If you do not have an account yet, sign up at [dashboard.enscribe.xyz](https://dashboard.enscribe.xyz). If you already have an account, sign in and continue into your workspace.
 
-![enscribe-namespace-landing](/img/enscribe-namespace-landing.png)
+![sign in](/img/enscribe-sign-in.png)
 
+### 2. Create your organization
 
-## Learn the concepts
+If this is your first time in Enscribe, create your organization. Enter the organization name, submit the form, and wait for Enscribe to route you into namespace onboarding.
 
-- [What is Enscribe](/docs/introduction/what-is-enscribe)
-- [What is ENS](/docs/introduction/what-is-ens)
-- [Naming smart contracts](/docs/introduction/naming-contracts)
-- [Supported networks](/docs/introduction/supported-networks)
+![create org](/img/enscribe-create-org.png)
 
-## Continue with implementation guides
+### 3. Confirm the active workspace
 
-- [Using Enscribe Explorer](/docs/getting-started)
-- [Using the team dashboard](/docs/enscribe)
-- [Reference pages](/docs/getting-started/bytcode-abi)
+If you already belong to an organization, sign in and switch into the correct workspace if needed. Use the organization selector when you need to confirm you are working in the right organization before onboarding a namespace.
+
+![create organization](/img/enscribe-org-create.png)
+
+### 4. Start namespace onboarding
+
+Click **Add Namespace** from the organization workspace to begin importing the ENS name you want the team to manage.
+
+![add namespace](/img/enscribe-namespace-add.png)
+
+### 5. Select the network
+
+Select the network for the namespace. Testnet setup is available today, while mainnet still appears in the UI as unavailable.
+
+![select network](/img/enscribe-namespace-select-network.png)
+
+### 6. Import the ENS name
+
+Import the ENS name that will back the namespace. Enscribe reads eligible names from the connected wallet and lets you choose one name for that namespace.
+
+![import name](/img/enscribe-namespace-select-name.png)
+
+### 7. Choose the manager mode
+
+Choose the manager mode for the namespace. Use **Safe** when the team wants multisig approvals, or **Enscribe** when the team wants a more direct setup path. **Smart Session** appears in the UI as coming soon.
+
+![choose manager method](/img/enscribe-namespace-select-manager.png)
+
+### 8. Transfer manager access
+
+Transfer manager access to the selected target. Depending on the current state of the name, Enscribe may ask you to unwrap the name first or confirm the ownership transfer transaction.
+
+![transfer manager](/img/enscribe-namespace-transfer-manager.png)
+- After completing the transfer, you will see a success message:
+![transfer manager done](/img/enscribe-namespace-transfer-complete.png)
+
+### 9. Invite team members
+
+Invite team members if needed. This step is optional during onboarding, so you can skip it now and return later through [Org Management](/docs/enscribe/org-management).
+
+![invite team members](/img/enscribe-namespace-invite-member.png)
+
+### 10. Create the namespace
+
+Click **Create Namespace** to finish onboarding. After the setup completes, Enscribe routes you to the namespace page.
+
+![namespace page](/img/enscribe-namespace-landing.png)
+
+### 11. Open Name Management
+
+Open the **Name Management** view for that namespace. This is where Enscribe lets you create subnames and stage ENS record changes before submitting them onchain.
+
+`[Screenshot placeholder: name management landing screen]`
+
+### 12. Add the subname
+
+Create the subname. Hover over the parent name, click the **+** button, enter the subname label, and confirm the new entry.
+
+![plus](/img/enscribe-namemgmt-plusbutton.png)
+
+Staged changes will be shown in the review panel:
+
+![stage](/img/enscribe-namemgmt-stage.png)
+
+### 13. Review the staged change
+
+Review the staged change in the review panel. This is the point where you confirm that the subname is being created under the intended namespace.
+
+![review](/img/enscribe-namemgmt-review.png)
+
+### 14. Confirm and execute
+
+Click **Confirm & Execute** to submit the change. After the transaction is sent, Enscribe moves you through the normal activity flow so you can track the result.

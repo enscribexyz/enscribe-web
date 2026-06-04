@@ -11,7 +11,7 @@ sidebar_position: 3
 # Overview
 
 import DocCardList from '@theme/DocCardList';
-import {useCurrentSidebarCategory} from '@docusaurus/theme-common';
+import {useCurrentSidebarSiblings} from '@docusaurus/plugin-content-docs/client';
 
 Enscribe is a team dashboard for managing ENS-backed namespaces. It adds an organization layer on top of naming workflows, so a team can onboard a namespace, import addresses, manage records, and review recent operations from one place.
 
@@ -36,7 +36,10 @@ Enscribe is a team dashboard for managing ENS-backed namespaces. It adds an orga
 - To onboard a namespace, your wallet must control the ENS name you want to import.
 
 <DocCardList
-  items={useCurrentSidebarCategory().items.filter(
-    (item) => item.label?.toLowerCase() !== 'overview',
+  items={useCurrentSidebarSiblings().filter(
+    (item) => item.label?.toLowerCase() !== 'overview' &&
+      item.label?.toLowerCase() !== 'quick start' &&
+      item.label?.toLowerCase() !== 'classic app' &&
+      item.label?.toLowerCase() !== 'brand',
   )}
 />
