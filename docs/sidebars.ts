@@ -3,29 +3,23 @@ import type {SidebarsConfig} from '@docusaurus/plugin-content-docs';
 const sidebars: SidebarsConfig = {
   docsSidebar: [
     {type: 'doc', id: 'introduction/index', label: 'Quick Start'},
+    {type: 'doc', id: 'enscribe/index', label: 'Overview'},
+    {type: 'doc', id: 'enscribe/creating-organizations', label: 'Creating organizations'},
+    {type: 'doc', id: 'enscribe/org-management', label: 'Org management'},
+    {type: 'doc', id: 'enscribe/onboarding-namespaces', label: 'Onboarding namespaces'},
     {
       type: 'category',
-      label: 'Enscribe',
+      label: 'Manager modes',
       items: [
-        {type: 'doc', id: 'enscribe/index', label: 'Overview'},
-        {type: 'doc', id: 'enscribe/creating-organizations', label: 'Creating organizations'},
-        {type: 'doc', id: 'enscribe/org-management', label: 'Org management'},
-        {type: 'doc', id: 'enscribe/onboarding-namespaces', label: 'Onboarding namespaces'},
-        {
-          type: 'category',
-          label: 'Manager modes',
-          items: [
-            {type: 'doc', id: 'enscribe/manager-modes/index', label: 'Overview'},
-            {type: 'doc', id: 'enscribe/manager-modes/safe', label: 'Safe'},
-            {type: 'doc', id: 'enscribe/manager-modes/enscribe', label: 'Enscribe'},
-            {type: 'doc', id: 'enscribe/manager-modes/smart-session', label: 'Smart Session'},
-          ],
-        },
-        {type: 'doc', id: 'enscribe/adding-contracts-and-addresses', label: 'Adding contracts and addresses'},
-        {type: 'doc', id: 'enscribe/managing-names', label: 'Managing names'},
-        {type: 'doc', id: 'enscribe/viewing-activity', label: 'Viewing activity'},
+        {type: 'doc', id: 'enscribe/manager-modes/index', label: 'Overview'},
+        {type: 'doc', id: 'enscribe/manager-modes/safe', label: 'Safe'},
+        {type: 'doc', id: 'enscribe/manager-modes/enscribe', label: 'Enscribe'},
+        {type: 'doc', id: 'enscribe/manager-modes/smart-session', label: 'Smart Session'},
       ],
     },
+    {type: 'doc', id: 'enscribe/adding-contracts-and-addresses', label: 'Adding contracts and addresses'},
+    {type: 'doc', id: 'enscribe/managing-names', label: 'Managing names'},
+    {type: 'doc', id: 'enscribe/viewing-activity', label: 'Viewing activity'},
     {
       type: 'category',
       label: 'Classic App',
