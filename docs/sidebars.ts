@@ -5,7 +5,7 @@ const sidebars: SidebarsConfig = {
     {type: 'doc', id: 'introduction/index', label: 'Quick Start'},
     {type: 'doc', id: 'enscribe/index', label: 'Overview'},
     {type: 'doc', id: 'enscribe/creating-organizations', label: 'Creating organizations'},
-    {type: 'doc', id: 'enscribe/org-management', label: 'Org management'},
+    {type: 'doc', id: 'enscribe/organization-management', label: 'Organization management'},
     {type: 'doc', id: 'enscribe/onboarding-namespaces', label: 'Onboarding namespaces'},
     {
       type: 'category',
