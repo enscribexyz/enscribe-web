@@ -354,7 +354,7 @@ export default function EnscribeLandingPage() {
                       <div className="w-6 h-6 rounded bg-cyan-500/20 flex items-center justify-center"><img src="/img/logo.svg" alt="" className="w-4 h-4" /></div>
                       <span className="text-xs font-semibold text-white">myprotocol</span>
                     </div>
-                    {["Contracts and Wallets", "Name Management", "Activity", "Org Management"].map((item, i) => (
+                    {["Contracts and Wallets", "Name Management", "Activity", "Organization Management"].map((item, i) => (
                       <div key={item} className={`px-3 py-2 rounded-md text-xs font-medium transition-colors ${i === 0 ? "bg-cyan-500/10 text-cyan-400" : "text-slate-500 hover:text-slate-400"}`}>{item}</div>
                     ))}
                   </div>

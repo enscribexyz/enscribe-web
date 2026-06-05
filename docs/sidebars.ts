@@ -5,7 +5,7 @@ const sidebars: SidebarsConfig = {
     {type: 'doc', id: 'introduction/index', label: 'Quick Start'},
     {type: 'doc', id: 'enscribe/index', label: 'Overview'},
     {type: 'doc', id: 'enscribe/creating-organizations', label: 'Creating organizations'},
-    {type: 'doc', id: 'enscribe/org-management', label: 'Org management'},
+    {type: 'doc', id: 'enscribe/organization-management', label: 'Organization management'},
     {type: 'doc', id: 'enscribe/onboarding-namespaces', label: 'Onboarding namespaces'},
     {
       type: 'category',
@@ -14,7 +14,7 @@ const sidebars: SidebarsConfig = {
         {type: 'doc', id: 'enscribe/manager-modes/index', label: 'Overview'},
         {type: 'doc', id: 'enscribe/manager-modes/safe', label: 'Safe'},
         {type: 'doc', id: 'enscribe/manager-modes/enscribe', label: 'Enscribe'},
-        {type: 'doc', id: 'enscribe/manager-modes/smart-session', label: 'Smart Session'},
+        {type: 'doc', id: 'enscribe/manager-modes/smart-session', label: 'Smart session'},
       ],
     },
     {type: 'doc', id: 'enscribe/adding-contracts-and-addresses', label: 'Adding contracts and addresses'},
