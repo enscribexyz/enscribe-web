@@ -1,0 +1,69 @@
+---
+id: update-organization-member-role
+title: "Update an organization member role"
+description: "Updates a Clerk organization membership role and syncs the result into the platform database."
+sidebar_label: "Update an organization member role"
+hide_title: true
+hide_table_of_contents: true
+api: eJztWFFv2zYQ/isCn1ogs9Oswza/KbGDCk1sV7WLtYFh0BJjs5FIjaTSOIL/++5IKbItJVtTFNmDX2yKvDt+d/fxpGNBDF1q0rsilyxdMKXJ7IjIjClquBRBTHokz2Jq2EgtqeD3dtqJhjJh5IjETEeKZzgPwlMrrD3qnSVM3XhyS81L3RYrnnkKlD0qYk+vRaQ9s2KeYjpPjMeFkfY5S6i5lir1wCJdUM06sJtmUa64WQPigtgtPjKt7d5Xsw1gz6iiKTPoCYoIeABYAAN8OSIcMWbUrGCs2N85VwxcNCpn+460wA/6FkG0YiklvYKYdYa2tVFcLMnmiLA7mmZJud/85O7zzXE6/PD7/eREwPIDmDoMz8K0FcXvQwSK8xMx/uPb+7f6z5VPMFy4IdPmVMZrNLC/fySFYcLgEs2yhEc2Et2vGvEUzZ3l4iuLDGCiccxRlCZjhXQynEFCrmmi2baXVyTXTNkwICOQfNmWfFEtN3zbdg1l5id0Ef31+Qs6bS09qQHB6Lkwkg0oGG7s9PQJpocuUCCPGsDVTArtMJ4cH+Pfbq4u6yy5A4Q+/vxw4llBV5WSqhlNu/oj5veo+y/J25Fuo+dj2X00idvZeixPLjOW/TYKtRGRJ8l/MOFnvLZi0/22LcOfaMJjVxncRv+7/Dp/m3H4/m0jGWOtT6HW0mVLpu1625ETeYr606E/nbwbhcGXQR+mz0fhadDvD4YwHo4m8/PRdIjzn/yLoO9PgtFwPgjDUQhTZ6Ph+UVwNoFh6E8G84vgMphYI8FwMgiH/kUpOtvU+J7kDaR3gAEZuShYtWcci70A5ErvxLhm8orqS6m2QS0ksIyKHVRjuuSiJCKg2QcsblkC+1ngDXK+aZLTz+EVKkzJQO8hlweOHjj6Ihz9tYWjccqF+xKs8ggfXPjN5aVcp9REqwNfD3x9Cb7+1vbCD4CICoAfXvcHar4UNR38lYxdz2grpO0de6RLM96F4qm7hW13N93y+7tbbH+Ib7rKNe7w7X1btcm5StBCo53vS2jOpeIA1nsFIbjjUKOhP6968w4TKL5gnbv1PbTuHsjEeYTar23L6wyvjMl0r9ttVWtuCjSMTN3/ryT2XbO6+f+IB8slYvcK4CHkEIr3bF0115GUNxxdLhvw+VyXGu0ddrnqOT0PQHi0/p6CCDxAwwZGdzDtp4wqpny3bw0EPa9adMsFKwYzbnAORqjBpI8D78YibgNUrgKwSDHjwY+Fca1kuntFoZkxwEOEBJiwEIV1gz+o+t+6rd7tnauua6c/xhheS+tSxd3Ke4AFOkgiB/ZN57hz3HABwSt2zRQTUVswByUX6qgyEWeSC+Mim0H6U2qzW+bP9ekeFW3XS55quZcq6lr906+oyswbdmeQ8FzYThfPQVEe1SvkJ0jiYYW/XnU7VW6OU3uNdtVf26MA+kWBu01VstngNKRY4ZUYDG+p4nSBeYJjHXON4/ihij0alFdhWf5ft0XF3TO1OlYdOIHcvaVJjk8wRDJX925YCH4ASuPC6xlAduK5wZfHitEY+I1hciJnDsEvEzRUm2i82dEbp+FHEcvMk7KzrXo99idn7/Dol5dtqX2LEkW/YYbh1+KVNiS2uNm5giRULHP7niPOKJ5tPEO7Bc+Vj3KAbrVGZLv2OS/wF31qFS8KV0qBZ5W8W3pUo4xrJY3JmQHifwByQLIx
+sidebar_class_name: "patch api-method"
+info_path: api//enscribe-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Update an organization member role"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"patch"}
+  path={"/api/orgs/{orgId}/members/{membershipId}/role"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Updates a Clerk organization membership role and syncs the result into the platform database.
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+>
+  <Translate id="theme.openapi.request.title">Request</Translate>
+</Heading>
+
+<ParamsDetails
+  {...require("./update-organization-member-role.ParamsDetails.json")}
+>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./update-organization-member-role.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./update-organization-member-role.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

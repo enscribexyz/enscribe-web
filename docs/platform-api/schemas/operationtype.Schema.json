@@ -1,0 +1,1 @@
+{"schema":{"type":"string","enum":["assign","batch","delegate","revoke","metadata_change","manager_transfer","multisig_sign","subname_create","subname_delete"],"title":"OperationType"},"schemaType":"response"}

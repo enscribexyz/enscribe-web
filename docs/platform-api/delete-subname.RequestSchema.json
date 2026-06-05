@@ -1,0 +1,1 @@
+{"title":"Body","body":{"required":true,"content":{"application/json":{"schema":{"type":"object","additionalProperties":false,"required":["name"],"properties":{"name":{"type":"string","example":"vault.app.enscribe.eth"}},"title":"DeleteSubnameRequest"}}}}}

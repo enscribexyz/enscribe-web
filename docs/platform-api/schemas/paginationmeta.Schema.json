@@ -1,0 +1,1 @@
+{"schema":{"type":"object","additionalProperties":false,"properties":{"cursor":{"type":"string"},"hasMore":{"type":"boolean"}},"title":"PaginationMeta"},"schemaType":"response"}

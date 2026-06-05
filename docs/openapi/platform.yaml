@@ -1,0 +1,1998 @@
+openapi: 3.1.0
+info:
+  title: Enscribe API
+  version: 1.0.0
+  description: API reference for authenticated Enscribe endpoints.
+servers:
+  - url: /
+    description: Docs origin (proxied to dashboard.enscribe.xyz in production)
+  - url: https://dashboard.enscribe.xyz
+    description: Direct Enscribe host
+tags:
+  - name: Organizations
+    description: Organization setup and configuration endpoints.
+  - name: Invitations
+    description: Organization invitation endpoints.
+  - name: Members
+    description: Organization membership management endpoints.
+  - name: API keys
+    description: Organization API key management endpoints.
+  - name: Namespaces
+    description: Namespace onboarding and configuration endpoints.
+  - name: Contracts
+    description: Contract inventory endpoints.
+  - name: Activity
+    description: Activity feed endpoints for org operations.
+  - name: Metadata
+    description: Metadata and staged subname execution endpoints.
+  - name: Subnames
+    description: Authenticated v2 subname endpoints for platform users and API keys.
+paths:
+  /api/orgs:
+    post:
+      tags:
+        - Organizations
+      operationId: createOrganization
+      summary: Create an organization
+      description: Creates an organization for the signed-in user and stores the corresponding platform record.
+      security:
+        - ClerkSession: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateOrganizationRequest"
+      responses:
+        "200":
+          description: Organization created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateOrganizationApiResponse"
+        "400":
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiEnvelopeErrorResponse"
+        "401":
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiEnvelopeErrorResponse"
+        "409":
+          description: Organization creation conflict
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiEnvelopeErrorResponse"
+        "500":
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiEnvelopeErrorResponse"
+  /api/orgs/{orgId}/config:
+    get:
+      tags:
+        - Organizations
+      operationId: getOrganizationConfig
+      summary: Get organization config
+      description: Returns the organization onboarding state and namespace summaries for the authenticated user.
+      security:
+        - ClerkSession: []
+      parameters:
+        - $ref: "#/components/parameters/OrgIdPathParam"
+      responses:
+        "200":
+          description: Organization config
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrganizationConfigResponse"
+        "401":
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LegacyErrorResponse"
+        "500":
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LegacyErrorResponse"
+  /api/orgs/{orgId}/invitations:
+    post:
+      tags:
+        - Invitations
+      operationId: createOrganizationInvitation
+      summary: Create an organization invitation
+      description: Invites a member to the active organization. The caller must be an org admin.
+      security:
+        - ClerkSession: []
+      parameters:
+        - $ref: "#/components/parameters/OrgIdPathParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateOrganizationInvitationRequest"
+      responses:
+        "200":
+          description: Invitation created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrganizationInvitationApiResponse"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiEnvelopeErrorResponse"
+        "401":
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiEnvelopeErrorResponse"
+        "403":
+          description: Admin role required or org mismatch
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiEnvelopeErrorResponse"
+        "500":
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiEnvelopeErrorResponse"
+  /api/orgs/{orgId}/members/{membershipId}/role:
+    patch:
+      tags:
+        - Members
+      operationId: updateOrganizationMemberRole
+      summary: Update an organization member role
+      description: Updates a Clerk organization membership role and syncs the result into the platform database.
+      security:
+        - ClerkSession: []
+      parameters:
+        - $ref: "#/components/parameters/OrgIdPathParam"
+        - $ref: "#/components/parameters/MembershipIdPathParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateOrganizationMemberRoleRequest"
+      responses:
+        "200":
+          description: Membership updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrganizationMemberRoleApiResponse"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiEnvelopeErrorResponse"
+        "401":
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiEnvelopeErrorResponse"
+        "403":
+          description: Admin role required or org mismatch
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiEnvelopeErrorResponse"
+        "500":
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiEnvelopeErrorResponse"
+  /api/orgs/{orgId}/api-keys:
+    get:
+      tags:
+        - API keys
+      operationId: listOrganizationApiKeys
+      summary: List organization API keys
+      description: Returns all API keys for the organization, or only the keys bound to a specific namespace when the optional filter is provided.
+      security:
+        - ClerkSession: []
+      parameters:
+        - $ref: "#/components/parameters/OrgIdPathParam"
+        - $ref: "#/components/parameters/NamespaceIdQueryParam"
+      responses:
+        "200":
+          description: API keys returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrganizationApiKeyListApiResponse"
+        "401":
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiEnvelopeErrorResponse"
+        "403":
+          description: Admin role required or org mismatch
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiEnvelopeErrorResponse"
+        "500":
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiEnvelopeErrorResponse"
+    post:
+      tags:
+        - API keys
+      operationId: createOrganizationApiKey
+      summary: Create an organization API key
+      description: Creates a new API key for the organization. Keys may be org-wide or bound to a single namespace.
+      security:
+        - ClerkSession: []
+      parameters:
+        - $ref: "#/components/parameters/OrgIdPathParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateOrganizationApiKeyRequest"
+      responses:
+        "200":
+          description: API key created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateOrganizationApiKeyApiResponse"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiEnvelopeErrorResponse"
+        "401":
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiEnvelopeErrorResponse"
+        "403":
+          description: Admin role required or org mismatch
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiEnvelopeErrorResponse"
+        "500":
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiEnvelopeErrorResponse"
+  /api/orgs/{orgId}/api-keys/{keyId}/revoke:
+    post:
+      tags:
+        - API keys
+      operationId: revokeOrganizationApiKey
+      summary: Revoke an organization API key
+      description: Revokes an existing API key for the organization.
+      security:
+        - ClerkSession: []
+      parameters:
+        - $ref: "#/components/parameters/OrgIdPathParam"
+        - $ref: "#/components/parameters/KeyIdPathParam"
+      responses:
+        "200":
+          description: API key revoked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrganizationApiKeyApiResponse"
+        "401":
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiEnvelopeErrorResponse"
+        "403":
+          description: Admin role required or org mismatch
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiEnvelopeErrorResponse"
+        "500":
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiEnvelopeErrorResponse"
+  /api/orgs/{orgId}/namespaces:
+    post:
+      tags:
+        - Namespaces
+      operationId: createNamespace
+      summary: Create a namespace
+      description: Onboards an ENS name into the organization as a managed namespace.
+      security:
+        - ClerkSession: []
+      parameters:
+        - $ref: "#/components/parameters/OrgIdPathParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateNamespaceRequest"
+      responses:
+        "201":
+          description: Namespace created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateNamespaceResponse"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LegacyErrorResponse"
+        "401":
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LegacyErrorResponse"
+        "409":
+          description: Namespace already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LegacyErrorResponse"
+        "500":
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LegacyErrorResponse"
+  /api/orgs/{orgId}/namespaces/{nsId}/config:
+    get:
+      tags:
+        - Namespaces
+      operationId: getNamespaceConfig
+      summary: Get namespace config
+      description: Returns the full stored configuration for a namespace.
+      security:
+        - ClerkSession: []
+      parameters:
+        - $ref: "#/components/parameters/OrgIdPathParam"
+        - $ref: "#/components/parameters/NamespaceIdPathParam"
+      responses:
+        "200":
+          description: Namespace returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Namespace"
+        "401":
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LegacyErrorResponse"
+        "404":
+          description: Namespace not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LegacyErrorResponse"
+        "500":
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LegacyErrorResponse"
+  /api/orgs/{orgId}/namespaces/{nsId}:
+    delete:
+      tags:
+        - Namespaces
+      operationId: deleteNamespace
+      summary: Delete a namespace
+      description: Deletes a namespace and its associated platform data.
+      security:
+        - ClerkSession: []
+      parameters:
+        - $ref: "#/components/parameters/OrgIdPathParam"
+        - $ref: "#/components/parameters/NamespaceIdPathParam"
+      responses:
+        "200":
+          description: Namespace deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteSuccessResponse"
+        "401":
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LegacyErrorResponse"
+        "500":
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LegacyErrorResponse"
+  /api/orgs/{orgId}/contracts:
+    get:
+      tags:
+        - Contracts
+      operationId: listContracts
+      summary: List contracts
+      description: Returns the organization's contract inventory, optionally filtered by namespace, naming status, or limit.
+      security:
+        - ClerkSession: []
+      parameters:
+        - $ref: "#/components/parameters/OrgIdPathParam"
+        - $ref: "#/components/parameters/NamespaceIdQueryParam"
+        - $ref: "#/components/parameters/NamingStatusQueryParam"
+        - $ref: "#/components/parameters/LimitQueryParam"
+      responses:
+        "200":
+          description: Contracts returned
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Contract"
+        "401":
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LegacyErrorResponse"
+        "500":
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LegacyErrorResponse"
+    post:
+      tags:
+        - Contracts
+      operationId: addContract
+      summary: Add a contract
+      description: Adds an address to the organization's inventory and detects the address type server-side.
+      security:
+        - ClerkSession: []
+      parameters:
+        - $ref: "#/components/parameters/OrgIdPathParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddContractRequest"
+      responses:
+        "200":
+          description: Contract added
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Contract"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LegacyErrorResponse"
+        "401":
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LegacyErrorResponse"
+        "409":
+          description: Duplicate address
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LegacyErrorResponse"
+        "500":
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LegacyErrorResponse"
+  /api/orgs/{orgId}/activity:
+    get:
+      tags:
+        - Activity
+      operationId: listOrganizationActivity
+      summary: List organization activity
+      description: Returns naming operations for the organization, optionally scoped to a namespace and limited to a maximum number of rows.
+      security:
+        - ClerkSession: []
+      parameters:
+        - $ref: "#/components/parameters/OrgIdPathParam"
+        - $ref: "#/components/parameters/NamespaceIdQueryParam"
+        - $ref: "#/components/parameters/LimitQueryParam"
+      responses:
+        "200":
+          description: Activity returned
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/NamingOperation"
+        "401":
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LegacyErrorResponse"
+        "500":
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LegacyErrorResponse"
+  /api/orgs/{orgId}/metadata:
+    post:
+      tags:
+        - Metadata
+      operationId: executeMetadataChanges
+      summary: Execute staged metadata changes
+      description: Submits staged subname creations, subname deletions, and record updates for a namespace. The response reflects either direct execution or Safe proposal mode.
+      security:
+        - ClerkSession: []
+      parameters:
+        - $ref: "#/components/parameters/OrgIdPathParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MetadataExecuteRequest"
+      responses:
+        "200":
+          description: All requested operations were accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MetadataExecuteResponse"
+        "207":
+          description: Partial success or mixed outcome across phases
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MetadataExecuteResponse"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LegacyErrorResponse"
+        "401":
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LegacyErrorResponse"
+        "404":
+          description: Organization or namespace not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LegacyErrorResponse"
+        "500":
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LegacyErrorResponse"
+  /api/v2/orgs/{orgId}/subnames:
+    get:
+      tags:
+        - Subnames
+      operationId: listSubnames
+      summary: List subnames
+      description: Returns all subnames under the resolved namespace. Namespace selection can come from an API key binding, a namespace query parameter, or the `x-enscribe-namespace` header.
+      security:
+        - ClerkSession: []
+        - BearerApiKey: []
+      parameters:
+        - $ref: "#/components/parameters/OrgIdPathParam"
+        - $ref: "#/components/parameters/NamespaceSelectorQueryParam"
+        - $ref: "#/components/parameters/NamespaceSelectorHeaderParam"
+      responses:
+        "200":
+          description: Subnames returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubnameListApiResponse"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiEnvelopeErrorResponse"
+        "401":
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiEnvelopeErrorResponse"
+        "403":
+          description: Missing scope or namespace access denied
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiEnvelopeErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiEnvelopeErrorResponse"
+        "500":
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiEnvelopeErrorResponse"
+    post:
+      tags:
+        - Subnames
+      operationId: createSubname
+      summary: Create a subname
+      description: Creates a subname under the resolved namespace. In Safe mode this returns a proposed Safe transaction; in direct mode this returns a confirmed transaction hash.
+      security:
+        - ClerkSession: []
+        - BearerApiKey: []
+      parameters:
+        - $ref: "#/components/parameters/OrgIdPathParam"
+        - $ref: "#/components/parameters/NamespaceSelectorQueryParam"
+        - $ref: "#/components/parameters/NamespaceSelectorHeaderParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSubnameRequest"
+      responses:
+        "200":
+          description: Subname creation accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubnameCreateApiResponse"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiEnvelopeErrorResponse"
+        "401":
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiEnvelopeErrorResponse"
+        "403":
+          description: Missing scope or namespace access denied
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiEnvelopeErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiEnvelopeErrorResponse"
+        "500":
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiEnvelopeErrorResponse"
+        "503":
+          description: Enscribe signer has insufficient gas balance
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiEnvelopeErrorResponse"
+    delete:
+      tags:
+        - Subnames
+      operationId: deleteSubname
+      summary: Delete a subname
+      description: Deletes a subname under the resolved namespace. In Safe mode this returns a proposed Safe transaction; in direct mode this returns a confirmed transaction hash.
+      security:
+        - ClerkSession: []
+        - BearerApiKey: []
+      parameters:
+        - $ref: "#/components/parameters/OrgIdPathParam"
+        - $ref: "#/components/parameters/NamespaceSelectorQueryParam"
+        - $ref: "#/components/parameters/NamespaceSelectorHeaderParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeleteSubnameRequest"
+      responses:
+        "200":
+          description: Subname deletion accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubnameDeleteApiResponse"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiEnvelopeErrorResponse"
+        "401":
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiEnvelopeErrorResponse"
+        "403":
+          description: Missing scope or namespace access denied
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiEnvelopeErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiEnvelopeErrorResponse"
+        "500":
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiEnvelopeErrorResponse"
+components:
+  securitySchemes:
+    ClerkSession:
+      type: apiKey
+      in: cookie
+      name: __session
+      description: Clerk session cookie for authenticated platform users.
+    BearerApiKey:
+      type: http
+      scheme: bearer
+      bearerFormat: API key
+      description: Clerk API key secret created from organization settings.
+  parameters:
+    OrgIdPathParam:
+      name: orgId
+      in: path
+      required: true
+      description: Clerk organization ID.
+      schema:
+        type: string
+      example: org_2xYk0mNQ7zT2n
+    MembershipIdPathParam:
+      name: membershipId
+      in: path
+      required: true
+      description: Clerk membership ID.
+      schema:
+        type: string
+      example: orgmem_2nP8wK4s9hA
+    KeyIdPathParam:
+      name: keyId
+      in: path
+      required: true
+      description: Clerk API key ID.
+      schema:
+        type: string
+      example: key_2rG4n5m8QwZ
+    NamespaceIdPathParam:
+      name: nsId
+      in: path
+      required: true
+      description: Namespace ID.
+      schema:
+        type: string
+        format: uuid
+      example: 2df5d8f7-c2a0-4b50-a5da-66a428c9a1d4
+    NamespaceIdQueryParam:
+      name: namespace
+      in: query
+      required: false
+      description: Namespace ID filter.
+      schema:
+        type: string
+        format: uuid
+      example: 2df5d8f7-c2a0-4b50-a5da-66a428c9a1d4
+    NamespaceSelectorQueryParam:
+      name: namespace
+      in: query
+      required: false
+      description: Namespace slug or namespace ID.
+      schema:
+        type: string
+      example: app-enscribe-eth-mainnet
+    NamespaceSelectorHeaderParam:
+      name: x-enscribe-namespace
+      in: header
+      required: false
+      description: Namespace slug or namespace ID, supplied as a request header.
+      schema:
+        type: string
+      example: app-enscribe-eth-mainnet
+    NamingStatusQueryParam:
+      name: naming_status
+      in: query
+      required: false
+      description: Comma-separated naming status filter.
+      schema:
+        type: string
+      example: unnamed,failed
+    LimitQueryParam:
+      name: limit
+      in: query
+      required: false
+      description: Maximum number of rows to return.
+      schema:
+        type: integer
+        minimum: 1
+      example: 25
+  schemas:
+    ApiErrorObject:
+      type: object
+      additionalProperties: false
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          enum:
+            - UNAUTHORIZED
+            - FORBIDDEN
+            - NOT_FOUND
+            - VALIDATION_ERROR
+            - CONFLICT
+            - RATE_LIMITED
+            - INTERNAL_ERROR
+        message:
+          type: string
+    ApiEnvelopeErrorResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - data
+        - error
+      properties:
+        data:
+          type: "null"
+        error:
+          $ref: "#/components/schemas/ApiErrorObject"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+    LegacyErrorResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - error
+      properties:
+        error:
+          type: string
+    PaginationMeta:
+      type: object
+      additionalProperties: false
+      properties:
+        cursor:
+          type: string
+        hasMore:
+          type: boolean
+    NetworkMode:
+      type: string
+      enum:
+        - mainnet
+        - testnet
+    ManagerMode:
+      type: string
+      enum:
+        - enscribe_only
+        - safe_multisig
+        - enscribe_smart_session
+    ContractType:
+      type: string
+      enum:
+        - contract
+        - wallet
+        - safe_wallet
+    ContractStatus:
+      type: string
+      enum:
+        - pending
+        - named
+        - failed
+    NamingStatus:
+      type: string
+      enum:
+        - unnamed
+        - pending
+        - named
+        - failed
+    MetadataStatus:
+      type: string
+      enum:
+        - none
+        - partial
+        - complete
+    OperationType:
+      type: string
+      enum:
+        - assign
+        - batch
+        - delegate
+        - revoke
+        - metadata_change
+        - manager_transfer
+        - multisig_sign
+        - subname_create
+        - subname_delete
+    OperationStatus:
+      type: string
+      enum:
+        - pending
+        - submitted
+        - confirmed
+        - failed
+        - cancelled
+    ApiScope:
+      type: string
+      enum:
+        - contracts:read
+        - contracts:write
+        - subnames:create
+        - subnames:delete
+        - records:write
+        - admin
+    CreateOrganizationRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          description: Display name for the organization.
+          maxLength: 100
+          example: Example Protocol
+    CreateOrganizationResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - organizationId
+        - slug
+        - name
+      properties:
+        organizationId:
+          type: string
+          example: org_2xYk0mNQ7zT2n
+        slug:
+          type: string
+          example: example-protocol
+        name:
+          type: string
+          example: Example Protocol
+    CreateOrganizationApiResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - data
+        - error
+      properties:
+        data:
+          $ref: "#/components/schemas/CreateOrganizationResponse"
+        error:
+          type: "null"
+    NamespaceSummary:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - slug
+        - ens_name
+        - network_mode
+        - chain_id
+        - onboarding_completed
+      properties:
+        id:
+          type: string
+          format: uuid
+        slug:
+          type: string
+        ens_name:
+          type: string
+        network_mode:
+          $ref: "#/components/schemas/NetworkMode"
+        chain_id:
+          type: integer
+        onboarding_completed:
+          type: boolean
+    OrganizationConfigResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - onboarding_completed
+        - namespaces
+      properties:
+        onboarding_completed:
+          type: boolean
+        namespaces:
+          type: array
+          items:
+            $ref: "#/components/schemas/NamespaceSummary"
+    CreateOrganizationInvitationRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - emailAddress
+        - orgSlug
+      properties:
+        emailAddress:
+          type: string
+          format: email
+          example: teammate@example.com
+        role:
+          type: string
+          description: Clerk organization role.
+          example: org:member
+        orgSlug:
+          type: string
+          example: example-protocol
+    OrganizationInvitationResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - invitationId
+        - emailAddress
+        - redirectUrl
+      properties:
+        invitationId:
+          type: string
+          example: inv_2jh7Lk9t0
+        emailAddress:
+          type: string
+          format: email
+        redirectUrl:
+          type: string
+          format: uri
+    OrganizationInvitationApiResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - data
+        - error
+      properties:
+        data:
+          $ref: "#/components/schemas/OrganizationInvitationResponse"
+        error:
+          type: "null"
+    UpdateOrganizationMemberRoleRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - userId
+        - role
+      properties:
+        userId:
+          type: string
+          example: user_2abcXYZ
+        role:
+          type: string
+          example: org:member
+    OrganizationMemberRoleResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - membershipId
+        - userId
+        - role
+      properties:
+        membershipId:
+          type: string
+        userId:
+          type: string
+        role:
+          type: string
+    OrganizationMemberRoleApiResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - data
+        - error
+      properties:
+        data:
+          $ref: "#/components/schemas/OrganizationMemberRoleResponse"
+        error:
+          type: "null"
+    OrgApiKeySummary:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - name
+        - description
+        - scopes
+        - revoked
+        - expired
+        - expiration
+        - lastUsedAt
+        - createdAt
+        - updatedAt
+        - createdBy
+        - namespaceId
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type:
+            - string
+            - "null"
+        scopes:
+          type: array
+          items:
+            $ref: "#/components/schemas/ApiScope"
+        revoked:
+          type: boolean
+        expired:
+          type: boolean
+        expiration:
+          type:
+            - integer
+            - "null"
+          description: Unix timestamp in seconds.
+        lastUsedAt:
+          type:
+            - integer
+            - "null"
+          description: Unix timestamp in seconds.
+        createdAt:
+          type: integer
+          description: Unix timestamp in seconds.
+        updatedAt:
+          type: integer
+          description: Unix timestamp in seconds.
+        createdBy:
+          type:
+            - string
+            - "null"
+        namespaceId:
+          type:
+            - string
+            - "null"
+          format: uuid
+    CreateOrganizationApiKeyRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+        - scopes
+      properties:
+        name:
+          type: string
+          example: deploy-bot
+        description:
+          type: string
+          example: Key used by the CI deploy bot
+        scopes:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/ApiScope"
+        secondsUntilExpiration:
+          type: integer
+          minimum: 1
+          description: Lifetime in seconds.
+          example: 2592000
+        namespaceId:
+          type: string
+          format: uuid
+    CreateOrganizationApiKeyResult:
+      type: object
+      additionalProperties: false
+      required:
+        - key
+        - secret
+      properties:
+        key:
+          $ref: "#/components/schemas/OrgApiKeySummary"
+        secret:
+          type: string
+          description: Returned only once when the key is created.
+    OrganizationApiKeyListApiResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - data
+        - error
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrgApiKeySummary"
+        error:
+          type: "null"
+    CreateOrganizationApiKeyApiResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - data
+        - error
+      properties:
+        data:
+          $ref: "#/components/schemas/CreateOrganizationApiKeyResult"
+        error:
+          type: "null"
+    OrganizationApiKeyApiResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - data
+        - error
+      properties:
+        data:
+          $ref: "#/components/schemas/OrgApiKeySummary"
+        error:
+          type: "null"
+    Namespace:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - org_id
+        - slug
+        - ens_name
+        - ens_name_node
+        - network_mode
+        - chain_id
+        - manager_mode
+        - manager_address
+        - safe_address
+        - onboarding_completed
+        - created_by
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        org_id:
+          type: string
+        slug:
+          type: string
+        ens_name:
+          type: string
+        ens_name_node:
+          type: string
+        network_mode:
+          $ref: "#/components/schemas/NetworkMode"
+        chain_id:
+          type: integer
+        manager_mode:
+          anyOf:
+            - $ref: "#/components/schemas/ManagerMode"
+            - type: "null"
+        manager_address:
+          type:
+            - string
+            - "null"
+        safe_address:
+          type:
+            - string
+            - "null"
+        onboarding_completed:
+          type: boolean
+        created_by:
+          type:
+            - string
+            - "null"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    CreateNamespaceRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - ensName
+        - ensNameNode
+        - chainId
+        - managerMode
+        - managerAddress
+      properties:
+        ensName:
+          type: string
+          example: app.enscribe.eth
+        ensNameNode:
+          type: string
+          example: 0x6e5f799d6450c3ed0a3c8cb7fbf4d4d4f4ce6fa6cf7c00af7cf83a7e4d4ea001
+        chainId:
+          type: integer
+          example: 1
+        managerMode:
+          $ref: "#/components/schemas/ManagerMode"
+        managerAddress:
+          type: string
+          example: 0x1234567890abcdef1234567890abcdef12345678
+        safeAddress:
+          type: string
+          example: 0xabcdefabcdefabcdefabcdefabcdefabcdefabcd
+    CreateNamespaceResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - namespace
+      properties:
+        namespace:
+          $ref: "#/components/schemas/Namespace"
+    DeleteSuccessResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - success
+      properties:
+        success:
+          type: boolean
+          enum:
+            - true
+    Contract:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - org_id
+        - namespace_id
+        - address
+        - chain_id
+        - type
+        - ens_name
+        - status
+        - added_by
+        - tx_hash
+        - is_ownable
+        - owner_address
+        - metadata_status
+        - naming_status
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        org_id:
+          type: string
+        namespace_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+        address:
+          type: string
+        chain_id:
+          type: integer
+        type:
+          $ref: "#/components/schemas/ContractType"
+        ens_name:
+          type:
+            - string
+            - "null"
+        status:
+          $ref: "#/components/schemas/ContractStatus"
+        added_by:
+          type: string
+        tx_hash:
+          type:
+            - string
+            - "null"
+        is_ownable:
+          type:
+            - boolean
+            - "null"
+        owner_address:
+          type:
+            - string
+            - "null"
+        metadata_status:
+          $ref: "#/components/schemas/MetadataStatus"
+        naming_status:
+          $ref: "#/components/schemas/NamingStatus"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    AddContractRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - address
+        - chainId
+      properties:
+        address:
+          type: string
+          example: 0x1234567890abcdef1234567890abcdef12345678
+        chainId:
+          type: integer
+          example: 1
+        namespaceId:
+          type: string
+          format: uuid
+    MetadataChanges:
+      type: object
+      additionalProperties: false
+      required:
+        - textChanges
+        - addressChanges
+        - contentHashChange
+      properties:
+        textChanges:
+          type: object
+          additionalProperties:
+            type: string
+        addressChanges:
+          type: array
+          items:
+            $ref: "#/components/schemas/AddressRecordChange"
+        contentHashChange:
+          type:
+            - string
+            - "null"
+    AddressRecordChange:
+      type: object
+      additionalProperties: false
+      required:
+        - coinType
+        - address
+      properties:
+        coinType:
+          type: string
+          example: "60"
+        address:
+          type: string
+          example: 0x1234567890abcdef1234567890abcdef12345678
+    MetadataChange:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - org_id
+        - ens_name
+        - node
+        - changes
+        - status
+        - operation_id
+        - performed_by
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        org_id:
+          type: string
+        ens_name:
+          type: string
+        node:
+          type: string
+        changes:
+          $ref: "#/components/schemas/MetadataChanges"
+        status:
+          type: string
+          enum:
+            - pending
+            - confirmed
+            - failed
+        operation_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+        performed_by:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+    NamingOperation:
+      type: object
+      additionalProperties: true
+      required:
+        - id
+        - org_id
+        - namespace_id
+        - contract_id
+        - operation_type
+        - chain_id
+        - ens_name
+        - contract_address
+        - tx_hash
+        - status
+        - performed_by
+        - safe_tx_hash
+        - requires_signatures
+        - current_signatures
+        - required_signatures
+        - cancelled
+        - error_message
+        - metadata
+        - metadata_changes
+        - safe_address
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        org_id:
+          type: string
+        namespace_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+        contract_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+        operation_type:
+          $ref: "#/components/schemas/OperationType"
+        chain_id:
+          type: integer
+        ens_name:
+          type:
+            - string
+            - "null"
+        contract_address:
+          type:
+            - string
+            - "null"
+        tx_hash:
+          type:
+            - string
+            - "null"
+        status:
+          $ref: "#/components/schemas/OperationStatus"
+        performed_by:
+          type: string
+        safe_tx_hash:
+          type:
+            - string
+            - "null"
+        requires_signatures:
+          type: boolean
+        current_signatures:
+          type: integer
+        required_signatures:
+          type: integer
+        cancelled:
+          type: boolean
+        error_message:
+          type:
+            - string
+            - "null"
+        metadata:
+          type:
+            - object
+            - "null"
+          additionalProperties: true
+        metadata_changes:
+          type: array
+          items:
+            $ref: "#/components/schemas/MetadataChange"
+        safe_address:
+          type:
+            - string
+            - "null"
+        created_at:
+          type: string
+          format: date-time
+    MetadataExecuteRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        subnameCreates:
+          type: array
+          items:
+            $ref: "#/components/schemas/StagedSubnameCreate"
+        subnameDeletes:
+          type: array
+          items:
+            $ref: "#/components/schemas/StagedSubnameDelete"
+        changes:
+          type: array
+          items:
+            $ref: "#/components/schemas/MetadataChangeRequest"
+        chainId:
+          type: integer
+        namespaceId:
+          type: string
+          format: uuid
+    StagedSubnameCreate:
+      type: object
+      additionalProperties: false
+      required:
+        - parentName
+        - label
+        - fullName
+      properties:
+        parentName:
+          type: string
+          example: app.enscribe.eth
+        label:
+          type: string
+          example: vault
+        fullName:
+          type: string
+          example: vault.app.enscribe.eth
+    StagedSubnameDelete:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+        - parentName
+        - label
+      properties:
+        name:
+          type: string
+          example: vault.app.enscribe.eth
+        parentName:
+          type: string
+          example: app.enscribe.eth
+        label:
+          type: string
+          example: vault
+    MetadataChangeRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          example: vault.app.enscribe.eth
+        node:
+          type: string
+          description: Optional. The server recomputes the node from the name.
+        changes:
+          type: object
+          additionalProperties:
+            type: string
+          description: Legacy text-record-only format.
+        textChanges:
+          type: object
+          additionalProperties:
+            type: string
+        addressChanges:
+          type: array
+          items:
+            $ref: "#/components/schemas/AddressRecordChange"
+        contentHashChange:
+          type:
+            - string
+            - "null"
+    PhaseResult:
+      type: object
+      additionalProperties: false
+      required:
+        - count
+      properties:
+        operationId:
+          type: string
+        count:
+          type: integer
+        txHash:
+          type: string
+        txHashes:
+          type: array
+          items:
+            type: string
+        safeTxHash:
+          type: string
+        safeTxHashes:
+          type: array
+          items:
+            type: string
+    MetadataPhaseResult:
+      allOf:
+        - $ref: "#/components/schemas/PhaseResult"
+        - type: object
+          additionalProperties: false
+          properties:
+            callCount:
+              type: integer
+    MetadataExecuteResults:
+      type: object
+      additionalProperties: false
+      properties:
+        deletions:
+          $ref: "#/components/schemas/PhaseResult"
+        creations:
+          $ref: "#/components/schemas/PhaseResult"
+        metadata:
+          $ref: "#/components/schemas/MetadataPhaseResult"
+    PhaseError:
+      type: object
+      additionalProperties: false
+      required:
+        - phase
+        - message
+      properties:
+        phase:
+          type: string
+          enum:
+            - deletions
+            - creations
+            - metadata
+        message:
+          type: string
+    MetadataExecuteResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - success
+        - mode
+        - results
+      properties:
+        success:
+          type: boolean
+        mode:
+          type: string
+          enum:
+            - enscribe_only
+            - safe_multisig
+        results:
+          $ref: "#/components/schemas/MetadataExecuteResults"
+        errors:
+          type: array
+          items:
+            $ref: "#/components/schemas/PhaseError"
+    SubnameSummary:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+        - hasLabelhash
+        - level
+      properties:
+        name:
+          type: string
+        hasLabelhash:
+          type: boolean
+        level:
+          type: integer
+    SubnameListData:
+      type: object
+      additionalProperties: false
+      required:
+        - namespace
+        - root
+        - chainId
+        - subnames
+      properties:
+        namespace:
+          type: object
+          additionalProperties: false
+          required:
+            - id
+            - slug
+            - ens_name
+            - chain_id
+            - network_mode
+          properties:
+            id:
+              type: string
+              format: uuid
+            slug:
+              type: string
+            ens_name:
+              type: string
+            chain_id:
+              type: integer
+            network_mode:
+              $ref: "#/components/schemas/NetworkMode"
+        root:
+          type: string
+        chainId:
+          type: integer
+        subnames:
+          type: array
+          items:
+            $ref: "#/components/schemas/SubnameSummary"
+    SubnameListApiResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - data
+        - error
+      properties:
+        data:
+          $ref: "#/components/schemas/SubnameListData"
+        error:
+          type: "null"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+    CreateSubnameRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - parentName
+        - label
+      properties:
+        parentName:
+          type: string
+          example: app.enscribe.eth
+        label:
+          type: string
+          example: vault
+    DeleteSubnameRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          example: vault.app.enscribe.eth
+    SubnameCreateDirectResult:
+      type: object
+      additionalProperties: false
+      required:
+        - mode
+        - txHash
+        - name
+      properties:
+        mode:
+          type: string
+          enum:
+            - enscribe_only
+        txHash:
+          type: string
+        name:
+          type: string
+    SubnameCreateSafeResult:
+      type: object
+      additionalProperties: false
+      required:
+        - mode
+        - safeTxHash
+        - safeAddress
+        - safeAppUrl
+        - requiredConfirmations
+        - currentSignatures
+        - name
+        - message
+      properties:
+        mode:
+          type: string
+          enum:
+            - safe_multisig
+        safeTxHash:
+          type: string
+        safeAddress:
+          type: string
+        safeAppUrl:
+          type: string
+          format: uri
+        requiredConfirmations:
+          type: integer
+        currentSignatures:
+          type: integer
+        name:
+          type: string
+        message:
+          type: string
+    SubnameDeleteDirectResult:
+      type: object
+      additionalProperties: false
+      required:
+        - mode
+        - txHash
+        - name
+      properties:
+        mode:
+          type: string
+          enum:
+            - enscribe_only
+        txHash:
+          type: string
+        name:
+          type: string
+    SubnameDeleteSafeResult:
+      type: object
+      additionalProperties: false
+      required:
+        - mode
+        - safeTxHash
+        - safeAddress
+        - safeAppUrl
+        - requiredConfirmations
+        - currentSignatures
+        - name
+        - message
+      properties:
+        mode:
+          type: string
+          enum:
+            - safe_multisig
+        safeTxHash:
+          type: string
+        safeAddress:
+          type: string
+        safeAppUrl:
+          type: string
+          format: uri
+        requiredConfirmations:
+          type: integer
+        currentSignatures:
+          type: integer
+        name:
+          type: string
+        message:
+          type: string
+    SubnameCreateApiResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - data
+        - error
+      properties:
+        data:
+          oneOf:
+            - $ref: "#/components/schemas/SubnameCreateDirectResult"
+            - $ref: "#/components/schemas/SubnameCreateSafeResult"
+        error:
+          type: "null"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+    SubnameDeleteApiResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - data
+        - error
+      properties:
+        data:
+          oneOf:
+            - $ref: "#/components/schemas/SubnameDeleteDirectResult"
+            - $ref: "#/components/schemas/SubnameDeleteSafeResult"
+        error:
+          type: "null"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"

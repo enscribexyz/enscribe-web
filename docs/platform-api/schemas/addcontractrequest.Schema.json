@@ -1,0 +1,1 @@
+{"schema":{"type":"object","additionalProperties":false,"required":["address","chainId"],"properties":{"address":{"type":"string","example":1.0392900530792776e+47},"chainId":{"type":"integer","example":1},"namespaceId":{"type":"string","format":"uuid"}},"title":"AddContractRequest"},"schemaType":"response"}

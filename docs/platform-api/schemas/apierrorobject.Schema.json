@@ -1,0 +1,1 @@
+{"schema":{"type":"object","additionalProperties":false,"required":["code","message"],"properties":{"code":{"type":"string","enum":["UNAUTHORIZED","FORBIDDEN","NOT_FOUND","VALIDATION_ERROR","CONFLICT","RATE_LIMITED","INTERNAL_ERROR"]},"message":{"type":"string"}},"title":"ApiErrorObject"},"schemaType":"response"}

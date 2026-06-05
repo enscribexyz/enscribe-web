@@ -1,0 +1,1 @@
+{"schema":{"type":"object","additionalProperties":false,"required":["name"],"properties":{"name":{"type":"string","description":"Display name for the organization.","maxLength":100,"example":"Example Protocol"}},"title":"CreateOrganizationRequest"},"schemaType":"response"}

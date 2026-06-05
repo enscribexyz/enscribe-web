@@ -1,0 +1,1 @@
+{"schema":{"type":"object","additionalProperties":false,"required":["mode","txHash","name"],"properties":{"mode":{"type":"string","enum":["enscribe_only"]},"txHash":{"type":"string"},"name":{"type":"string"}},"title":"SubnameCreateDirectResult"},"schemaType":"response"}

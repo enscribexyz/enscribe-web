@@ -7,6 +7,11 @@ const sidebar: SidebarsConfig = {
       id: "enscribe-api",
     },
     {
+      type: "link",
+      label: "Enscribe API",
+      href: "/api/enscribe-api",
+    },
+    {
       type: "category",
       label: "Utility",
       link: {

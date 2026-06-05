@@ -1,0 +1,69 @@
+---
+id: create-organization-invitation
+title: "Create an organization invitation"
+description: "Invites a member to the active organization. The caller must be an org admin."
+sidebar_label: "Create an organization invitation"
+hide_title: true
+hide_table_of_contents: true
+api: eJztWN9v4zYM/lcMPd0BvSTXbTgsT+c2KWasTbo0PeBWFIFiq4laW/IkOWtr5H8fKdmxHbvdbj/QPeSlVSSS+kh+kkXmxNCVJsMbEogNN9RwKTS5PSIyZcr+CiIyJKFi1LCpWlHBn930TpwckYjpUPHU/ho6S0x71EtYsmTKM9Iza+bR0PAN82TNSs+bw0JI4xjEkkwbbwlyAmU8GiVc9MC6ZmGmuHkClDk5BcmHK6a13evmdgtYU6powgxT2ooI+AEwwAZgPyIcMaXUrGGs2G8ZVwxcMipj+8Ct7QY+LxhZBOGaJZQMc2KeUrStjeJiRbZHhD3SJI2L/RbHj18fBsnkl0/P82NBEBvuyLQ5kdET6u8DCKUwTBhcomka89Bu27/XCChvbyyX9yw0AIlGEUdRGl8qzJXhDLy/o7FmdTdvCOjz2I8iBTEDPUB5FWcrTHFaU8ybci1Pj8idVAkFoE6Q1D03jCawxj4XU71QJhgbJXG5bepPo46KPbIX3KFjExouneiwXakUow/gppGhjMkWNA03dvH0FULPXMpAHjUgHimcCRek48EA/3Xw3QF35wRZ998nNqKGosNKSdVOp139J+b5zit7ivZoBEIgGJprFbf3bqi+miOQXBzfrz+dP/xoBvY4fRsLt00krynAFdJgwEu5d9m2WGxkK5sii+O/YMJPeWXFUuj7LtZ8oTGPHGvcRv87zjh/23H49m1DGTGQTyCpdMXaG9v1LqKILEH964l/Pf9pOgt+HY9g+mw6OwlGo/EExpPpfHE2vZ7g/Bf/PBj582A6WYxns+kMpk6nk7Pz4HQOw5k/Hy/Og4tgbo0Ek/l4NvHPC9HbbYWvfc/Xkg7pHWNApi4KVu1vHLW9AGRKN2JcfWDWVF9IVQe1lHA9UtFAdUlXXFi6XCCafcBiw2LYzwJvkfNjm5x+Bh9sYQoGertcHjh64OibcPS7Do7i+9A+FXb8hFeEfTomXMOlH64PfD3w9S34+kP3MxEqFAB++NwfqPlW1HTw1xJr+lRqhG0r4yHp05T34e7U/dwWzts+rzUEsAhXm7LAzvCpTfqtSm4kQw33Lwds3jvw+JHDlQzFfxpTg+/wHhMovmS9x6dnD4RAJspC1H4PvpeG18aketjvd6q1N7Wv/90e3hrdwsq7bBtc4TlycW82D3YRBtd/Zk9lqyCU8oEjf4s+wmKhC43uyrVY9ZyeByA8Wj2fIAI7aBkEUfcwyyeMKqZ8t28FBD0v2w029VYMZtzgrKxl/MvAe7CIuwAVqwAMylFT1qTenZJJs8zWzBigHUICTHjvzKpuxbgs0vZbA93lflnt1yv1WqHeUY1juO+k9b5kdRko8ACUkW/Or4+9QW/Q8hb9VOyOKSbCrriPC9pUCWAiSiUXxiUBD0BCLRGKVLuuQNGAquLEX+x15dUl/q+3vQpOGPZo8CgANwFz5qpcd2hvkLkuynhEh1XHq9HKsycChPN8STWDOnm7xWnItMKeGgw3VHG6xBzA6Y64xnG0u7te9PjdrLj033svts46vSjPnUAKb2ic4S8YIqfLxt0Wr+g1oxEQCWG5tVO3+Yc5Wqh0W99PvE2chh+GLDWvyt7WbsXL6RV+PZZFvy6xnyqi6O/IcPhrccrUBRcbejiXk5iKVWY/JsTZxBOFdGxeM+7QFgP0qjMS9RvHOYF/0aVO8Tx3FxiktZR3Sy9qFGEtpTEpt4D4DwQ/lw0=
+sidebar_class_name: "post api-method"
+info_path: api//enscribe-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Create an organization invitation"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"post"}
+  path={"/api/orgs/{orgId}/invitations"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Invites a member to the active organization. The caller must be an org admin.
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+>
+  <Translate id="theme.openapi.request.title">Request</Translate>
+</Heading>
+
+<ParamsDetails
+  {...require("./create-organization-invitation.ParamsDetails.json")}
+>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./create-organization-invitation.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./create-organization-invitation.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

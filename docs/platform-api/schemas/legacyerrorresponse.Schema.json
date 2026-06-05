@@ -1,0 +1,1 @@
+{"schema":{"type":"object","additionalProperties":false,"required":["error"],"properties":{"error":{"type":"string"}},"title":"LegacyErrorResponse"},"schemaType":"response"}

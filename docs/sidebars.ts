@@ -20,6 +20,7 @@ const sidebars: SidebarsConfig = {
     {type: 'doc', id: 'enscribe/adding-contracts-and-addresses', label: 'Adding contracts and addresses'},
     {type: 'doc', id: 'enscribe/managing-names', label: 'Managing names'},
     {type: 'doc', id: 'enscribe/viewing-activity', label: 'Viewing activity'},
+    {type: 'link', label: 'API', href: '/api/enscribe-api'},
     {
       type: 'category',
       label: 'Classic App',
@@ -79,7 +80,7 @@ const sidebars: SidebarsConfig = {
             'dev-tools/enscribe-sol',
           ],
         },
-        {type: 'link', label: 'API', href: '/api/enscribe-api'},
+        {type: 'link', label: 'API', href: '/classic-api/enscribe-api'},
         {type: 'doc', id: 'faqs', label: 'FAQs'},
       ],
     },

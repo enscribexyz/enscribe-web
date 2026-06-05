@@ -1,0 +1,69 @@
+---
+id: list-contracts
+title: "List contracts"
+description: "Returns the organization's contract inventory, optionally filtered by namespace, naming status, or limit."
+sidebar_label: "List contracts"
+hide_title: true
+hide_table_of_contents: true
+api: eJzVV1Fv2zYQ/iuEXtYCju0YSdv5LUuzIVhbpEn2MBiBQUtnm41EqiSV2DH033dHUpYUy4azhwF7SWTyePfd3XfH4yayfGGi8SS6VNJqHlsTPfQilYPmVih5nUTjKBXG1tu9KAETa5HTPu7egi20NMwugSm94FK8uKO/GBaHQ0zIJ5BW6XWPKXeOp+mazUVqQUPCZmsmeQYm5zH06FPIBTOW28LgAc1SkQnbR8sG4kILu0bAm+gyBf14B8Y4HJOHEoHnXKMi1GqcCGlFiAgLHelFgvDm3C7xW8PPQqDxaGx1Aa+dcrpb7rDrzw5BvISMR+NNZNc56TZWI9qo7EWw4lmeBnvT0ervx2H27fvHl/uRxO0tmK2nFaCfBeh1C9Gcp2YH0rfqHCIJoTsEqBfNlc64xZWiEEkb4CiZnyef5h9P4hEfnpzNzocn/DzhJx8+8LPRp/hXfpqcvcKMOqc+JW/EfamyjJ8YoNRYTHYrvUc40gJeSEKU9OZcpJA0ITqOvBHaV74SWZExWWQz0EzNmVbPyGTFtCN1JywhLSxA4xb6Qcej8WkT4+iciKgxV0oaMHRyNBzSv9dxCRUVjAExlCoGK4WkeZ6nInbcG/wwdGSzC4ZrzclRYSEzjXU1+wExhYMnifAFd6Opqq0gSCEadXgmkSDzRFz3sSWp/4la0CHKfLzkQvpFZwodl2bqcoCxqviB8pBMZ4TMrqZLbqjihJmqZ8lnKYniF+hprReLlifc8ppjrzkXayD+TDm5VeRJ9YOqvuHahjw5phqCr118a3m/FZjUymSRpmR4R2nlUJfWbeh2uVSGaHbgBkkMm0RVL8WlZ+yeQB+Gz2EafiEaK6wrkopZ96SqbGRovyvlNnkHIOQgk3CIipCC6suww/ad11Y2uNAVk4odB5E1iNOQmymVApdNwTapDup8zbcDbkslibHYv6zgqStSqnQLTb+/Bn21323+HtAfehqZOCLA35za2kyjLA6xnsrlxIrMEaJRPUeeKXczjIslrZ8NT3eb20WB44C0oX+xbaN5e4d7eycDrZXebQt+eZeEDde+wILH6ysSvA39O/JOnnd18Gv0RCMe5lX/P33ztbBUNOgtXFdxA9I4GvBcDLBJmsHGzU/lIG7MgAb0UzVlFTol+Z3J8LOKDc5QYiEke4eAVwKvf7xc85RbIlkfGxOKz6C/Wr/gjMhQJiliOv3eXe1e8dLa3IwHg85ju0YxVDhxVsJsqQxS9aGeHe8oCz5s7QmyvlRz8Sesq1kiVupRQKhJ/D2dmnCie2gMu8yfYwiC8boaMAJbaAUG0fSpIH8DrkFfeLs1EPK8GkHo98yJ4Yr/+L0q1Iuba/boEHcBCrsIDHuFZaFhsLlWWXvCNWAt0oYgUdeVc+WwBALdVLBRH1qi7Hsrp/1hf7hjm6xqmON8L+OuKFyFJNbhwOaXK7wRfUhyzFvGXVpC4L/gM4TF+94hm7r6/tMnSUiVhZUlhgrpGiwRdxMqaUKE8sMVoR5Xr5G4+eJyNEXRzWbGDfyl07KkZT/IUpElwtANuGeUbXq/56HQCZRY036SPPG0IDlXgMcbPXbKP4yiNfD9SyTHDPUHUFTviNr6A/3Qws8fb8rEu9vQut+zvQ/KTihVI5LrJpIKoidQSWPMEniCHYFg+b2LOIa8iX/nIiJ/th3/j6t7un4Ku2z3P99Nwgdp70TUbIXePP2ldHWKbza+syK1K3m/tfdEcK+SpuA84JX1D/Wwxu4=
+sidebar_class_name: "get api-method"
+info_path: api//enscribe-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"List contracts"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/api/orgs/{orgId}/contracts"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Returns the organization's contract inventory, optionally filtered by namespace, naming status, or limit.
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+>
+  <Translate id="theme.openapi.request.title">Request</Translate>
+</Heading>
+
+<ParamsDetails
+  {...require("./list-contracts.ParamsDetails.json")}
+>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./list-contracts.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./list-contracts.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      
