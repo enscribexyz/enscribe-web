@@ -14,7 +14,7 @@ const sidebars: SidebarsConfig = {
         {type: 'doc', id: 'enscribe/manager-modes/index', label: 'Overview'},
         {type: 'doc', id: 'enscribe/manager-modes/safe', label: 'Safe'},
         {type: 'doc', id: 'enscribe/manager-modes/enscribe', label: 'Enscribe'},
-        {type: 'doc', id: 'enscribe/manager-modes/smart-session', label: 'Smart Session'},
+        {type: 'doc', id: 'enscribe/manager-modes/smart-session', label: 'Smart session'},
       ],
     },
     {type: 'doc', id: 'enscribe/adding-contracts-and-addresses', label: 'Adding contracts and addresses'},
