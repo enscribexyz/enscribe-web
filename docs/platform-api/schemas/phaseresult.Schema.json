@@ -1,0 +1,1 @@
+{"schema":{"type":"object","additionalProperties":false,"required":["count"],"properties":{"operationId":{"type":"string"},"count":{"type":"integer"},"txHash":{"type":"string"},"txHashes":{"type":"array","items":{"type":"string"}},"safeTxHash":{"type":"string"},"safeTxHashes":{"type":"array","items":{"type":"string"}}},"title":"PhaseResult"},"schemaType":"response"}

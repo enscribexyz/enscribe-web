@@ -1,0 +1,1 @@
+{"schema":{"type":"object","additionalProperties":false,"required":["membershipId","userId","role"],"properties":{"membershipId":{"type":"string"},"userId":{"type":"string"},"role":{"type":"string"}},"title":"OrganizationMemberRoleResponse"},"schemaType":"response"}

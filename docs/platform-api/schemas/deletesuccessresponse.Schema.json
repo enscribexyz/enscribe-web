@@ -1,0 +1,1 @@
+{"schema":{"type":"object","additionalProperties":false,"required":["success"],"properties":{"success":{"type":"boolean","enum":[true]}},"title":"DeleteSuccessResponse"},"schemaType":"response"}

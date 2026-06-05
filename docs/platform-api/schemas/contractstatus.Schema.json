@@ -1,0 +1,1 @@
+{"schema":{"type":"string","enum":["pending","named","failed"],"title":"ContractStatus"},"schemaType":"response"}

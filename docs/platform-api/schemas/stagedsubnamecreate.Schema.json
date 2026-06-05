@@ -1,0 +1,1 @@
+{"schema":{"type":"object","additionalProperties":false,"required":["parentName","label","fullName"],"properties":{"parentName":{"type":"string","example":"app.enscribe.eth"},"label":{"type":"string","example":"vault"},"fullName":{"type":"string","example":"vault.app.enscribe.eth"}},"title":"StagedSubnameCreate"},"schemaType":"response"}

@@ -1,0 +1,1 @@
+{"schema":{"type":"string","enum":["contract","wallet","safe_wallet"],"title":"ContractType"},"schemaType":"response"}

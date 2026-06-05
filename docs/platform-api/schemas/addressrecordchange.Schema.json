@@ -1,0 +1,1 @@
+{"schema":{"type":"object","additionalProperties":false,"required":["coinType","address"],"properties":{"coinType":{"type":"string","example":"60"},"address":{"type":"string","example":1.0392900530792776e+47}},"title":"AddressRecordChange"},"schemaType":"response"}

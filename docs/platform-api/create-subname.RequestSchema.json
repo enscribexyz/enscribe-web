@@ -1,0 +1,1 @@
+{"title":"Body","body":{"required":true,"content":{"application/json":{"schema":{"type":"object","additionalProperties":false,"required":["parentName","label"],"properties":{"parentName":{"type":"string","example":"app.enscribe.eth"},"label":{"type":"string","example":"vault"}},"title":"CreateSubnameRequest"}}}}}

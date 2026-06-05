@@ -1,0 +1,1 @@
+{"title":"Body","body":{"required":true,"content":{"application/json":{"schema":{"type":"object","additionalProperties":false,"required":["userId","role"],"properties":{"userId":{"type":"string","example":"user_2abcXYZ"},"role":{"type":"string","example":"org:member"}},"title":"UpdateOrganizationMemberRoleRequest"}}}}}

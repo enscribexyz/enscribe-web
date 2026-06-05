@@ -1,0 +1,1 @@
+{"schema":{"type":"object","additionalProperties":false,"required":["name","hasLabelhash","level"],"properties":{"name":{"type":"string"},"hasLabelhash":{"type":"boolean"},"level":{"type":"integer"}},"title":"SubnameSummary"},"schemaType":"response"}

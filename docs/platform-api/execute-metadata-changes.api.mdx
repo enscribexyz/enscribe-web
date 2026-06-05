@@ -1,0 +1,69 @@
+---
+id: execute-metadata-changes
+title: "Execute staged metadata changes"
+description: "Submits staged subname creations, subname deletions, and record updates for a namespace. The response reflects either direct execution or Safe proposal mode."
+sidebar_label: "Execute staged metadata changes"
+hide_title: true
+hide_table_of_contents: true
+api: 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
+sidebar_class_name: "post api-method"
+info_path: api//enscribe-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+import Translate from "@docusaurus/Translate";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Execute staged metadata changes"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"post"}
+  path={"/api/orgs/{orgId}/metadata"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Submits staged subname creations, subname deletions, and record updates for a namespace. The response reflects either direct execution or Safe proposal mode.
+
+<Heading
+  id={"request"}
+  as={"h2"}
+  className={"openapi-tabs__heading"}
+>
+  <Translate id="theme.openapi.request.title">Request</Translate>
+</Heading>
+
+<ParamsDetails
+  {...require("./execute-metadata-changes.ParamsDetails.json")}
+>
+  
+</ParamsDetails>
+
+<RequestSchema
+  {...require("./execute-metadata-changes.RequestSchema.json")}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  {...require("./execute-metadata-changes.StatusCodes.json")}
+>
+  
+</StatusCodes>
+
+
+      

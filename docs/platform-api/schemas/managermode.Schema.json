@@ -1,0 +1,1 @@
+{"schema":{"type":"string","enum":["enscribe_only","safe_multisig","enscribe_smart_session"],"title":"ManagerMode"},"schemaType":"response"}

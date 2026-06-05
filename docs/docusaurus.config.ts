@@ -56,8 +56,19 @@ const config = {
        {
          id: 'api',
          path: 'api',
-         routeBasePath: 'api',
+         routeBasePath: 'classic-api',
          sidebarPath: require.resolve('./api-sidebars.ts'),
+         docItemComponent: '@theme/ApiItem',
+         editUrl: 'https://github.com/enscribexyz/enscribe/tree/main/docs',
+       },
+     ],
+     [
+       '@docusaurus/plugin-content-docs',
+       {
+         id: 'platform-api',
+         path: 'platform-api',
+         routeBasePath: 'api',
+         sidebarPath: require.resolve('./platform-api-sidebars.ts'),
          docItemComponent: '@theme/ApiItem',
          editUrl: 'https://github.com/enscribexyz/enscribe/tree/main/docs',
        },
@@ -77,10 +88,20 @@ const config = {
                categoryLinkSource: 'tag',
                sidebarCollapsed: false,
              },
-           },
-         },
-       },
-     ],
+            },
+            platform: {
+              specPath: 'openapi/platform.yaml',
+              outputDir: 'platform-api',
+              showSchemas: true,
+              sidebarOptions: {
+                groupPathsBy: 'tag',
+                categoryLinkSource: 'tag',
+                sidebarCollapsed: false,
+              },
+            },
+          },
+        },
+      ],
   ],
 
   clientModules: [require.resolve('./src/gtagShim.ts')],
@@ -100,37 +121,6 @@ const config = {
       ({
         docs: {
           sidebarPath: require.resolve("./sidebars.js"),
-          sidebarItemsGenerator: async ({
-            defaultSidebarItemsGenerator,
-            ...args
-          }) => {
-            const items = await defaultSidebarItemsGenerator(args)
-            const apiItem = { type: 'link', label: 'API', href: '/api/enscribe-api' }
-
-            const devToolsIndex = items.findIndex(
-              (item) =>
-                item.type === 'category' &&
-                Array.isArray(item.items) &&
-                item.items.some(
-                  (child) =>
-                    typeof child === 'object' &&
-                    child !== null &&
-                    child.type === 'doc' &&
-                    typeof child.id === 'string' &&
-                    child.id.startsWith('dev-tools/'),
-                ),
-            )
-
-            if (devToolsIndex === -1) {
-              return [...items, apiItem]
-            }
-
-            return [
-              ...items.slice(0, devToolsIndex + 1),
-              apiItem,
-              ...items.slice(devToolsIndex + 1),
-            ]
-          },
           editUrl:
             'https://github.com/enscribexyz/enscribe/tree/main/docs',
         },

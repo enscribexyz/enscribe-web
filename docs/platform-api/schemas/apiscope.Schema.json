@@ -1,0 +1,1 @@
+{"schema":{"type":"string","enum":["contracts:read","contracts:write","subnames:create","subnames:delete","records:write","admin"],"title":"ApiScope"},"schemaType":"response"}

@@ -1,0 +1,1 @@
+{"schema":{"type":"object","additionalProperties":false,"required":["organizationId","slug","name"],"properties":{"organizationId":{"type":"string","example":"org_2xYk0mNQ7zT2n"},"slug":{"type":"string","example":"example-protocol"},"name":{"type":"string","example":"Example Protocol"}},"title":"CreateOrganizationResponse"},"schemaType":"response"}

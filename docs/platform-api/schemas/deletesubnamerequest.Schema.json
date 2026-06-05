@@ -1,0 +1,1 @@
+{"schema":{"type":"object","additionalProperties":false,"required":["name"],"properties":{"name":{"type":"string","example":"vault.app.enscribe.eth"}},"title":"DeleteSubnameRequest"},"schemaType":"response"}
