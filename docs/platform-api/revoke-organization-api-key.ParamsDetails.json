@@ -1,1 +1,1 @@
-{"parameters":[{"name":"orgId","in":"path","required":true,"description":"Clerk organization ID.","schema":{"type":"string"},"example":"org_2xYk0mNQ7zT2n"},{"name":"keyId","in":"path","required":true,"description":"Clerk API key ID.","schema":{"type":"string"},"example":"key_2rG4n5m8QwZ"}]}
+{"parameters":[{"name":"orgId","in":"path","required":true,"description":"Organization ID.","schema":{"type":"string"},"example":"org_2xYk0mNQ7zT2n"},{"name":"keyId","in":"path","required":true,"description":"API key ID.","schema":{"type":"string"},"example":"key_2rG4n5m8QwZ"}]}

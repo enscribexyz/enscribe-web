@@ -36,7 +36,7 @@ paths:
       summary: Create an organization
       description: Creates an organization for the signed-in user and stores the corresponding platform record.
       security:
-        - ClerkSession: []
+        - DashboardSession: []
       requestBody:
         required: true
         content:
@@ -82,7 +82,7 @@ paths:
       summary: Get organization config
       description: Returns the organization onboarding state and namespace summaries for the authenticated user.
       security:
-        - ClerkSession: []
+        - DashboardSession: []
       parameters:
         - $ref: "#/components/parameters/OrgIdPathParam"
       responses:
@@ -112,7 +112,7 @@ paths:
       summary: Create an organization invitation
       description: Invites a member to the active organization. The caller must be an org admin.
       security:
-        - ClerkSession: []
+        - DashboardSession: []
       parameters:
         - $ref: "#/components/parameters/OrgIdPathParam"
       requestBody:
@@ -158,9 +158,9 @@ paths:
         - Members
       operationId: updateOrganizationMemberRole
       summary: Update an organization member role
-      description: Updates a Clerk organization membership role and syncs the result into the platform database.
+      description: Updates an organization membership role and syncs the result into the platform database.
       security:
-        - ClerkSession: []
+        - DashboardSession: []
       parameters:
         - $ref: "#/components/parameters/OrgIdPathParam"
         - $ref: "#/components/parameters/MembershipIdPathParam"
@@ -209,7 +209,7 @@ paths:
       summary: List organization API keys
       description: Returns all API keys for the organization, or only the keys bound to a specific namespace when the optional filter is provided.
       security:
-        - ClerkSession: []
+        - DashboardSession: []
       parameters:
         - $ref: "#/components/parameters/OrgIdPathParam"
         - $ref: "#/components/parameters/NamespaceIdQueryParam"
@@ -245,7 +245,7 @@ paths:
       summary: Create an organization API key
       description: Creates a new API key for the organization. Keys may be org-wide or bound to a single namespace.
       security:
-        - ClerkSession: []
+        - DashboardSession: []
       parameters:
         - $ref: "#/components/parameters/OrgIdPathParam"
       requestBody:
@@ -293,7 +293,7 @@ paths:
       summary: Revoke an organization API key
       description: Revokes an existing API key for the organization.
       security:
-        - ClerkSession: []
+        - DashboardSession: []
       parameters:
         - $ref: "#/components/parameters/OrgIdPathParam"
         - $ref: "#/components/parameters/KeyIdPathParam"
@@ -330,7 +330,7 @@ paths:
       summary: Create a namespace
       description: Onboards an ENS name into the organization as a managed namespace.
       security:
-        - ClerkSession: []
+        - DashboardSession: []
       parameters:
         - $ref: "#/components/parameters/OrgIdPathParam"
       requestBody:
@@ -378,7 +378,7 @@ paths:
       summary: Get namespace config
       description: Returns the full stored configuration for a namespace.
       security:
-        - ClerkSession: []
+        - DashboardSession: []
       parameters:
         - $ref: "#/components/parameters/OrgIdPathParam"
         - $ref: "#/components/parameters/NamespaceIdPathParam"
@@ -415,7 +415,7 @@ paths:
       summary: Delete a namespace
       description: Deletes a namespace and its associated platform data.
       security:
-        - ClerkSession: []
+        - DashboardSession: []
       parameters:
         - $ref: "#/components/parameters/OrgIdPathParam"
         - $ref: "#/components/parameters/NamespaceIdPathParam"
@@ -446,7 +446,7 @@ paths:
       summary: List contracts
       description: Returns the organization's contract inventory, optionally filtered by namespace, naming status, or limit.
       security:
-        - ClerkSession: []
+        - DashboardSession: []
       parameters:
         - $ref: "#/components/parameters/OrgIdPathParam"
         - $ref: "#/components/parameters/NamespaceIdQueryParam"
@@ -480,7 +480,7 @@ paths:
       summary: Add a contract
       description: Adds an address to the organization's inventory and detects the address type server-side.
       security:
-        - ClerkSession: []
+        - DashboardSession: []
       parameters:
         - $ref: "#/components/parameters/OrgIdPathParam"
       requestBody:
@@ -528,7 +528,7 @@ paths:
       summary: List organization activity
       description: Returns naming operations for the organization, optionally scoped to a namespace and limited to a maximum number of rows.
       security:
-        - ClerkSession: []
+        - DashboardSession: []
       parameters:
         - $ref: "#/components/parameters/OrgIdPathParam"
         - $ref: "#/components/parameters/NamespaceIdQueryParam"
@@ -562,7 +562,7 @@ paths:
       summary: Execute staged metadata changes
       description: Submits staged subname creations, subname deletions, and record updates for a namespace. The response reflects either direct execution or Safe proposal mode.
       security:
-        - ClerkSession: []
+        - DashboardSession: []
       parameters:
         - $ref: "#/components/parameters/OrgIdPathParam"
       requestBody:
@@ -616,7 +616,6 @@ paths:
       summary: List subnames
       description: Returns all subnames under the resolved namespace. Namespace selection can come from an API key binding, a namespace query parameter, or the `x-enscribe-namespace` header.
       security:
-        - ClerkSession: []
         - BearerApiKey: []
       parameters:
         - $ref: "#/components/parameters/OrgIdPathParam"
@@ -666,7 +665,6 @@ paths:
       summary: Create a subname
       description: Creates a subname under the resolved namespace. In Safe mode this returns a proposed Safe transaction; in direct mode this returns a confirmed transaction hash.
       security:
-        - ClerkSession: []
         - BearerApiKey: []
       parameters:
         - $ref: "#/components/parameters/OrgIdPathParam"
@@ -728,7 +726,6 @@ paths:
       summary: Delete a subname
       description: Deletes a subname under the resolved namespace. In Safe mode this returns a proposed Safe transaction; in direct mode this returns a confirmed transaction hash.
       security:
-        - ClerkSession: []
         - BearerApiKey: []
       parameters:
         - $ref: "#/components/parameters/OrgIdPathParam"
@@ -779,22 +776,22 @@ paths:
                 $ref: "#/components/schemas/ApiEnvelopeErrorResponse"
 components:
   securitySchemes:
-    ClerkSession:
+    DashboardSession:
       type: apiKey
       in: cookie
       name: __session
-      description: Clerk session cookie for authenticated platform users.
+      description: Signed-in dashboard session.
     BearerApiKey:
       type: http
       scheme: bearer
       bearerFormat: API key
-      description: Clerk API key secret created from organization settings.
+      description: Enscribe API key created from organization settings.
   parameters:
     OrgIdPathParam:
       name: orgId
       in: path
       required: true
-      description: Clerk organization ID.
+      description: Organization ID.
       schema:
         type: string
       example: org_2xYk0mNQ7zT2n
@@ -802,7 +799,7 @@ components:
       name: membershipId
       in: path
       required: true
-      description: Clerk membership ID.
+      description: Membership ID.
       schema:
         type: string
       example: orgmem_2nP8wK4s9hA
@@ -810,7 +807,7 @@ components:
       name: keyId
       in: path
       required: true
-      description: Clerk API key ID.
+      description: API key ID.
       schema:
         type: string
       example: key_2rG4n5m8QwZ
@@ -1068,7 +1065,7 @@ components:
           example: teammate@example.com
         role:
           type: string
-          description: Clerk organization role.
+          description: Organization role.
           example: org:member
         orgSlug:
           type: string
