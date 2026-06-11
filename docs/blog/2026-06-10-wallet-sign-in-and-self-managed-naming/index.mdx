@@ -5,9 +5,10 @@ description: The Enscribe dashboard now supports Sign-In with Ethereum. Sign up 
 authors: [nischal]
 tags: [product-updates, smart-contract-identity]
 keywords: [Enscribe, Sign-In with Ethereum, SIWE, wallet sign-in, ENS naming, self custody, smart contract naming, onchain identity]
+image: ./cover.png
 ---
 
-{/* ![Sign in with Ethereum and self-managed naming cover image](./cover.jpg) */}
+![Sign in with Ethereum and self-managed naming cover image](./cover.png)
 
 The Enscribe dashboard now supports Sign-In with Ethereum (SIWE). You can create an account and log in with your wallet, without an email address. Alongside this, we added a self-managed naming mode for wallet accounts, where you keep control of your ENS name and sign every change yourself.
 
@@ -45,19 +46,17 @@ To sign up or log in with a wallet:
 
 Your wallet address becomes your account. Because the wallet is the login, your session is tied to it. If you disconnect the wallet, the dashboard signs you out so you are never left in a half-connected state.
 
-Behind the scene we have used [Clerk's](https://clerk.com/docs/guides/configure/auth-strategies/sign-up-sign-in-options#web3-authentication) inbuilt support for SIWE.
-
 ## Self-managed naming
 
 Wallet accounts can pick a new manager mode for a namespace: **Self Managed**.
 
-A quick recap on what a manager mode does. When you set up a namespace, you choose who holds the manager rights for the ENS name, and therefore who executes naming changes:
+A quick recap on what a manager mode does, and what it does not. **Whichever mode you choose, you always own your ENS name.** Ownership stays in your wallet and is never transferred to Enscribe or a Safe, so you remain in full control of the name itself. The only thing a manager mode decides is who holds the *manager* role: the role that executes naming changes, such as creating a subname or updating a record.
 
 - **Enscribe.** You transfer manager rights to Enscribe, and Enscribe executes naming changes for you.
 - **Safe multisig.** A Safe holds manager rights, and its signers approve each change.
-- **Self Managed.** Your wallet stays both the owner and the manager. Nothing is transferred to Enscribe or a Safe.
+- **Self Managed.** Your wallet keeps both the owner and the manager role. Nothing is delegated, so you sign every change yourself.
 
-In self-managed mode, you sign every change yourself. Creating a subname, deleting one, or updating records and metadata each happen as transactions from your own wallet. This suits people who want to keep full custody of their name.
+In self-managed mode, those changes — creating a subname, deleting one, or updating records and metadata — each happen as transactions from your own wallet. This suits people who want to keep full custody and sign every change directly, rather than delegating execution to Enscribe or a Safe.
 
 ![Namespace onboarding "manager method" step with the Self Managed option](self-managed-mode.png)
 
